@@ -48,6 +48,8 @@
  * INCLUDES
  */
 
+#include "ECCROMCC26XX.h"
+
 #include <string.h>
 #include <stdint.h>
 
@@ -55,7 +57,6 @@
 #include <ti/sysbios/knl/Semaphore.h>
 #include <ti/sysbios/family/arm/m3/Hwi.h>
 
-#include "ecc/ECCROMCC26XX.h"
 
 /*********************************************************************
  * CONSTANTS

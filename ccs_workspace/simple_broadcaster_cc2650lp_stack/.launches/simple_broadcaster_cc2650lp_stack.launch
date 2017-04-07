@@ -5,6 +5,7 @@
 <stringAttribute key="com.ti.ccstudio.debug.debugModel.ATTR_PROGRAM.Texas Instruments XDS110 USB Debug Probe/Cortex_M3_0" value="${build_artifact:simple_broadcaster_cc2650lp_stack}"/>
 <stringAttribute key="com.ti.ccstudio.debug.debugModel.ATTR_PROJECT.Texas Instruments XDS110 USB Debug Probe/Cortex_M3_0" value="simple_broadcaster_cc2650lp_stack"/>
 <stringAttribute key="com.ti.ccstudio.debug.debugModel.ATTR_TARGET_CONFIG" value="${target_config_active_default:simple_broadcaster_cc2650lp_stack}"/>
+<stringAttribute key="com.ti.ccstudio.debug.debugModel.MRU_PROGRAM.Texas Instruments XDS110 USB Debug Probe/Cortex_M3_0" value="C:/Users\dupli\project\qc14\ccs_workspace\simple_broadcaster_cc2650lp_stack\FlashROM\simple_broadcaster_cc2650lp_stack.out"/>
 <listAttribute key="org.eclipse.debug.core.MAPPED_RESOURCE_PATHS">
 <listEntry value="/simple_broadcaster_cc2650lp_stack"/>
 </listAttribute>

@@ -31,28 +31,20 @@
 			<value>file:/C:/ti/tirtos_cc13xx_cc26xx_2_20_01_08/products/cc26xxware_2_24_02_17393</value>
 		</variable>
 		<variable>
-			<name>ORG_PROJ_DIR</name>
-			<value>$%7BPARENT-2-ORIGINAL_PROJECT_ROOT%7D/iar/stack</value>
-		</variable>
-		<variable>
-			<name>ORIGINAL_PROJECT_ROOT</name>
-			<value>$%7BPARENT-1-PARENT_LOC%7D/ble_sdk_2_02_01_18/examples/cc2650lp/simple_broadcaster/ccs/app</value>
-		</variable>
-		<variable>
 			<name>ROM</name>
-			<value>$%7BPARENT-5-ORG_PROJ_DIR%7D/src/rom</value>
+			<value>$%7BPARENT-1-WORKSPACE_LOC%7D/ble_sdk_2_02_01_18/src/rom</value>
 		</variable>
 		<variable>
 			<name>SRC_BLE_CORE</name>
-			<value>$%7BPARENT-5-ORG_PROJ_DIR%7D/src</value>
+			<value>$%7BPARENT-1-WORKSPACE_LOC%7D/ble_sdk_2_02_01_18/src</value>
 		</variable>
 		<variable>
 			<name>SRC_COMMON</name>
-			<value>$%7BPARENT-5-ORG_PROJ_DIR%7D/src/components</value>
+			<value>$%7BPARENT-1-WORKSPACE_LOC%7D/ble_sdk_2_02_01_18/src/components</value>
 		</variable>
 		<variable>
 			<name>SRC_EX</name>
-			<value>$%7BPARENT-5-ORG_PROJ_DIR%7D/src</value>
+			<value>$%7BPARENT-1-WORKSPACE_LOC%7D/ble_sdk_2_02_01_18/src</value>
 		</variable>
 		<variable>
 			<name>TI_RTOS_DRIVERS_BASE</name>
@@ -60,7 +52,7 @@
 		</variable>
 		<variable>
 			<name>TOOLS_BLE</name>
-			<value>$%7BPARENT-5-ORG_PROJ_DIR%7D/tools</value>
+			<value>$%7BPARENT-1-WORKSPACE_LOC%7D/ble_sdk_2_02_01_18/tools</value>
 		</variable>
 	</variableList>
 </projectDescription>
