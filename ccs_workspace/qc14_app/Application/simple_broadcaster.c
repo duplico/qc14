@@ -143,28 +143,22 @@ Char sbbTaskStack[SBB_TASK_STACK_SIZE];
 static uint8 scanRspData[] =
 {
   // complete name
-  0x15,   // length of this data
+  15,   // length of this data
   GAP_ADTYPE_LOCAL_NAME_COMPLETE,
-  'S',
-  'i',
-  'm',
-  'p',
-  'l',
+  'G',
   'e',
-  'B',
-  'L',
-  'E',
-  'B',
-  'r',
   'o',
-  'a',
-  'd',
-  'c',
-  'a',
-  's',
-  't',
-  'e',
   'r',
+  'g',
+  'e',
+  '\'',
+  's',
+  ' ',
+  'Q',
+  'C',
+  'u',
+  'b',
+  'e',
 
   // Tx power level
   0x02,   // length of this data
