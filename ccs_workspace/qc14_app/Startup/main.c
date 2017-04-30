@@ -44,23 +44,6 @@ bleUserCfg_t user0Cfg = BLE_USER_CFG;
  * GLOBAL VARIABLES
  */
 
-#ifdef CC1350_LAUNCHXL
-#ifdef POWER_SAVING
-// Power Notify Object for wake-up callbacks
-Power_NotifyObj rFSwitchPowerNotifyObj;
-static uint8_t rFSwitchNotifyCb(uint8_t eventType, uint32_t *eventArg,
-                                uint32_t *clientArg);
-#endif //POWER_SAVING
-
-PIN_State  radCtrlState;
-PIN_Config radCtrlCfg[] = 
-{
-  Board_DIO1_RFSW   | PIN_GPIO_OUTPUT_EN | PIN_GPIO_LOW  | PIN_PUSHPULL | PIN_DRVSTR_MAX, /* RF SW Switch defaults to 2.4GHz path*/
-  Board_DIO30_SWPWR | PIN_GPIO_OUTPUT_EN | PIN_GPIO_HIGH | PIN_PUSHPULL | PIN_DRVSTR_MAX, /* Power to the RF Switch */
-  PIN_TERMINATE
-};
-PIN_Handle radCtrlHandle;
-#endif //CC1350_LAUNCHXL
 
 /*******************************************************************************
  * EXTERNS
