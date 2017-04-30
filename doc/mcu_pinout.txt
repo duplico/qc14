@@ -1,0 +1,74 @@
+// PINOUT:
+/*
+ * DIO0: P2_TX
+ * DIO1: P2_RX
+ * DIO2: P1_RX
+ * DIO3: P1_TX
+ * DIO4:
+ * DIO5:
+ * DIO6:
+ * DIO7: SW_CW
+ * DIO8: SW_CLICK
+ * DIO9: SW_CCW
+ * DIO10: LED_GSCLK
+ * DIO11: LED_DIN
+ * DIO12: LED_DOUT
+ * DIO13: LED_CLK
+ * DIO14: LED_STE
+ * DIO15: MP0_CLR
+ * DIO16: MP_CTR_CLK
+ * DIO17: MP1_OUT
+ * DIO18: MP0_OUT
+ * DIO19: MP1_CLR
+ * DIO20: FLASH_TX
+ * DIO21: FLASH_CLK
+ * DIO22: FLASH_NHOLD
+ * DIO23: FLASH_CS
+ * DIO24: FLASH_RX
+ * DIO25: FLASH_NWP
+ * DIO26: P4_RX
+ * DIO27: P4_TX
+ * DIO28: P3_TX
+ * DIO29: P3_RX
+ * DIO30: LIGHT
+ * DIO31:
+ *
+ */
+ 
+
+// Physical mating ports:
+
+#define P1_TX       IOID_3
+#define P1_RX       IOID_2
+#define P2_TX       IOID_0
+#define P2_RX       IOID_1
+#define P3_TX       IOID_28
+#define P3_RX       IOID_29
+#define P4_TX       IOID_27
+#define P4_RX       IOID_26
+
+// Rocker switch:
+
+#define SW_L        IOID_7
+#define SW_R        IOID_9
+#define SW_CLICK    IOID_8
+
+// LED controller:
+
+#define LED_GSCLK   IOID_10
+#define LED_DIN     IOID_11
+#define LED_DOUT    IOID_12
+#define LED_CLK     IOID_13
+#define LED_STE     IOID_14
+
+// LED multiplexing:
+
+#define MP_CTR_CLK  IOID_16
+#define MP0_OUT     IOID_18
+#define MP0_CLR     IOID_15
+#define MP1_OUT     IOID_17
+#define MP1_CLR     IOID_19
+
+// Light sensor:
+
+#define LIGHT       IOID_30

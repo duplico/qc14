@@ -7,3 +7,6 @@ ccs_workspace/qc14_app/FlashROM
 ccs_workspace/simple_broadcaster_cc2650lp_stack/FlashROM
 .launches
 ccs_workspace/qc14_app/.config/
+ccs_workspace/qc14_app/TOOLS/src/makefile.libs
+ccs_workspace/qc14_app/TOOLS/src/sysbios/makefile
+ccs_workspace/qc14_app/TOOLS/src/sysbios/rom_sysbios.aem3
