@@ -189,7 +189,7 @@ static uint8 advertData[] =
 #else
 
   // 25 byte beacon advertisement data
-  // Preamble: Company ID - 0x000D for TI, refer to https://www.bluetooth.org/en-us/specification/assigned-numbers/company-identifiers
+  // Preamble: Company ID - 0x04D3 for Queercon, refer to https://www.bluetooth.org/en-us/specification/assigned-numbers/company-identifiers
   // Data type: Beacon (0x02)
   // Data length: 0x15
   // UUID: 00000000-0000-0000-0000-000000000000 (null beacon)
@@ -198,8 +198,8 @@ static uint8 advertData[] =
   // Measured Power: -59 (0xc5)
   0x1A, // length of this data including the data type byte
   GAP_ADTYPE_MANUFACTURER_SPECIFIC, // manufacturer specific adv data type
-  0x0D, // Company ID - Fixed
-  0x00, // Company ID - Fixed
+  0xD3, // Company ID - Fixed
+  0x04, // Company ID - Fixed
   0x02, // Data Type - Fixed
   0x15, // Data Length - Fixed
   0x00, // UUID - Variable based on different use cases/applications
@@ -275,32 +275,17 @@ void SimpleBLEBroadcaster_createTask(void)
 
   Task_construct(&sbbTask, SimpleBLEBroadcaster_taskFxn, &taskParams, NULL);
 }
-
-/*********************************************************************
- * @fn      SimpleBLEBroadcaster_init
- *
- * @brief   Initialization function for the Simple BLE Broadcaster App
- *          Task. This is called during initialization and should contain
- *          any application specific initialization (ie. hardware
- *          initialization/setup, table initialization, power up
- *          notification ...).
- *
- * @param   none
- *
- * @return  none
+/*
+ * Initialize the "Simple Broadcaster" - the BLE portion of this code.
  */
 static void SimpleBLEBroadcaster_init(void)
 {
-	// ******************************************************************
+  // ******************************************************************
   // N0 STACK API CALLS CAN OCCUR BEFORE THIS CALL TO ICall_registerApp
   // ******************************************************************
   // Register the current thread as an ICall dispatcher application
   // so that the application can send and receive messages.
   ICall_registerApp(&selfEntity, &sem);
-
-  // Hard code the DB Address till CC2650 board gets its own IEEE address
-  //uint8 bdAddress[B_ADDR_LEN] = { 0x33, 0x33, 0x33, 0x33, 0x33, 0x33 };
-  //HCI_EXT_SetBDADDRCmd(bdAddress);
 
 #ifdef USE_RCOSC
   RCOSC_enableCalibration();
