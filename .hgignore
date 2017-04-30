@@ -6,3 +6,4 @@ ccs_workspace/RemoteSystemsTempFiles
 ccs_workspace/qc14_app/FlashROM
 ccs_workspace/simple_broadcaster_cc2650lp_stack/FlashROM
 .launches
+ccs_workspace/qc14_app/.config/
