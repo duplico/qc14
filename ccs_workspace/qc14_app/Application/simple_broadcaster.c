@@ -182,8 +182,8 @@ static uint8 advertData[] =
   // three-byte broadcast of the data "1 2 3"
   0x04,   // length of this data including the data type byte
   GAP_ADTYPE_MANUFACTURER_SPECIFIC, // manufacturer specific adv data type
-  1,
-  2,
+  0xD3, // Company ID - Fixed
+  0x04, // Company ID - Fixed
   3
 
 #else

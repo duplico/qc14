@@ -80,77 +80,51 @@ extern const PIN_Config BoardGpioInitTable[];
  *      <board signal alias>        <pin mapping>
  */
 
-/* Discrete outputs */
-#define Board_RLED                  IOID_6
-#define Board_GLED                  IOID_7
-#define Board_LED_ON                1
-#define Board_LED_OFF               0
+// Physical mating ports:
 
-/* Discrete inputs */
-#define Board_BTN1                  IOID_13
-#define Board_BTN2                  IOID_14
+#define P1_TX       IOID_3
+#define P1_RX       IOID_2
+#define P2_TX       IOID_0
+#define P2_RX       IOID_1
+#define P3_TX       IOID_28
+#define P3_RX       IOID_29
+#define P4_TX       IOID_27
+#define P4_RX       IOID_26
 
-/* UART Board */
-#define Board_UART_RX               IOID_2          /* RXD  */
-#define Board_UART_TX               IOID_3          /* TXD  */
-#define Board_UART_CTS              IOID_19         /* CTS  */
-#define Board_UART_RTS              IOID_18         /* RTS */
+// Rocker switch:
 
-/* SPI Board */
-#define Board_SPI0_MISO             IOID_8          /* RF1.20 */
-#define Board_SPI0_MOSI             IOID_9          /* RF1.18 */
-#define Board_SPI0_CLK              IOID_10         /* RF1.16 */
-#define Board_SPI0_CSN              PIN_UNASSIGNED
-#define Board_SPI1_MISO             PIN_UNASSIGNED
-#define Board_SPI1_MOSI             PIN_UNASSIGNED
-#define Board_SPI1_CLK              PIN_UNASSIGNED
-#define Board_SPI1_CSN              PIN_UNASSIGNED
+#define SW_L        IOID_7
+#define SW_R        IOID_9
+#define SW_CLICK    IOID_8
 
-/* I2C */
-#define Board_I2C0_SCL0             IOID_4
-#define Board_I2C0_SDA0             IOID_5
+// LED controller:
 
-/* SPI */
-#define Board_SPI_FLASH_CS          IOID_20
-#define Board_FLASH_CS_ON           0
-#define Board_FLASH_CS_OFF          1
+#define LED_GSCLK   IOID_10
+#define LED_DIN     IOID_11
+#define LED_DOUT    IOID_12
+#define LED_CLK     IOID_13
+#define LED_STE     IOID_14
 
-/* Booster pack generic */
-#define Board_DIO0                  IOID_0
-#define Board_DIO1_RFSW             IOID_1
-#define Board_DIO12                 IOID_12
-#define Board_DIO15                 IOID_15
-#define Board_DIO16_TDO             IOID_16
-#define Board_DIO17_TDI             IOID_17
-#define Board_DIO21                 IOID_21
-#define Board_DIO22                 IOID_22
+// LED multiplexing:
 
-#define Board_DIO23_ANALOG          IOID_23
-#define Board_DIO24_ANALOG          IOID_24
-#define Board_DIO25_ANALOG          IOID_25
-#define Board_DIO26_ANALOG          IOID_26
-#define Board_DIO27_ANALOG          IOID_27
-#define Board_DIO28_ANALOG          IOID_28
-#define Board_DIO29_ANALOG          IOID_29
-#define Board_DIO30_ANALOG          IOID_30
+#define MP_CTR_CLK  IOID_16
+#define MP0_OUT     IOID_18
+#define MP0_CLR     IOID_15
+#define MP1_OUT     IOID_17
+#define MP1_CLR     IOID_19
 
-/* Booster pack LCD (430BOOST - Sharp96 Rev 1.1) */
-#define Board_LCD_CS                IOID_24 // SPI chip select
-#define Board_LCD_EXTCOMIN          IOID_12 // External COM inversion
-#define Board_LCD_ENABLE            IOID_22 // LCD enable
-#define Board_LCD_POWER             IOID_23 // LCD power control
-#define Board_LCD_CS_ON             1
-#define Board_LCD_CS_OFF            0
+// Light sensor:
 
-/* PWM outputs */
-#define Board_PWMPIN0                       Board_RLED
-#define Board_PWMPIN1                       Board_GLED
-#define Board_PWMPIN2                       PIN_UNASSIGNED
-#define Board_PWMPIN3                       PIN_UNASSIGNED
-#define Board_PWMPIN4                       PIN_UNASSIGNED
-#define Board_PWMPIN5                       PIN_UNASSIGNED
-#define Board_PWMPIN6                       PIN_UNASSIGNED
-#define Board_PWMPIN7                       PIN_UNASSIGNED
+#define LIGHT       IOID_30
+
+// External flash chip:
+
+#define FLASH_TX    IOID_20
+#define FLASH_RX    IOID_24
+#define FLASH_CLK   IOID_21
+#define FLASH_CS    IOID_23
+#define FLASH_NHOLD IOID_22
+#define FLASH_NWP   IOID_25
 
 /** ============================================================================
  *  Instance identifiers
@@ -332,16 +306,7 @@ typedef enum QC14BOARD_ADCName {
 #endif /* __QC14BOARD_BOARD_H__ */
 
 
-
-
-
 /* These #defines allow us to reuse TI-RTOS across other device families */
-#define     Board_LED0              Board_RLED
-#define     Board_LED1              Board_GLED
-#define     Board_LED2              Board_LED0
-
-#define     Board_BUTTON0           Board_BTN1
-#define     Board_BUTTON1           Board_BTN2
 
 #define     Board_UART0             Board_UART
 #define     Board_AES0              Board_AES
