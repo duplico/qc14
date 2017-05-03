@@ -41,17 +41,37 @@
 #endif
 
 const PIN_Config BoardGpioInitTable[] = {
+    // Mating pins: none connected, all outputs pulled low
+    P1_TX           | PIN_GPIO_OUTPUT_EN | PIN_GPIO_LOW | PIN_PUSHPULL | PIN_DRVSTR_MAX,
+    P2_TX           | PIN_GPIO_OUTPUT_EN | PIN_GPIO_LOW | PIN_PUSHPULL | PIN_DRVSTR_MAX,
+    P3_TX           | PIN_GPIO_OUTPUT_EN | PIN_GPIO_LOW | PIN_PUSHPULL | PIN_DRVSTR_MAX,
+    P4_TX           | PIN_GPIO_OUTPUT_EN | PIN_GPIO_LOW | PIN_PUSHPULL | PIN_DRVSTR_MAX,
+    P1_RX           | PIN_INPUT_EN | PIN_PULLUP | PIN_HYSTERESIS | PIN_IRQ_NEGEDGE,
+    P2_RX           | PIN_INPUT_EN | PIN_PULLUP | PIN_HYSTERESIS | PIN_IRQ_NEGEDGE,
+    P3_RX           | PIN_INPUT_EN | PIN_PULLUP | PIN_HYSTERESIS | PIN_IRQ_NEGEDGE,
+    P4_RX           | PIN_INPUT_EN | PIN_PULLUP | PIN_HYSTERESIS | PIN_IRQ_NEGEDGE,
 
-    Board_RLED   | PIN_GPIO_OUTPUT_EN | PIN_GPIO_LOW | PIN_PUSHPULL | PIN_DRVSTR_MAX,         /* LED initially off             */
-    Board_GLED   | PIN_GPIO_OUTPUT_EN | PIN_GPIO_LOW | PIN_PUSHPULL | PIN_DRVSTR_MAX,         /* LED initially off             */
-    Board_BTN1   | PIN_INPUT_EN | PIN_PULLUP | PIN_IRQ_BOTHEDGES | PIN_HYSTERESIS,            /* Button is active low          */
-    Board_BTN2   | PIN_INPUT_EN | PIN_PULLUP | PIN_IRQ_BOTHEDGES | PIN_HYSTERESIS,            /* Button is active low          */
-    Board_SPI_FLASH_CS | PIN_GPIO_OUTPUT_EN | PIN_GPIO_HIGH | PIN_PUSHPULL | PIN_DRVSTR_MIN,  /* External flash chip select    */
-    Board_UART_RX | PIN_INPUT_EN | PIN_PULLDOWN,                                              /* UART RX via debugger back channel */
-    Board_UART_TX | PIN_GPIO_OUTPUT_EN | PIN_GPIO_HIGH | PIN_PUSHPULL,                        /* UART TX via debugger back channel */
-    Board_SPI0_MOSI | PIN_INPUT_EN | PIN_PULLDOWN,                                            /* SPI master out - slave in */
-    Board_SPI0_MISO | PIN_INPUT_EN | PIN_PULLDOWN,                                            /* SPI master in - slave out */
-    Board_SPI0_CLK | PIN_INPUT_EN | PIN_PULLDOWN,                                             /* SPI clock */
+    // Rocker switch:
+    SW_L            | PIN_INPUT_EN | PIN_PULLUP | PIN_HYSTERESIS | PIN_IRQ_NEGEDGE,
+    SW_R            | PIN_INPUT_EN | PIN_PULLUP | PIN_HYSTERESIS | PIN_IRQ_NEGEDGE,
+    SW_CLICK        | PIN_INPUT_EN | PIN_PULLUP | PIN_HYSTERESIS | PIN_IRQ_NEGEDGE,
+
+    // LED Controller: (Initially, bit-banged.)
+    LED_DIN         | PIN_INPUT_EN | PIN_PULLDOWN,
+    LED_GSCLK       | PIN_GPIO_OUTPUT_EN | PIN_GPIO_LOW | PIN_PUSHPULL | PIN_DRVSTR_MAX,
+    LED_DOUT        | PIN_GPIO_OUTPUT_EN | PIN_GPIO_LOW | PIN_PUSHPULL | PIN_DRVSTR_MAX,
+    LED_CLK         | PIN_GPIO_OUTPUT_EN | PIN_GPIO_LOW | PIN_PUSHPULL | PIN_DRVSTR_MAX,
+    LED_STE         | PIN_GPIO_OUTPUT_EN | PIN_GPIO_LOW | PIN_PUSHPULL | PIN_DRVSTR_MAX,
+
+    // LED Multiplexer (bit-banged)
+    MP_CTR_CLK      | PIN_GPIO_OUTPUT_EN | PIN_GPIO_LOW | PIN_PUSHPULL | PIN_DRVSTR_MAX,
+    MP0_OUT         | PIN_GPIO_OUTPUT_EN | PIN_GPIO_LOW | PIN_PUSHPULL | PIN_DRVSTR_MAX,
+    MP0_CLR         | PIN_GPIO_OUTPUT_EN | PIN_GPIO_LOW | PIN_PUSHPULL | PIN_DRVSTR_MAX,
+    MP1_CLR         | PIN_GPIO_OUTPUT_EN | PIN_GPIO_LOW | PIN_PUSHPULL | PIN_DRVSTR_MAX,
+    MP1_OUT         | PIN_INPUT_EN | PIN_NOPULL,
+
+    // Light sensor:
+    LIGHT           | PIN_INPUT_EN | PIN_NOPULL,
 
     PIN_TERMINATE
 };
@@ -74,7 +94,7 @@ const PowerCC26XX_Config PowerCC26XX_config = {
     .policyFxn          = &PowerCC26XX_standbyPolicy,
     .calibrateFxn       = &PowerCC26XX_calibrate,
     .enablePolicy       = TRUE,
-    .calibrateRCOSC_LF  = FALSE,
+    .calibrateRCOSC_LF  = TRUE,
     .calibrateRCOSC_HF  = TRUE,
 };
 /*
@@ -97,6 +117,9 @@ const PowerCC26XX_Config PowerCC26XX_config = {
 /* UART objects */
 UARTCC26XX_Object uartCC26XXObjects[QC14BOARD_UARTCOUNT];
 
+
+// We have the one UART (asynchronous), for the mating ports.
+// Initially it will not be assigned to any pins.
 /* UART hardware parameter structure, also used to assign UART pins */
 const UARTCC26XX_HWAttrsV1 uartCC26XXHWAttrs[QC14BOARD_UARTCOUNT] = {
     {
@@ -105,8 +128,8 @@ const UARTCC26XX_HWAttrsV1 uartCC26XXHWAttrs[QC14BOARD_UARTCOUNT] = {
         .intNum         = INT_UART0_COMB,
         .intPriority    = ~0,
         .swiPriority    = 0,
-        .txPin          = Board_UART_TX,
-        .rxPin          = Board_UART_RX,
+        .txPin          = PIN_UNASSIGNED,
+        .rxPin          = PIN_UNASSIGNED,
         .ctsPin         = PIN_UNASSIGNED,
         .rtsPin         = PIN_UNASSIGNED
     }
@@ -188,10 +211,10 @@ const SPICC26XXDMA_HWAttrsV1 spiCC26XXDMAHWAttrs[QC14BOARD_SPICOUNT] = {
         .defaultTxBufValue  = 0,
         .rxChannelBitMask   = 1<<UDMA_CHAN_SSI0_RX,
         .txChannelBitMask   = 1<<UDMA_CHAN_SSI0_TX,
-        .mosiPin            = Board_SPI0_MOSI,
-        .misoPin            = Board_SPI0_MISO,
-        .clkPin             = Board_SPI0_CLK,
-        .csnPin             = Board_SPI0_CSN
+        .mosiPin            = FLASH_TX,
+        .misoPin            = FLASH_RX,
+        .clkPin             = FLASH_CLK,
+        .csnPin             = FLASH_CS
     },
     {
         .baseAddr           = SSI1_BASE,
@@ -202,10 +225,10 @@ const SPICC26XXDMA_HWAttrsV1 spiCC26XXDMAHWAttrs[QC14BOARD_SPICOUNT] = {
         .defaultTxBufValue  = 0,
         .rxChannelBitMask   = 1<<UDMA_CHAN_SSI1_RX,
         .txChannelBitMask   = 1<<UDMA_CHAN_SSI1_TX,
-        .mosiPin            = Board_SPI1_MOSI,
-        .misoPin            = Board_SPI1_MISO,
-        .clkPin             = Board_SPI1_CLK,
-        .csnPin             = Board_SPI1_CSN
+        .mosiPin            = PIN_UNASSIGNED,
+        .misoPin            = PIN_UNASSIGNED,
+        .clkPin             = PIN_UNASSIGNED,
+        .csnPin             = PIN_UNASSIGNED
     }
 };
 
@@ -228,6 +251,7 @@ const SPI_Config SPI_config[] = {
 */
 
 
+// We don't use any i2c.
 /*
  *  ============================= I2C Begin=====================================
 */
@@ -251,8 +275,8 @@ const I2CCC26XX_HWAttrsV1 i2cCC26xxHWAttrs[QC14BOARD_I2CCOUNT] = {
         .intNum = INT_I2C_IRQ,
         .intPriority = ~0,
         .swiPriority = 0,
-        .sdaPin = Board_I2C0_SDA0,
-        .sclPin = Board_I2C0_SCL0,
+        .sdaPin = PIN_UNASSIGNED,
+        .sclPin = PIN_UNASSIGNED,
     }
 };
 
@@ -338,7 +362,6 @@ const RFCC26XX_HWAttrs RFCC26XX_hwAttrs = {
 /* Place into subsections to allow the TI linker to remove items properly */
 #if defined(__TI_COMPILER_VERSION__)
 #pragma DATA_SECTION(Display_config, ".const:Display_config")
-#pragma DATA_SECTION(displaySharpHWattrs, ".const:displaySharpHWattrs")
 #pragma DATA_SECTION(displayUartHWAttrs, ".const:displayUartHWAttrs")
 #endif
 
@@ -362,24 +385,6 @@ const DisplayUart_HWAttrs displayUartHWAttrs = {
     .strBufLen = BOARD_DISPLAY_UART_STRBUF_SIZE,
 };
 
-/* Structures for SHARP */
-DisplaySharp_Object displaySharpObject;
-
-#ifndef BOARD_DISPLAY_SHARP_SIZE
-#define BOARD_DISPLAY_SHARP_SIZE    96 // 96->96x96 is the most common board, alternative is 128->128x128.
-#endif
-static uint8_t sharpDisplayBuf[BOARD_DISPLAY_SHARP_SIZE * BOARD_DISPLAY_SHARP_SIZE / 8];
-
-const DisplaySharp_HWAttrs displaySharpHWattrs = {
-    .spiIndex    = Board_SPI0,
-    .csPin       = Board_LCD_CS,
-    .extcominPin = Board_LCD_EXTCOMIN,
-    .powerPin    = Board_LCD_POWER,
-    .enablePin   = Board_LCD_ENABLE,
-    .pixelWidth  = BOARD_DISPLAY_SHARP_SIZE,
-    .pixelHeight = BOARD_DISPLAY_SHARP_SIZE,
-    .displayBuf  = sharpDisplayBuf,
-};
 
 /* Array of displays */
 const Display_Config Display_config[] = {
@@ -390,13 +395,6 @@ const Display_Config Display_config[] = {
         .hwAttrs     = &displayUartHWAttrs,
     },
 #endif
-#if !defined(BOARD_DISPLAY_EXCLUDE_LCD)
-    {
-        .fxnTablePtr = &DisplaySharp_fxnTable,
-        .object      = &displaySharpObject,
-        .hwAttrs     = &displaySharpHWattrs
-    },
-#endif
     { NULL, NULL, NULL } // Terminator
 };
 
@@ -404,6 +402,7 @@ const Display_Config Display_config[] = {
  *  ========================= Display end ======================================
  */
 
+// TODO:
 /*
  *  ============================ GPTimer begin =================================
  *  Remove unused entries to reduce flash usage both in Board.c and Board.h
@@ -446,7 +445,7 @@ const GPTimerCC26XX_Config GPTimerCC26XX_config[QC14BOARD_GPTIMERPARTSCOUNT] = {
  */
 
 
-
+// TODO: unused.
 /*
  *  ============================= PWM begin ====================================
  *  Remove unused entries to reduce flash usage both in Board.c and Board.h
@@ -459,14 +458,14 @@ const GPTimerCC26XX_Config GPTimerCC26XX_config[QC14BOARD_GPTIMERPARTSCOUNT] = {
 
 /* PWM configuration, one per PWM output.   */
 PWMTimerCC26XX_HwAttrs pwmtimerCC26xxHWAttrs[QC14BOARD_PWMCOUNT] = {
-    { .pwmPin = Board_PWMPIN0, .gpTimerUnit = Board_GPTIMER0A },
-    { .pwmPin = Board_PWMPIN1, .gpTimerUnit = Board_GPTIMER0B },
-    { .pwmPin = Board_PWMPIN2, .gpTimerUnit = Board_GPTIMER1A },
-    { .pwmPin = Board_PWMPIN3, .gpTimerUnit = Board_GPTIMER1B },
-    { .pwmPin = Board_PWMPIN4, .gpTimerUnit = Board_GPTIMER2A },
-    { .pwmPin = Board_PWMPIN5, .gpTimerUnit = Board_GPTIMER2B },
-    { .pwmPin = Board_PWMPIN6, .gpTimerUnit = Board_GPTIMER3A },
-    { .pwmPin = Board_PWMPIN7, .gpTimerUnit = Board_GPTIMER3B },
+    { .pwmPin = PIN_UNASSIGNED, .gpTimerUnit = Board_GPTIMER0A },
+    { .pwmPin = PIN_UNASSIGNED, .gpTimerUnit = Board_GPTIMER0B },
+    { .pwmPin = PIN_UNASSIGNED, .gpTimerUnit = Board_GPTIMER1A },
+    { .pwmPin = PIN_UNASSIGNED, .gpTimerUnit = Board_GPTIMER1B },
+    { .pwmPin = PIN_UNASSIGNED, .gpTimerUnit = Board_GPTIMER2A },
+    { .pwmPin = PIN_UNASSIGNED, .gpTimerUnit = Board_GPTIMER2B },
+    { .pwmPin = PIN_UNASSIGNED, .gpTimerUnit = Board_GPTIMER3A },
+    { .pwmPin = PIN_UNASSIGNED, .gpTimerUnit = Board_GPTIMER3B },
 };
 
 /* PWM object, one per PWM output */
@@ -491,6 +490,8 @@ const PWM_Config PWM_config[QC14BOARD_PWMCOUNT + 1] = {
 /*
  *  ============================= PWM end ======================================
  */
+
+// TODO:
 
 /*
  *  ========================== ADCBuf begin =========================================
@@ -517,17 +518,17 @@ ADCBufCC26XX_Object adcBufCC26xxObjects[QC14BOARD_ADCBufCOUNT];
  *  The mapping of dio and internal signals is package dependent.
  */
 const ADCBufCC26XX_AdcChannelLutEntry ADCBufCC26XX_adcChannelLut[] = {
-    {PIN_UNASSIGNED, ADC_COMPB_IN_VDDS},
-    {PIN_UNASSIGNED, ADC_COMPB_IN_DCOUPL},
-    {PIN_UNASSIGNED, ADC_COMPB_IN_VSS},
-    {Board_DIO23_ANALOG, ADC_COMPB_IN_AUXIO7},
-    {Board_DIO24_ANALOG, ADC_COMPB_IN_AUXIO6},
-    {Board_DIO25_ANALOG, ADC_COMPB_IN_AUXIO5},
-    {Board_DIO26_ANALOG, ADC_COMPB_IN_AUXIO4},
-    {Board_DIO27_ANALOG, ADC_COMPB_IN_AUXIO3},
-    {Board_DIO28_ANALOG, ADC_COMPB_IN_AUXIO2},
-    {Board_DIO29_ANALOG, ADC_COMPB_IN_AUXIO1},
-    {Board_DIO30_ANALOG, ADC_COMPB_IN_AUXIO0},
+//    {PIN_UNASSIGNED, ADC_COMPB_IN_VDDS},
+//    {PIN_UNASSIGNED, ADC_COMPB_IN_DCOUPL},
+//    {PIN_UNASSIGNED, ADC_COMPB_IN_VSS},
+//    {Board_DIO23_ANALOG, ADC_COMPB_IN_AUXIO7},
+//    {Board_DIO24_ANALOG, ADC_COMPB_IN_AUXIO6},
+//    {Board_DIO25_ANALOG, ADC_COMPB_IN_AUXIO5},
+//    {Board_DIO26_ANALOG, ADC_COMPB_IN_AUXIO4},
+//    {Board_DIO27_ANALOG, ADC_COMPB_IN_AUXIO3},
+//    {Board_DIO28_ANALOG, ADC_COMPB_IN_AUXIO2},
+//    {Board_DIO29_ANALOG, ADC_COMPB_IN_AUXIO1},
+    {LIGHT, ADC_COMPB_IN_AUXIO0},
 };
 
 const ADCBufCC26XX_HWAttrs adcBufCC26xxHWAttrs[QC14BOARD_ADCBufCOUNT] = {
@@ -549,7 +550,7 @@ const ADCBuf_Config ADCBuf_config[] = {
  */
 
 
-
+// TODO:
 /*
  *  ========================== ADC begin =========================================
  */
@@ -569,7 +570,7 @@ ADCCC26XX_Object adcCC26xxObjects[QC14BOARD_ADCCOUNT];
 
 const ADCCC26XX_HWAttrs adcCC26xxHWAttrs[QC14BOARD_ADCCOUNT] = {
     {
-        .adcDIO = Board_DIO23_ANALOG,
+        .adcDIO = PIN_UNASSIGNED,
         .adcCompBInput = ADC_COMPB_IN_AUXIO7,
         .refSource = ADCCC26XX_FIXED_REFERENCE,
         .samplingDuration = ADCCC26XX_SAMPLING_DURATION_2P7_US,
@@ -577,7 +578,7 @@ const ADCCC26XX_HWAttrs adcCC26xxHWAttrs[QC14BOARD_ADCCOUNT] = {
         .triggerSource = ADCCC26XX_TRIGGER_MANUAL
     },
     {
-        .adcDIO = Board_DIO24_ANALOG,
+        .adcDIO = PIN_UNASSIGNED,
         .adcCompBInput = ADC_COMPB_IN_AUXIO6,
         .refSource = ADCCC26XX_FIXED_REFERENCE,
         .samplingDuration = ADCCC26XX_SAMPLING_DURATION_2P7_US,
@@ -585,7 +586,7 @@ const ADCCC26XX_HWAttrs adcCC26xxHWAttrs[QC14BOARD_ADCCOUNT] = {
         .triggerSource = ADCCC26XX_TRIGGER_MANUAL
     },
     {
-        .adcDIO = Board_DIO25_ANALOG,
+        .adcDIO = PIN_UNASSIGNED,
         .adcCompBInput = ADC_COMPB_IN_AUXIO5,
         .refSource = ADCCC26XX_FIXED_REFERENCE,
         .samplingDuration = ADCCC26XX_SAMPLING_DURATION_2P7_US,
@@ -593,7 +594,7 @@ const ADCCC26XX_HWAttrs adcCC26xxHWAttrs[QC14BOARD_ADCCOUNT] = {
         .triggerSource = ADCCC26XX_TRIGGER_MANUAL
     },
     {
-        .adcDIO = Board_DIO26_ANALOG,
+        .adcDIO = PIN_UNASSIGNED,
         .adcCompBInput = ADC_COMPB_IN_AUXIO4,
         .refSource = ADCCC26XX_FIXED_REFERENCE,
         .samplingDuration = ADCCC26XX_SAMPLING_DURATION_2P7_US,
@@ -601,7 +602,7 @@ const ADCCC26XX_HWAttrs adcCC26xxHWAttrs[QC14BOARD_ADCCOUNT] = {
         .triggerSource = ADCCC26XX_TRIGGER_MANUAL
     },
     {
-        .adcDIO = Board_DIO27_ANALOG,
+        .adcDIO = PIN_UNASSIGNED,
         .adcCompBInput = ADC_COMPB_IN_AUXIO3,
         .refSource = ADCCC26XX_FIXED_REFERENCE,
         .samplingDuration = ADCCC26XX_SAMPLING_DURATION_2P7_US,
@@ -609,7 +610,7 @@ const ADCCC26XX_HWAttrs adcCC26xxHWAttrs[QC14BOARD_ADCCOUNT] = {
         .triggerSource = ADCCC26XX_TRIGGER_MANUAL
     },
     {
-        .adcDIO = Board_DIO28_ANALOG,
+        .adcDIO = PIN_UNASSIGNED,
         .adcCompBInput = ADC_COMPB_IN_AUXIO2,
         .refSource = ADCCC26XX_FIXED_REFERENCE,
         .samplingDuration = ADCCC26XX_SAMPLING_DURATION_2P7_US,
@@ -617,7 +618,7 @@ const ADCCC26XX_HWAttrs adcCC26xxHWAttrs[QC14BOARD_ADCCOUNT] = {
         .triggerSource = ADCCC26XX_TRIGGER_MANUAL
     },
     {
-        .adcDIO = Board_DIO29_ANALOG,
+        .adcDIO = PIN_UNASSIGNED,
         .adcCompBInput = ADC_COMPB_IN_AUXIO1,
         .refSource = ADCCC26XX_FIXED_REFERENCE,
         .samplingDuration = ADCCC26XX_SAMPLING_DURATION_2P7_US,
@@ -625,9 +626,9 @@ const ADCCC26XX_HWAttrs adcCC26xxHWAttrs[QC14BOARD_ADCCOUNT] = {
         .triggerSource = ADCCC26XX_TRIGGER_MANUAL
     },
     {
-        .adcDIO = Board_DIO30_ANALOG,
+        .adcDIO = LIGHT,
         .adcCompBInput = ADC_COMPB_IN_AUXIO0,
-        .refSource = ADCCC26XX_FIXED_REFERENCE,
+        .refSource = ADCCC26XX_VDDS_REFERENCE,
         .samplingDuration = ADCCC26XX_SAMPLING_DURATION_10P9_MS,
         .inputScalingEnabled = true,
         .triggerSource = ADCCC26XX_TRIGGER_MANUAL
@@ -659,17 +660,17 @@ const ADCCC26XX_HWAttrs adcCC26xxHWAttrs[QC14BOARD_ADCCOUNT] = {
 };
 
 const ADC_Config ADC_config[] = {
-    {&ADCCC26XX_fxnTable, &adcCC26xxObjects[0], &adcCC26xxHWAttrs[0]},
-    {&ADCCC26XX_fxnTable, &adcCC26xxObjects[1], &adcCC26xxHWAttrs[1]},
-    {&ADCCC26XX_fxnTable, &adcCC26xxObjects[2], &adcCC26xxHWAttrs[2]},
-    {&ADCCC26XX_fxnTable, &adcCC26xxObjects[3], &adcCC26xxHWAttrs[3]},
-    {&ADCCC26XX_fxnTable, &adcCC26xxObjects[4], &adcCC26xxHWAttrs[4]},
-    {&ADCCC26XX_fxnTable, &adcCC26xxObjects[5], &adcCC26xxHWAttrs[5]},
-    {&ADCCC26XX_fxnTable, &adcCC26xxObjects[6], &adcCC26xxHWAttrs[6]},
+//    {&ADCCC26XX_fxnTable, &adcCC26xxObjects[0], &adcCC26xxHWAttrs[0]},
+//    {&ADCCC26XX_fxnTable, &adcCC26xxObjects[1], &adcCC26xxHWAttrs[1]},
+//    {&ADCCC26XX_fxnTable, &adcCC26xxObjects[2], &adcCC26xxHWAttrs[2]},
+//    {&ADCCC26XX_fxnTable, &adcCC26xxObjects[3], &adcCC26xxHWAttrs[3]},
+//    {&ADCCC26XX_fxnTable, &adcCC26xxObjects[4], &adcCC26xxHWAttrs[4]},
+//    {&ADCCC26XX_fxnTable, &adcCC26xxObjects[5], &adcCC26xxHWAttrs[5]},
+//    {&ADCCC26XX_fxnTable, &adcCC26xxObjects[6], &adcCC26xxHWAttrs[6]},
     {&ADCCC26XX_fxnTable, &adcCC26xxObjects[7], &adcCC26xxHWAttrs[7]},
-    {&ADCCC26XX_fxnTable, &adcCC26xxObjects[8], &adcCC26xxHWAttrs[8]},
-    {&ADCCC26XX_fxnTable, &adcCC26xxObjects[9], &adcCC26xxHWAttrs[9]},
-    {&ADCCC26XX_fxnTable, &adcCC26xxObjects[10], &adcCC26xxHWAttrs[10]},
+//    {&ADCCC26XX_fxnTable, &adcCC26xxObjects[8], &adcCC26xxHWAttrs[8]},
+//    {&ADCCC26XX_fxnTable, &adcCC26xxObjects[9], &adcCC26xxHWAttrs[9]},
+//    {&ADCCC26XX_fxnTable, &adcCC26xxObjects[10], &adcCC26xxHWAttrs[10]},
     {NULL, NULL, NULL},
 };
 
