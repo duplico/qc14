@@ -103,7 +103,7 @@ extern const PIN_Config BoardGpioInitTable[];
 #define LED_DIN     IOID_11
 #define LED_DOUT    IOID_12
 #define LED_CLK     IOID_13
-#define LED_STE     IOID_14
+#define LED_LE     IOID_14
 
 // LED multiplexing:
 
