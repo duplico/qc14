@@ -1,6 +1,14 @@
 #include <xdc/runtime/Error.h>
 #include <ti/drivers/Power.h>
 #include <ti/drivers/power/PowerCC26XX.h>
+#include <ti/drivers/PIN.h>
+#include <ti/drivers/pin/PINCC26XX.h>
+#include <ti/drivers/timer/GPTimerCC26XX.h>
+#include <ti/drivers/PWM.h>
+#include <ti/drivers/pwm/PWMTimerCC26XX.h>
+#include <ti/sysbios/knl/Task.h>
+#include <ti/sysbios/knl/Semaphore.h>
+
 #include <ti/sysbios/BIOS.h>
 
 #include "icall.h"
@@ -45,7 +53,7 @@ PIN_Handle mbi_pin_h;
 PIN_Config mbi_pin_table[] = {
     // LED controller:
     LED_DIN         | PIN_INPUT_EN | PIN_PULLDOWN,
-    LED_GSCLK       | PIN_GPIO_OUTPUT_EN | PIN_GPIO_LOW | PIN_PUSHPULL | PIN_DRVSTR_MAX,
+//    LED_GSCLK       | PIN_GPIO_OUTPUT_EN | PIN_GPIO_LOW | PIN_PUSHPULL | PIN_DRVSTR_MAX, // TODO
     LED_DOUT        | PIN_GPIO_OUTPUT_EN | PIN_GPIO_LOW | PIN_PUSHPULL | PIN_DRVSTR_MAX,
     LED_CLK         | PIN_GPIO_OUTPUT_EN | PIN_GPIO_LOW | PIN_PUSHPULL | PIN_DRVSTR_MAX,
     LED_LE         | PIN_GPIO_OUTPUT_EN | PIN_GPIO_LOW | PIN_PUSHPULL | PIN_DRVSTR_MAX,
@@ -65,11 +73,24 @@ PIN_Config mbi_pin_table[] = {
 #define MBI_CMD_CFG1 4
 #define MBI_CMD_CFG2 8
 #define MBI_CMD_RST 10
-uint16_t scan_line = 0;
-uint16_t gclk = 0;
-uint8_t mbi_needs_vsync = 0;
+volatile uint16_t scan_line = 0;
+volatile uint16_t gclk = 0;
+volatile uint8_t mbi_needs_vsync = 0;
+volatile uint8_t mbi_writing = 0;
+volatile uint8_t mbi_wr_sl = 0;
+volatile uint8_t mbi_wr_ch = 0;
+volatile uint8_t mbi_wr_bit = 0;
+volatile uint8_t mbi_gclk_hold = 0;
+volatile uint8_t mbi_vsync_ready = 0;
+volatile uint8_t mbi_vsync_wait = 0;
 Clock_Handle gclk_clock;
 Clock_Handle sw_clock;
+
+Semaphore_Handle led_load_sem;
+
+PWM_Handle hPWM;
+
+#define LED_MP_CYCLES 256
 
 void init_ble() {
     /* Initialize ICall module */
@@ -102,7 +123,7 @@ uint16_t mbi_r_dat(uint16_t dat) {
     return val;
 }
 
-void mbi_gs_clock_swi();
+void mbi_dclk_swi();
 
 
 void mbi_wr_dat_cmd(uint16_t dat, uint16_t cmd) {
@@ -142,6 +163,16 @@ uint8_t sw_l_clicked = 0;
 uint8_t sw_r_clicked = 0;
 uint8_t sw_c_clicked = 0;
 
+void mbi_start_write() {
+    mbi_writing = 1;
+    mbi_wr_sl = 0;
+    mbi_wr_ch = 15;
+    mbi_wr_bit = 15;
+    mbi_gclk_hold = 0;
+    mbi_vsync_ready = 0;
+    mbi_vsync_wait = 0;
+}
+
 void sw_clock_f() {
     static uint8_t sw_l_last = 1;
     static uint8_t sw_r_last = 1;
@@ -175,7 +206,7 @@ void sw_clock_f() {
         // left clicked
         sw_c_clicked = 1;
         // do stuff
-        mp_shift();
+        Semaphore_post(led_load_sem);
     } else if (sw_c_curr && sw_c_last && sw_c_clicked) {
         sw_c_clicked = 0;
         // unclicked.
@@ -183,87 +214,70 @@ void sw_clock_f() {
     sw_c_last = sw_c_curr;
 }
 
+volatile uint16_t mbi_dat;
+volatile uint16_t mbi_cmd;
+volatile uint8_t mbi_wr_index = 0;
+volatile uint8_t mbi_le_needs_low = 1;
+volatile uint8_t mbi_dclk_ticking = 0;
 
-uint8_t mbi_writing = 0;
-uint8_t mbi_wr_sl = 0;
-uint8_t mbi_wr_ch = 0;
-uint8_t mbi_wr_bit = 0;
-uint8_t mbi_gclk_hold = 0;
-uint8_t mbi_vsync_ready = 0;
-uint8_t mbi_vsync_wait = 0;
-
-void mbi_start_write() {
-    mbi_writing = 1;
-    mbi_wr_sl = 0;
-    mbi_wr_ch = 15;
-    mbi_wr_bit = 15;
-    mbi_gclk_hold = 0;
-    mbi_vsync_ready = 0;
-    mbi_vsync_wait = 0;
+void mbi_wr_dat_cmd_a(uint16_t dat, uint16_t cmd) {
+    while (mbi_dclk_ticking); // spin until we can write again.
+    mbi_wr_index = 16;
+    mbi_cmd = cmd;
+    mbi_dat = dat;
+    mbi_dclk_ticking = 1;
 }
 
-void mbi_gs_clock_swi() {
+//uint16_t bit = 16;
+//while (bit) {
+//    if (bit == cmd) PIN_setOutputValue(mbi_pin_h, LED_LE, 1);
+//    bit--;
+//    PIN_setOutputValue(mbi_pin_h, LED_DOUT, (dat>>bit) & 0x0001);
+//    PIN_setOutputValue(mbi_pin_h, LED_CLK, 1);
+//    PIN_setOutputValue(mbi_pin_h, LED_CLK, 0);
+//}
+//
+//PIN_setOutputValue(mbi_pin_h, LED_LE, 0);
+
+
+void mbi_dclk_swi() {
+    static uint8_t dclk_state = 0;
     static uint16_t led_value = 0x0000; // For now, SHUT IT ALL DOWN.
-    // This is the grayscale clock for the LEDs.
-    // I'm also going to use it for the DCLK.
 
-    if (mbi_writing) {
-        PIN_setOutputValue(mbi_pin_h, LED_DOUT, 0x01 & (led_value >> mbi_wr_bit));
-        if (mbi_wr_bit == 0) PIN_setOutputValue(mbi_pin_h, LED_LE, 1); // LATCH.
+    if (!mbi_dclk_ticking) return;
 
-        // Tick clock:
-        PIN_setOutputValue(mbi_pin_h, LED_CLK, 1);
-        PIN_setOutputValue(mbi_pin_h, LED_CLK, 0);
+    dclk_state = ~dclk_state;
+    PINCC26XX_setOutputValue(LED_CLK, dclk_state);
 
-        PIN_setOutputValue(mbi_pin_h, LED_LE, 0); // UNLATCH.
+    if (dclk_state) { // We have just gone HIGH: Time to read DIN
 
-        if (!mbi_wr_bit) { // finished last bit (LSB)
-            mbi_wr_bit = 15; // each of these is a channel.
-            if (!mbi_wr_ch) { // finished last channel (lowest channel)
-                mbi_wr_ch = 15; // each of these is a scanline.
-                if (mbi_wr_sl == 0) { // finished last scan line (highest scan line) // TODO
-                    // now we're done writing. We need to allow at least 50 GCLKs before
-                    // arresting GCLK and doing a VSYNC.
-                    mbi_writing = 0;
-                    mbi_vsync_ready = 1;
-                    mbi_vsync_wait = 55;
-                } else {
-                    mbi_wr_sl++;
-                }
-            } else {
-                mbi_wr_ch--;
-            }
-        } else {
-            mbi_wr_bit--;
+    } else { // We have just gone LOW: time to change LE, or change DOUT.
+        if (mbi_wr_index) { // We're writing something. Set DOUT and/or assert LE.
+            if (mbi_wr_index == mbi_cmd) PINCC26XX_setOutputValue(LED_LE, 1);
+            PINCC26XX_setOutputValue(LED_DOUT, (mbi_dat>>(mbi_wr_index-1)) & 0x0001);
+            mbi_wr_index--;
+        } else { // we are set to ticking, but we've finished writing everything.
+            PINCC26XX_setOutputValue(LED_LE, 0);
+            mbi_dclk_ticking = 0; // done.
         }
     }
+}
 
-    // GCLK logic:
+volatile uint8_t gclk_state = 0;
 
-    if (mbi_vsync_ready && !mbi_vsync_wait) { // vsync is needed NOW.
-        // Stop the GCLK.
-        mbi_gclk_hold = 2;
+GPTimerCC26XX_Handle gclk_timer_h;
 
-        PIN_setOutputValue(mbi_pin_h, LED_LE, 1); // VSYNC.
-        // Tick clock:
-        PIN_setOutputValue(mbi_pin_h, LED_CLK, 1);
-        PIN_setOutputValue(mbi_pin_h, LED_CLK, 0);
-        // Tick clock:
-        PIN_setOutputValue(mbi_pin_h, LED_CLK, 1);
-        PIN_setOutputValue(mbi_pin_h, LED_CLK, 0);
-        PIN_setOutputValue(mbi_pin_h, LED_LE, 0); // end VSYNC cmd.
+void gclk_tick() {
+    gclk_state = ~gclk_state;
 
-        mbi_vsync_ready = 0; // not ready anymore because we already did it.
-
-    } else if (mbi_vsync_ready) { // vsync will be needed in mbi_vsync_wait GCLKs.
+    if (mbi_vsync_wait)
         mbi_vsync_wait--;
-    }
 
     if (mbi_gclk_hold) {
         // If the GS clock is HELD, don't tick it.
         // After the hold is over we'll be starting all over again, so it's time to
         // fix the multiplexing.
-        mbi_gclk_hold--;
+        if (gclk_state) mbi_gclk_hold--;
         if (!mbi_gclk_hold) {
             // done holding:
             gclk = 0;
@@ -272,18 +286,23 @@ void mbi_gs_clock_swi() {
                 mp_shift();
             } while (scan_line);
         }
-    } else { // Tick the GCLK and handle the multiplexing.
-        PIN_setOutputValue(mbi_pin_h, LED_GSCLK, 1);
-        if (gclk == 256) {
-//            scan_line = (scan_line + 1) % 15;
-//            mp_shift(scan_line != 0);
-            gclk = 0;
-        } else {
-            gclk++;
-        }
-        PIN_setOutputValue(mbi_pin_h, LED_GSCLK, 0);
+        return;
+    }
+
+    PINCC26XX_setOutputValue(LED_GSCLK, gclk_state);
+
+    if (gclk_state) return; // if we just brought it high, nothing to do.
+
+    // Tick the GCLK and handle the multiplexing.
+    if (gclk == LED_MP_CYCLES) {
+        mp_shift();
+        gclk = 0;
+    } else {
+        gclk++;
     }
 }
+
+void timer_init_task();
 
 void init_mbi() {
     // Set up our GPIO:
@@ -297,26 +316,6 @@ void init_mbi() {
     do { // Clear out & prime the shift register:
         mp_shift();
     } while (scan_line);
-
-    // Prod values:
-    mbi_wr_dat_cmd(0x0000, MBI_CMD_PREACT);
-    mbi_wr_dat_cmd(0b1000111011101011, MBI_CMD_CFG1);
-    mbi_read_cfg1();
-    // We are pretending there's only one scan line:
-    mbi_wr_dat_cmd(0x0000, MBI_CMD_PREACT);
-    mbi_wr_dat_cmd(0b0000000000000000, MBI_CMD_CFG1);
-    mbi_read_cfg1();
-
-    // Set up our clocks:
-    Clock_Params clockParams;
-    Error_Block eb;
-    Error_init(&eb);
-    Clock_Params_init(&clockParams);
-    clockParams.period = 10;
-    clockParams.startFlag = TRUE;
-    gclk_clock = Clock_create(mbi_gs_clock_swi, 2, &clockParams, &eb);
-
-    mbi_start_write();
 }
 
 void init_switch() {
@@ -333,12 +332,112 @@ void init_switch() {
 
 }
 
+Task_Struct qcLoadTask;
+char qcLoadTaskStack[400];
+
+void qc_load_led_fn(UArg a0, UArg a1) {
+    while (1) {
+        Semaphore_pend(led_load_sem, BIOS_WAIT_FOREVER);
+
+        // Reset is SUPPOSED to turn everything off.
+//        mbi_wr_dat_cmd(0x0000, MBI_CMD_RST);
+
+        Task_sleep(10);
+
+        // Now let's wait for a fresh GCLK cycle, shall we?
+        while (gclk);
+
+        // Now. We're pretending there's only 1 scan line.
+        // We only have one chip, and we have 16 channels.
+        // The process for setting a grayscale is this.
+        //  Send ch15,14,13,...0.
+        //  Each GS setting is 16 bits, MSB first.
+        //  It ends with a data latch command, which is a 1-clock LE assertion.
+        for (uint8_t i=0; i<16; i++) {
+            mbi_wr_dat_cmd_a(0x0ff0, MBI_CMD_LATCH);
+        }
+        // Then, after all 16x16 bits of GS have been clocked in, it's time to do a VSYNC.
+        // We need to wait for at least 50 GCLKs before we start the vsync.
+
+        mbi_vsync_wait = 100;
+        while (mbi_vsync_wait);
+        //VSYNC procedure:
+        // Stop GCLK.
+        mbi_gclk_hold = 100;
+        mbi_wr_dat_cmd_a(0x0000, MBI_CMD_VSYNC);
+        mbi_wr_dat_cmd_a(0x0000, 0); // generate some extra clocks which may or may not be needed.
+        while (mbi_dclk_ticking); // spin until we can write again.
+        while (mbi_gclk_hold) {
+            __nop();
+        }
+        // GCLK will start itself back up automatically.
+    }
+}
+
+Task_Struct qcTask;
+char qcTaskStack[400];
+
+void qc_task_fn(UArg a0, UArg a1)
+{
+    // Set up our clocks:
+    Clock_Params clockParams;
+    Error_Block eb;
+    Error_init(&eb);
+    Clock_Params_init(&clockParams);
+    clockParams.period = 1;
+    clockParams.startFlag = TRUE;
+    gclk_clock = Clock_create(mbi_dclk_swi, 1, &clockParams, &eb);
+
+    GPTimerCC26XX_Params gpt_params;
+    GPTimerCC26XX_Params_init(&gpt_params);
+    gpt_params.mode  = GPT_MODE_PERIODIC_UP;
+    gpt_params.width = GPT_CONFIG_16BIT;
+    gclk_timer_h = GPTimerCC26XX_open(QC14BOARD_GPTIMER0A, &gpt_params);
+
+    GPTimerCC26XX_setLoadValue(gclk_timer_h, 4800);
+    GPTimerCC26XX_registerInterrupt(gclk_timer_h, gclk_tick, GPT_INT_TIMEOUT);
+    GPTimerCC26XX_start(gclk_timer_h);
+
+    // Prod values:
+    mbi_read_cfg1();
+    mbi_wr_dat_cmd_a(0x0000, MBI_CMD_PREACT);
+    mbi_wr_dat_cmd_a(0b1000111011101011, MBI_CMD_CFG1);
+    while (mbi_dclk_ticking);
+    if (mbi_read_cfg1() != 0b1000111011101011) {
+        __nop();
+    }
+    // We are pretending there's only one scan line:
+
+    mbi_wr_dat_cmd_a(0x0000, MBI_CMD_PREACT);
+    mbi_wr_dat_cmd_a(0b0000000000111111, MBI_CMD_CFG1);
+    while (mbi_dclk_ticking);
+    mbi_read_cfg1();
+
+    Task_sleep(10); // 10 ticks. (100 us)
+
+    led_load_sem = Semaphore_create(0, NULL, &eb);
+
+    Task_Params taskParams;
+    Task_Params_init(&taskParams);
+    taskParams.stack = qcLoadTaskStack;
+    taskParams.stackSize = sizeof(qcLoadTaskStack);
+    taskParams.priority = 1;
+    Task_construct(&qcLoadTask, qc_load_led_fn, &taskParams, NULL);
+
+    while (1)
+    {
+        Task_sleep(BIOS_WAIT_FOREVER);
+    }
+}
+
 int main()
 {
   /* Register Application callback to trap asserts raised in the Stack */
   RegisterAssertCback(AssertHandler);
 
   PIN_init(BoardGpioInitTable);
+
+//  Power_setDependency(XOSC_HF); // TODO
 
 #ifndef POWER_SAVING
   /* Set constraints for Standby, powerdown and idle mode */
@@ -349,6 +448,13 @@ int main()
   init_ble();
   init_switch();
   init_mbi();
+
+  Task_Params taskParams;
+  Task_Params_init(&taskParams);
+  taskParams.stack = qcTaskStack;
+  taskParams.stackSize = sizeof(qcTaskStack);
+  taskParams.priority = 1;
+  Task_construct(&qcTask, qc_task_fn, &taskParams, NULL);
 
   // And we're off to see the wizard!
   BIOS_start();
@@ -439,27 +545,3 @@ void AssertHandler(uint8 assertCause, uint8 assertSubcause)
 
   return;
 }
-
-
-/*******************************************************************************
- * @fn          smallErrorHook
- *
- * @brief       Error handler to be hooked into TI-RTOS.
- *
- * input parameters
- *
- * @param       eb - Pointer to Error Block.
- *
- * output parameters
- *
- * @param       None.
- *
- * @return      None.
- */
-void smallErrorHook(Error_Block *eb)
-{
-  for (;;);
-}
-
-/*******************************************************************************
- */
