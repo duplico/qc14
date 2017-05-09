@@ -281,9 +281,9 @@ const SPICC26XXDMA_HWAttrsV1 spiCC26XXDMAHWAttrs[QC14BOARD_SPICOUNT] = {
         .defaultTxBufValue  = 0,
         .rxChannelBitMask   = 1<<UDMA_CHAN_SSI1_RX,
         .txChannelBitMask   = 1<<UDMA_CHAN_SSI1_TX,
-        .mosiPin            = PIN_UNASSIGNED,
-        .misoPin            = PIN_UNASSIGNED,
-        .clkPin             = PIN_UNASSIGNED,
+        .mosiPin            = LED_DOUT,
+        .misoPin            = LED_DIN,
+        .clkPin             = LED_CLK,
         .csnPin             = PIN_UNASSIGNED
     }
 };
