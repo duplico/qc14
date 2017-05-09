@@ -73,6 +73,14 @@ const PIN_Config BoardGpioInitTable[] = {
     // Light sensor:
     LIGHT           | PIN_INPUT_EN | PIN_NOPULL,
 
+    // Flash:
+//    FLASH_TX        | PIN_INPUT_EN | PIN_NOPULL,
+//    FLASH_RX        | PIN_INPUT_EN | PIN_NOPULL,
+//    FLASH_CLK       | PIN_INPUT_EN | PIN_NOPULL,
+    FLASH_CS        | PIN_GPIO_OUTPUT_EN | PIN_GPIO_LOW | PIN_PUSHPULL | PIN_DRVSTR_MIN,
+    FLASH_NHOLD     | PIN_GPIO_OUTPUT_EN | PIN_GPIO_HIGH | PIN_PUSHPULL | PIN_DRVSTR_MIN,
+    FLASH_NWP       | PIN_GPIO_OUTPUT_EN | PIN_GPIO_HIGH | PIN_PUSHPULL | PIN_DRVSTR_MIN,
+
     PIN_TERMINATE
 };
 
@@ -128,8 +136,41 @@ const UARTCC26XX_HWAttrsV1 uartCC26XXHWAttrs[QC14BOARD_UARTCOUNT] = {
         .intNum         = INT_UART0_COMB,
         .intPriority    = ~0,
         .swiPriority    = 0,
-        .txPin          = PIN_UNASSIGNED,
-        .rxPin          = PIN_UNASSIGNED,
+        .txPin          = P1_TX,
+        .rxPin          = P1_RX,
+        .ctsPin         = PIN_UNASSIGNED,
+        .rtsPin         = PIN_UNASSIGNED
+    },
+    {
+        .baseAddr       = UART0_BASE,
+        .powerMngrId    = PowerCC26XX_PERIPH_UART0,
+        .intNum         = INT_UART0_COMB,
+        .intPriority    = ~0,
+        .swiPriority    = 0,
+        .txPin          = P2_TX,
+        .rxPin          = P2_RX,
+        .ctsPin         = PIN_UNASSIGNED,
+        .rtsPin         = PIN_UNASSIGNED
+    },
+    {
+        .baseAddr       = UART0_BASE,
+        .powerMngrId    = PowerCC26XX_PERIPH_UART0,
+        .intNum         = INT_UART0_COMB,
+        .intPriority    = ~0,
+        .swiPriority    = 0,
+        .txPin          = P3_TX,
+        .rxPin          = P3_RX,
+        .ctsPin         = PIN_UNASSIGNED,
+        .rtsPin         = PIN_UNASSIGNED
+    },
+    {
+        .baseAddr       = UART0_BASE,
+        .powerMngrId    = PowerCC26XX_PERIPH_UART0,
+        .intNum         = INT_UART0_COMB,
+        .intPriority    = ~0,
+        .swiPriority    = 0,
+        .txPin          = P4_TX,
+        .rxPin          = P4_RX,
         .ctsPin         = PIN_UNASSIGNED,
         .rtsPin         = PIN_UNASSIGNED
     }
@@ -141,6 +182,21 @@ const UART_Config UART_config[] = {
         .fxnTablePtr = &UARTCC26XX_fxnTable,
         .object      = &uartCC26XXObjects[0],
         .hwAttrs     = &uartCC26XXHWAttrs[0]
+    },
+    {
+        .fxnTablePtr = &UARTCC26XX_fxnTable,
+        .object      = &uartCC26XXObjects[1],
+        .hwAttrs     = &uartCC26XXHWAttrs[1]
+    },
+    {
+        .fxnTablePtr = &UARTCC26XX_fxnTable,
+        .object      = &uartCC26XXObjects[2],
+        .hwAttrs     = &uartCC26XXHWAttrs[2]
+    },
+    {
+        .fxnTablePtr = &UARTCC26XX_fxnTable,
+        .object      = &uartCC26XXObjects[3],
+        .hwAttrs     = &uartCC26XXHWAttrs[3]
     },
     {NULL, NULL, NULL}
 };
@@ -214,7 +270,7 @@ const SPICC26XXDMA_HWAttrsV1 spiCC26XXDMAHWAttrs[QC14BOARD_SPICOUNT] = {
         .mosiPin            = FLASH_TX,
         .misoPin            = FLASH_RX,
         .clkPin             = FLASH_CLK,
-        .csnPin             = FLASH_CS
+        .csnPin             = PIN_UNASSIGNED
     },
     {
         .baseAddr           = SSI1_BASE,
@@ -660,17 +716,17 @@ const ADCCC26XX_HWAttrs adcCC26xxHWAttrs[QC14BOARD_ADCCOUNT] = {
 };
 
 const ADC_Config ADC_config[] = {
-//    {&ADCCC26XX_fxnTable, &adcCC26xxObjects[0], &adcCC26xxHWAttrs[0]},
-//    {&ADCCC26XX_fxnTable, &adcCC26xxObjects[1], &adcCC26xxHWAttrs[1]},
-//    {&ADCCC26XX_fxnTable, &adcCC26xxObjects[2], &adcCC26xxHWAttrs[2]},
-//    {&ADCCC26XX_fxnTable, &adcCC26xxObjects[3], &adcCC26xxHWAttrs[3]},
-//    {&ADCCC26XX_fxnTable, &adcCC26xxObjects[4], &adcCC26xxHWAttrs[4]},
-//    {&ADCCC26XX_fxnTable, &adcCC26xxObjects[5], &adcCC26xxHWAttrs[5]},
-//    {&ADCCC26XX_fxnTable, &adcCC26xxObjects[6], &adcCC26xxHWAttrs[6]},
+    {&ADCCC26XX_fxnTable, &adcCC26xxObjects[0], &adcCC26xxHWAttrs[0]},
+    {&ADCCC26XX_fxnTable, &adcCC26xxObjects[1], &adcCC26xxHWAttrs[1]},
+    {&ADCCC26XX_fxnTable, &adcCC26xxObjects[2], &adcCC26xxHWAttrs[2]},
+    {&ADCCC26XX_fxnTable, &adcCC26xxObjects[3], &adcCC26xxHWAttrs[3]},
+    {&ADCCC26XX_fxnTable, &adcCC26xxObjects[4], &adcCC26xxHWAttrs[4]},
+    {&ADCCC26XX_fxnTable, &adcCC26xxObjects[5], &adcCC26xxHWAttrs[5]},
+    {&ADCCC26XX_fxnTable, &adcCC26xxObjects[6], &adcCC26xxHWAttrs[6]},
     {&ADCCC26XX_fxnTable, &adcCC26xxObjects[7], &adcCC26xxHWAttrs[7]},
-//    {&ADCCC26XX_fxnTable, &adcCC26xxObjects[8], &adcCC26xxHWAttrs[8]},
-//    {&ADCCC26XX_fxnTable, &adcCC26xxObjects[9], &adcCC26xxHWAttrs[9]},
-//    {&ADCCC26XX_fxnTable, &adcCC26xxObjects[10], &adcCC26xxHWAttrs[10]},
+    {&ADCCC26XX_fxnTable, &adcCC26xxObjects[8], &adcCC26xxHWAttrs[8]},
+    {&ADCCC26XX_fxnTable, &adcCC26xxObjects[9], &adcCC26xxHWAttrs[9]},
+    {&ADCCC26XX_fxnTable, &adcCC26xxObjects[10], &adcCC26xxHWAttrs[10]},
     {NULL, NULL, NULL},
 };
 

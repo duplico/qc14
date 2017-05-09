@@ -2,12 +2,18 @@
 #include <ti/drivers/Power.h>
 #include <ti/drivers/power/PowerCC26XX.h>
 #include <ti/drivers/PIN.h>
+#include <ti/drivers/SPI.h>
+#include <ti/drivers/spi/SPICC26XXDMA.h>
 #include <ti/drivers/pin/PINCC26XX.h>
 #include <ti/drivers/timer/GPTimerCC26XX.h>
 #include <ti/drivers/PWM.h>
+#include <ti/drivers/UART.h>
 #include <ti/drivers/pwm/PWMTimerCC26XX.h>
 #include <ti/sysbios/knl/Task.h>
 #include <ti/sysbios/knl/Semaphore.h>
+#include <ti/drivers/ADC.h>
+
+#include <stdio.h>
 
 #include <ti/sysbios/BIOS.h>
 
@@ -16,6 +22,8 @@
 #include "bcomdef.h"
 #include "broadcaster.h"
 #include "simple_broadcaster.h"
+
+#include "ExtFlash.h"
 
 /* Header files required to enable instruction fetch cache */
 #include <inc/hw_memmap.h>
@@ -31,8 +39,6 @@ bleUserCfg_t user0Cfg = BLE_USER_CFG;
 #endif // USE_DEFAULT_USER_CFG
 
 #include <ti/mw/display/Display.h>
-
-extern void AssertHandler(uint8 assertCause, uint8 assertSubcause);
 
 extern Display_Handle dispHandle;
 
@@ -339,6 +345,8 @@ void qc_load_led_fn(UArg a0, UArg a1) {
     while (1) {
         Semaphore_pend(led_load_sem, BIOS_WAIT_FOREVER);
 
+        continue;
+
         // Reset is SUPPOSED to turn everything off.
 //        mbi_wr_dat_cmd(0x0000, MBI_CMD_RST);
 
@@ -375,7 +383,7 @@ void qc_load_led_fn(UArg a0, UArg a1) {
 }
 
 Task_Struct qcTask;
-char qcTaskStack[400];
+char qcTaskStack[1200];
 
 void qc_task_fn(UArg a0, UArg a1)
 {
@@ -424,6 +432,36 @@ void qc_task_fn(UArg a0, UArg a1)
     taskParams.priority = 1;
     Task_construct(&qcLoadTask, qc_load_led_fn, &taskParams, NULL);
 
+    ADC_Handle adc;
+    ADC_Params adcp;
+    ADC_init();
+
+    ADC_Params_init(&adcp);
+    adc = ADC_open(QC14BOARD_ADC7_LIGHT, &adcp);
+
+    UART_init();
+
+    UART_Handle uh;
+    UART_Params p;
+    UART_Params_init(&p);
+    p.baudRate = 9600;
+
+    uint8_t uart_id = 0;
+    char buf[12] = "test";
+    uint_fast16_t adc_value = 0;
+    do {
+        ADC_convert(adc, &adc_value);
+
+        sprintf(buf, "%d\r\n", adc_value);
+
+        uh = UART_open(uart_id, &p);
+        UART_write(uh, buf, strlen(buf));
+        UART_close(uh);
+        uart_id = (uart_id+1) % QC14BOARD_UARTCOUNT;
+        Task_sleep(5000);
+    } while (1);
+
+
     while (1)
     {
         Task_sleep(BIOS_WAIT_FOREVER);
@@ -432,8 +470,6 @@ void qc_task_fn(UArg a0, UArg a1)
 
 int main()
 {
-  /* Register Application callback to trap asserts raised in the Stack */
-  RegisterAssertCback(AssertHandler);
 
   PIN_init(BoardGpioInitTable);
 
@@ -460,88 +496,4 @@ int main()
   BIOS_start();
 
   return 0;
-}
-
-
-/*******************************************************************************
- * @fn          AssertHandler
- *
- * @brief       This is the Application's callback handler for asserts raised
- *              in the stack.  When EXT_HAL_ASSERT is defined in the Stack
- *              project this function will be called when an assert is raised, 
- *              and can be used to observe or trap a violation from expected 
- *              behavior.       
- *              
- *              As an example, for Heap allocation failures the Stack will raise 
- *              HAL_ASSERT_CAUSE_OUT_OF_MEMORY as the assertCause and 
- *              HAL_ASSERT_SUBCAUSE_NONE as the assertSubcause.  An application
- *              developer could trap any malloc failure on the stack by calling
- *              HAL_ASSERT_SPINLOCK under the matching case.
- *
- *              An application developer is encouraged to extend this function
- *              for use by their own application.  To do this, add hal_assert.c
- *              to your project workspace, the path to hal_assert.h (this can 
- *              be found on the stack side). Asserts are raised by including
- *              hal_assert.h and using macro HAL_ASSERT(cause) to raise an 
- *              assert with argument assertCause.  the assertSubcause may be
- *              optionally set by macro HAL_ASSERT_SET_SUBCAUSE(subCause) prior
- *              to asserting the cause it describes. More information is
- *              available in hal_assert.h.
- *
- * input parameters
- *
- * @param       assertCause    - Assert cause as defined in hal_assert.h.
- * @param       assertSubcause - Optional assert subcause (see hal_assert.h).
- *
- * output parameters
- *
- * @param       None.
- *
- * @return      None.
- */
-void AssertHandler(uint8 assertCause, uint8 assertSubcause)
-{
-  // Open the display if the app has not already done so
-  if ( !dispHandle )
-  {
-    dispHandle = Display_open(Display_Type_LCD, NULL);
-  }
-
-  Display_print0(dispHandle, 0, 0, ">>>STACK ASSERT");
-
-  // check the assert cause
-  switch (assertCause)
-  {
-    case HAL_ASSERT_CAUSE_OUT_OF_MEMORY:
-      Display_print0(dispHandle, 0, 0, "***ERROR***");
-      Display_print0(dispHandle, 2, 0, ">> OUT OF MEMORY!");
-      break;
-
-    case HAL_ASSERT_CAUSE_INTERNAL_ERROR:
-      // check the subcause
-      if (assertSubcause == HAL_ASSERT_SUBCAUSE_FW_INERNAL_ERROR)
-      {
-        Display_print0(dispHandle, 0, 0, "***ERROR***");
-        Display_print0(dispHandle, 2, 0, ">> INTERNAL FW ERROR!");
-      }
-      else
-      {
-        Display_print0(dispHandle, 0, 0, "***ERROR***");
-        Display_print0(dispHandle, 2, 0, ">> INTERNAL ERROR!");
-      }
-      break;
-
-    case HAL_ASSERT_CAUSE_ICALL_ABORT:
-      Display_print0(dispHandle, 0, 0, "***ERROR***");
-      Display_print0(dispHandle, 2, 0, ">> ICALL ABORT!");
-      HAL_ASSERT_SPINLOCK;
-      break;
-
-    default:
-      Display_print0(dispHandle, 0, 0, "***ERROR***");
-      Display_print0(dispHandle, 2, 0, ">> DEFAULT SPINLOCK!");
-      HAL_ASSERT_SPINLOCK;
-  }
-
-  return;
 }
