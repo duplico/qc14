@@ -126,16 +126,20 @@ extern const PIN_Config BoardGpioInitTable[];
 #define FLASH_NHOLD IOID_22
 #define FLASH_NWP   IOID_25
 
+#define Board_FLASH_CS_OFF  1
+#define Board_FLASH_CS_ON   0
+#define Board_SPI_FLASH_CS FLASH_CS
+
 /** ============================================================================
  *  Instance identifiers
  *  ==========================================================================*/
 /* Generic I2C instance identifiers */
 #define Board_I2C                   QC14BOARD_I2C0
 /* Generic SPI instance identifiers */
-#define Board_SPI0                  QC14BOARD_SPI0
+#define Board_SPI0                  QC14BOARD_FLASH_SPI
 #define Board_SPI1                  QC14BOARD_SPI1
 /* Generic UART instance identifiers */
-#define Board_UART                  QC14BOARD_UART0
+#define Board_UART                  QC14BOARD_P1_UART
 /* Generic Crypto instance identifiers */
 #define Board_CRYPTO                QC14BOARD_CRYPTO0
 /* Generic GPTimer instance identifiers */
@@ -187,7 +191,7 @@ typedef enum QC14BOARD_CryptoName {
  *  @brief  Enum of SPI names on the badge
  */
 typedef enum QC14BOARD_SPIName {
-    QC14BOARD_SPI0 = 0,
+    QC14BOARD_FLASH_SPI = 0,
     QC14BOARD_SPI1,
 
     QC14BOARD_SPICOUNT
@@ -207,7 +211,10 @@ typedef enum QC14BOARD_TRNGName {
  *  @brief  Enum of UARTs on the badge
  */
 typedef enum QC14BOARD_UARTName {
-    QC14BOARD_UART0 = 0,
+    QC14BOARD_P1_UART = 0,
+    QC14BOARD_P2_UART,
+    QC14BOARD_P3_UART,
+    QC14BOARD_P4_UART,
 
     QC14BOARD_UARTCOUNT
 } QC14BOARD_UARTName;
@@ -291,7 +298,7 @@ typedef enum QC14BOARD_ADCName {
     QC14BOARD_ADC4,
     QC14BOARD_ADC5,
     QC14BOARD_ADC6,
-    QC14BOARD_ADC7,
+    QC14BOARD_ADC7_LIGHT,
     QC14BOARD_ADCDCOUPL,
     QC14BOARD_ADCVSS,
     QC14BOARD_ADCVDDS,

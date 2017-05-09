@@ -294,9 +294,6 @@ static void SimpleBLEBroadcaster_init(void)
   // Create an RTOS queue for message from profile to be sent to app.
   appMsgQueue = Util_constructQueue(&appMsg);
 
-  // Open LCD
-  dispHandle = Display_open(Display_Type_LCD, NULL);
-
   // Setup the GAP Broadcaster Role Profile
   {
     // For all hardware platforms, device starts advertising upon initialization
@@ -339,7 +336,6 @@ static void SimpleBLEBroadcaster_init(void)
   // Start the Device
   VOID GAPRole_StartDevice(&simpleBLEBroadcaster_BroadcasterCBs);
 
-  Display_print0(dispHandle, 0, 0, "BLE Broadcaster");
 }
 
 /*********************************************************************
@@ -491,34 +487,26 @@ static void SimpleBLEBroadcaster_processStateChangeEvt(gaprole_States_t newState
         uint8 ownAddress[B_ADDR_LEN];
 
         GAPRole_GetParameter(GAPROLE_BD_ADDR, ownAddress);
-
-        // Display device address
-        Display_print0(dispHandle, 1, 0, Util_convertBdAddr2Str(ownAddress));
-        Display_print0(dispHandle, 2, 0, "Initialized");
       }
       break;
 
     case GAPROLE_ADVERTISING:
       {
-        Display_print0(dispHandle, 2, 0, "Advertising");
       }
       break;
 
     case GAPROLE_WAITING:
       {
-        Display_print0(dispHandle, 2, 0, "Waiting");
       }
       break;
 
     case GAPROLE_ERROR:
       {
-        Display_print0(dispHandle, 2, 0, "Error");
       }
       break;
 
     default:
       {
-        Display_clearLine(dispHandle, 2);
       }
       break;
   }
