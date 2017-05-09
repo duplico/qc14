@@ -192,7 +192,7 @@ typedef enum QC14BOARD_CryptoName {
  */
 typedef enum QC14BOARD_SPIName {
     QC14BOARD_FLASH_SPI = 0,
-    QC14BOARD_SPI1,
+    QC14BOARD_TLC_SPI,
 
     QC14BOARD_SPICOUNT
 } QC14BOARD_SPIName;
