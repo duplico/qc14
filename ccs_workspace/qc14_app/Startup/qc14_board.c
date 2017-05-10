@@ -516,7 +516,7 @@ const GPTimerCC26XX_Config GPTimerCC26XX_config[QC14BOARD_GPTIMERPARTSCOUNT] = {
 PWMTimerCC26XX_HwAttrs pwmtimerCC26xxHWAttrs[QC14BOARD_PWMCOUNT] = {
     { .pwmPin = PIN_UNASSIGNED, .gpTimerUnit = Board_GPTIMER0A },
     { .pwmPin = PIN_UNASSIGNED, .gpTimerUnit = Board_GPTIMER0B },
-    { .pwmPin = PIN_UNASSIGNED, .gpTimerUnit = Board_GPTIMER1A },
+    { .pwmPin = LED_GSCLK, .gpTimerUnit = Board_GPTIMER1A },
     { .pwmPin = PIN_UNASSIGNED, .gpTimerUnit = Board_GPTIMER1B },
     { .pwmPin = PIN_UNASSIGNED, .gpTimerUnit = Board_GPTIMER2A },
     { .pwmPin = PIN_UNASSIGNED, .gpTimerUnit = Board_GPTIMER2B },
