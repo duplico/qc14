@@ -126,34 +126,10 @@ uint16_t mbi_r_dat(uint16_t dat) {
     return val;
 }
 
-void mbi_dclk_swi();
-
-
-void mbi_wr_dat_cmd(uint16_t dat, uint16_t cmd) {
-    uint16_t bit = 16;
-    while (bit) {
-        if (bit == cmd) PIN_setOutputValue(mbi_pin_h, LED_LE, 1);
-        bit--;
-        PIN_setOutputValue(mbi_pin_h, LED_DOUT, (dat>>bit) & 0x0001);
-        PIN_setOutputValue(mbi_pin_h, LED_CLK, 1);
-        PIN_setOutputValue(mbi_pin_h, LED_CLK, 0);
-    }
-
-    PIN_setOutputValue(mbi_pin_h, LED_LE, 0);
-}
-
-uint16_t mbi_read_cfg1() {
-    mbi_wr_dat_cmd(0x0000, MBI_CMD_READCFG1);
-    volatile uint16_t cfg1 = 0;
-    cfg1 = mbi_r_dat(0x0000);
-    __nop();
-    return cfg1;
-}
-
 void mp_shift() {
     scan_line++;
     scan_line %= 15;
-    PIN_setOutputValue(mbi_pin_h, MP0_OUT, scan_line != 0);
+    PIN_setOutputValue(mbi_pin_h, MP0_OUT, 0); //scan_line != 0);
     PIN_setOutputValue(mbi_pin_h, MP_CTR_CLK, 1); // pulse clock
     PIN_setOutputValue(mbi_pin_h, MP_CTR_CLK, 0);
     if (scan_line == 7) {
@@ -165,16 +141,6 @@ void mp_shift() {
 uint8_t sw_l_clicked = 0;
 uint8_t sw_r_clicked = 0;
 uint8_t sw_c_clicked = 0;
-
-void mbi_start_write() {
-    mbi_writing = 1;
-    mbi_wr_sl = 0;
-    mbi_wr_ch = 15;
-    mbi_wr_bit = 15;
-    mbi_gclk_hold = 0;
-    mbi_vsync_ready = 0;
-    mbi_vsync_wait = 0;
-}
 
 void sw_clock_f() {
     static uint8_t sw_l_last = 1;
@@ -217,31 +183,6 @@ void sw_clock_f() {
     sw_c_last = sw_c_curr;
 }
 
-volatile uint16_t mbi_dat;
-volatile uint16_t mbi_cmd;
-volatile uint8_t mbi_wr_index = 0;
-volatile uint8_t mbi_le_needs_low = 1;
-volatile uint8_t mbi_dclk_ticking = 0;
-
-void mbi_wr_dat_cmd_a(uint16_t dat, uint16_t cmd) {
-    while (mbi_dclk_ticking); // spin until we can write again.
-    mbi_wr_index = 16;
-    mbi_cmd = cmd;
-    mbi_dat = dat;
-    mbi_dclk_ticking = 1;
-}
-
-//uint16_t bit = 16;
-//while (bit) {
-//    if (bit == cmd) PIN_setOutputValue(mbi_pin_h, LED_LE, 1);
-//    bit--;
-//    PIN_setOutputValue(mbi_pin_h, LED_DOUT, (dat>>bit) & 0x0001);
-//    PIN_setOutputValue(mbi_pin_h, LED_CLK, 1);
-//    PIN_setOutputValue(mbi_pin_h, LED_CLK, 0);
-//}
-//
-//PIN_setOutputValue(mbi_pin_h, LED_LE, 0);
-
 volatile uint8_t gclk_state = 0;
 
 GPTimerCC26XX_Handle gclk_timer_h;
@@ -262,7 +203,7 @@ void gclk_tick() {
             gclk = 0;
             scan_line = 0;
             do { // Clear out & prime the shift register:
-                mp_shift();
+//                mp_shift();
             } while (scan_line);
         }
         return;
@@ -274,7 +215,7 @@ void gclk_tick() {
 
     // Tick the GCLK and handle the multiplexing.
     if (gclk == LED_MP_CYCLES) {
-        mp_shift();
+//        mp_shift();
         gclk = 0;
     } else {
         gclk++;
@@ -292,6 +233,9 @@ void init_mbi() {
     PIN_setOutputValue(mbi_pin_h, MP0_CLR, 1);
     PIN_setOutputValue(mbi_pin_h, MP1_CLR, 1);
 
+    do { // Clear out & prime the shift register:
+        mp_shift();
+    } while (scan_line);
     do { // Clear out & prime the shift register:
         mp_shift();
     } while (scan_line);
@@ -329,13 +273,13 @@ uint8_t fun_base[] = {
         0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,  // ...reserved...
         // B135 / PSM(D1)       0
         // B134 / PSM(D0)       0
-        // B133 / OLDENA        0
+        // B133 / OLDENA        1
         // B132 / IDMCUR(D1)    0
         // B131 / IDMCUR(D0)    0
         // B130 / IDMRPT(D0)    0
         // B129 / IDMENA        0
         // B128 / LATTMG(D1)    1:
-        0x01,
+        0b00100001,
         // B127 / LATTMG(D0)    1
         // B126 / LSDVLT(D1)    0
         // B125 / LSDVLT(D0)    0
@@ -344,10 +288,12 @@ uint8_t fun_base[] = {
         // B122 / ESPWM         1
         // B121 / TMGRST        1
         // B120 / DSPRPT        1:
-        0x87,
+        0b10000111,
         // B119 / BLANK
         // and 7 bits of global brightness correction:
-        0x7f, // after this there are 16 7-tets of dot correction.
+//        0xff, // blank on.
+        0x00,
+//        0x7f, // after this there are 16 7-tets of dot correction. // blank off
         //We'll send it as 14 octets.
         0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
         0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
@@ -373,6 +319,8 @@ uint8_t all_on[] = {
         0xff, 0xff,
 };
 
+uint8_t rx_buf[33];
+
 Task_Struct qcTask;
 char qcTaskStack[2000];
 
@@ -384,7 +332,7 @@ void qc_task_fn(UArg a0, UArg a1)
     gpt_params.width = GPT_CONFIG_16BIT;
     gclk_timer_h = GPTimerCC26XX_open(QC14BOARD_GPTIMER0A, &gpt_params);
 
-    GPTimerCC26XX_setLoadValue(gclk_timer_h, 4800);
+    GPTimerCC26XX_setLoadValue(gclk_timer_h, 1200);
     GPTimerCC26XX_registerInterrupt(gclk_timer_h, gclk_tick, GPT_INT_TIMEOUT);
     GPTimerCC26XX_start(gclk_timer_h);
 
@@ -415,21 +363,39 @@ void qc_task_fn(UArg a0, UArg a1)
     // Defaults should be good.
 
     tlc_spi_params.mode = SPI_MODE_BLOCKING;
+    tlc_spi_params.bitRate = 100000;
 
     tlc_spi = SPI_open(QC14BOARD_TLC_SPI, &tlc_spi_params);
-    SPI_Transaction fun_data_transaction;
 
-    fun_data_transaction.txBuf = fun_base;
-    fun_data_transaction.rxBuf = NULL;
-    fun_data_transaction.count = sizeof fun_base;
 
-    SPI_transfer(tlc_spi, &fun_data_transaction);
+    while (1) {
+        SPI_Transaction fun_data_transaction;
 
-    SPI_Transaction gs_data_transaction;
-    gs_data_transaction.txBuf = all_on;
-    gs_data_transaction.rxBuf = NULL;
-    gs_data_transaction.count = sizeof all_on;
-    SPI_transfer(tlc_spi, &gs_data_transaction);
+        fun_data_transaction.txBuf = fun_base;
+        fun_data_transaction.rxBuf = NULL;
+        fun_data_transaction.count = sizeof fun_base;
+
+        SPI_transfer(tlc_spi, &fun_data_transaction);
+    //     LATCH!
+        PIN_setOutputValue(mbi_pin_h, LED_LE, 1);
+        Task_sleep(1);
+        PIN_setOutputValue(mbi_pin_h, LED_LE, 0);
+
+
+        SPI_Transaction gs_data_transaction;
+        gs_data_transaction.txBuf = all_on;
+        gs_data_transaction.rxBuf = rx_buf;
+        gs_data_transaction.count = sizeof all_on;
+        SPI_transfer(tlc_spi, &gs_data_transaction);
+        // LATCH!
+        PIN_setOutputValue(mbi_pin_h, LED_LE, 1);
+        Task_sleep(1);
+        PIN_setOutputValue(mbi_pin_h, LED_LE, 0);
+    }
+
+    // wait 140 gclks for diagnostic data to be ready.
+    mbi_vsync_wait = 170;
+    while (mbi_vsync_wait);
 
     UART_init();
 
