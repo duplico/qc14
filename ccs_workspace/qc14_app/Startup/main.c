@@ -58,7 +58,7 @@ PIN_Handle mbi_pin_h;
 
 PIN_Config mbi_pin_table[] = {
     // LED controller:
-    LED_GSCLK       | PIN_GPIO_OUTPUT_EN | PIN_GPIO_LOW | PIN_PUSHPULL | PIN_DRVSTR_MAX,
+//    LED_GSCLK       | PIN_GPIO_OUTPUT_EN | PIN_GPIO_LOW | PIN_PUSHPULL | PIN_DRVSTR_MAX,
     LED_LE         | PIN_GPIO_OUTPUT_EN | PIN_GPIO_LOW | PIN_PUSHPULL | PIN_DRVSTR_MAX,
     // LED Multiplexer (bit-banged)
     MP_CTR_CLK      | PIN_GPIO_OUTPUT_EN | PIN_GPIO_LOW | PIN_PUSHPULL | PIN_DRVSTR_MAX,
@@ -91,9 +91,7 @@ Clock_Handle sw_clock;
 
 Semaphore_Handle led_load_sem;
 
-PWM_Handle hPWM;
-
-#define LED_MP_CYCLES 256
+#define LED_MP_CYCLES 64
 
 void init_ble() {
     /* Initialize ICall module */
@@ -129,7 +127,7 @@ uint16_t mbi_r_dat(uint16_t dat) {
 void mp_shift() {
     scan_line++;
     scan_line %= 15;
-    PIN_setOutputValue(mbi_pin_h, MP0_OUT, 0); //scan_line != 0);
+    PIN_setOutputValue(mbi_pin_h, MP0_OUT, scan_line != 0);
     PIN_setOutputValue(mbi_pin_h, MP_CTR_CLK, 1); // pulse clock
     PIN_setOutputValue(mbi_pin_h, MP_CTR_CLK, 0);
     if (scan_line == 7) {
@@ -187,39 +185,8 @@ volatile uint8_t gclk_state = 0;
 
 GPTimerCC26XX_Handle gclk_timer_h;
 
-void gclk_tick() {
-    gclk_state = ~gclk_state;
-
-    if (mbi_vsync_wait)
-        mbi_vsync_wait--;
-
-    if (mbi_gclk_hold) {
-        // If the GS clock is HELD, don't tick it.
-        // After the hold is over we'll be starting all over again, so it's time to
-        // fix the multiplexing.
-        if (gclk_state) mbi_gclk_hold--;
-        if (!mbi_gclk_hold) {
-            // done holding:
-            gclk = 0;
-            scan_line = 0;
-            do { // Clear out & prime the shift register:
-//                mp_shift();
-            } while (scan_line);
-        }
-        return;
-    }
-
-    PINCC26XX_setOutputValue(LED_GSCLK, gclk_state);
-
-    if (gclk_state) return; // if we just brought it high, nothing to do.
-
-    // Tick the GCLK and handle the multiplexing.
-    if (gclk == LED_MP_CYCLES) {
-//        mp_shift();
-        gclk = 0;
-    } else {
-        gclk++;
-    }
+void mp_tick() {
+    mp_shift();
 }
 
 void timer_init_task();
@@ -301,7 +268,7 @@ uint8_t fun_base[] = {
 
 uint8_t all_on[] = {
         TLC_THISISGS, // This is a command.
-        0xff, 0xff,
+        0x00, 0x00,
         0xff, 0xff,
         0xff, 0xff,
         0xff, 0xff,
@@ -332,9 +299,25 @@ void qc_task_fn(UArg a0, UArg a1)
     gpt_params.width = GPT_CONFIG_16BIT;
     gclk_timer_h = GPTimerCC26XX_open(QC14BOARD_GPTIMER0A, &gpt_params);
 
-    GPTimerCC26XX_setLoadValue(gclk_timer_h, 1200);
-    GPTimerCC26XX_registerInterrupt(gclk_timer_h, gclk_tick, GPT_INT_TIMEOUT);
+    GPTimerCC26XX_setLoadValue(gclk_timer_h, 24000);
+    GPTimerCC26XX_registerInterrupt(gclk_timer_h, mp_tick, GPT_INT_TIMEOUT);
     GPTimerCC26XX_start(gclk_timer_h);
+
+    PWM_Handle gclk_pwm_h;
+    PWM_Params pwm_params;
+
+    PWM_init();
+
+    PWM_Params_init(&pwm_params);
+    pwm_params.idleLevel = PWM_IDLE_LOW;
+    pwm_params.periodUnits = PWM_PERIOD_HZ;
+    pwm_params.periodValue = 10000000;
+    pwm_params.dutyUnits = PWM_DUTY_FRACTION;
+    pwm_params.dutyValue = PWM_DUTY_FRACTION_MAX/2;
+
+    gclk_pwm_h = PWM_open(QC14BOARD_PWM_GSCLK, &pwm_params);
+
+    PWM_start(gclk_pwm_h);
 
     Task_sleep(10); // 10 ticks. (100 us)
 
