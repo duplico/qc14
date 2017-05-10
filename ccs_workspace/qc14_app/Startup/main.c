@@ -350,35 +350,29 @@ void qc_task_fn(UArg a0, UArg a1)
 
     tlc_spi = SPI_open(QC14BOARD_TLC_SPI, &tlc_spi_params);
 
+    SPI_Transaction fun_data_transaction;
 
-    while (1) {
-        SPI_Transaction fun_data_transaction;
+    fun_data_transaction.txBuf = fun_base;
+    fun_data_transaction.rxBuf = NULL;
+    fun_data_transaction.count = sizeof fun_base;
 
-        fun_data_transaction.txBuf = fun_base;
-        fun_data_transaction.rxBuf = NULL;
-        fun_data_transaction.count = sizeof fun_base;
-
-        SPI_transfer(tlc_spi, &fun_data_transaction);
+    SPI_transfer(tlc_spi, &fun_data_transaction);
     //     LATCH!
-        PIN_setOutputValue(mbi_pin_h, LED_LE, 1);
-        Task_sleep(1);
-        PIN_setOutputValue(mbi_pin_h, LED_LE, 0);
+    PIN_setOutputValue(mbi_pin_h, LED_LE, 1);
+    Task_sleep(1);
+    PIN_setOutputValue(mbi_pin_h, LED_LE, 0);
 
 
-        SPI_Transaction gs_data_transaction;
-        gs_data_transaction.txBuf = all_on;
-        gs_data_transaction.rxBuf = rx_buf;
-        gs_data_transaction.count = sizeof all_on;
-        SPI_transfer(tlc_spi, &gs_data_transaction);
-        // LATCH!
-        PIN_setOutputValue(mbi_pin_h, LED_LE, 1);
-        Task_sleep(1);
-        PIN_setOutputValue(mbi_pin_h, LED_LE, 0);
-    }
+    SPI_Transaction gs_data_transaction;
+    gs_data_transaction.txBuf = all_on;
+    gs_data_transaction.rxBuf = rx_buf;
+    gs_data_transaction.count = sizeof all_on;
+    SPI_transfer(tlc_spi, &gs_data_transaction);
+    // LATCH!
+    PIN_setOutputValue(mbi_pin_h, LED_LE, 1);
+    Task_sleep(1);
+    PIN_setOutputValue(mbi_pin_h, LED_LE, 0);
 
-    // wait 140 gclks for diagnostic data to be ready.
-    mbi_vsync_wait = 170;
-    while (mbi_vsync_wait);
 
     UART_init();
 
