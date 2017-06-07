@@ -13,3 +13,8 @@ ccs_workspace/qc14_app/TOOLS/src/sysbios/rom_sysbios.aem3
 ble_sdk_2_02_01_18/examples/cc2650lp/simple_broadcaster/ccs/config/lib_linker.cmd
 ccs_workspace/pinInterrupt_CC2650_LAUNCHXL_TI
 ccs_workspace/qc14_app/TOOLS/src/sysbios/sysbios.aem3
+ccs_workspace/qc14_app/TOOLS/src/sysbios/rom_sysbios.obj
+ccs_workspace/qc14_app/TOOLS/src/sysbios/m3_Hwi_asm.obj
+ccs_workspace/qc14_app/TOOLS/src/sysbios/m3_Hwi_asm_switch.obj
+ccs_workspace/qc14_app/TOOLS/src/sysbios/m3_TaskSupport_asm.obj
+ccs_workspace/qc14_app/TOOLS/src/sysbios/m3_IntrinsicsSupport_asm.obj
