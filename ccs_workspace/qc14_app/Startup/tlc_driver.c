@@ -1,9 +1,16 @@
+// SYS/BIOS primitives
+#include <ti/sysbios/BIOS.h>
+#include <ti/sysbios/knl/Task.h>
+#include <ti/sysbios/knl/Semaphore.h>
+
+// TI-RTOS drivers
 #include <ti/drivers/timer/GPTimerCC26XX.h>
 #include <ti/drivers/SPI.h>
 #include <ti/drivers/spi/SPICC26XXDMA.h>
 #include <ti/drivers/dma/UDMACC26XX.h>
 #include <ti/drivers/PWM.h>
 #include <ti/drivers/pwm/PWMTimerCC26XX.h>
+#include <ti/drivers/ADC.h>
 
 #include "qc14.h"
 #include "board.h"
@@ -16,9 +23,31 @@
 #define TLC_THISISGS    0x00
 #define TLC_THISISFUN   0x01
 
+#define LED_NUM_BRIGHTNESS_STEPS 10
+
+const uint16_t BRIGHTNESS_STEPS[LED_NUM_BRIGHTNESS_STEPS][2] = {
+    {20,0x00},
+    {40,0x08},
+    {100,0x10},
+    {200,0x18},
+    {300,0x20},
+    {400,0x28},
+    {500,0x30},
+    {600,0x38},
+    {700,0x40},
+    {800,0x48},
+};
+
 // LED systemwide declarations:
 static PIN_State led_pin_state;
 PIN_Handle led_pin_h;
+
+uint8_t led_global_brightness_level = 0;
+uint8_t tlc_update_brightness = 0;
+
+Task_Struct led_brightness_task;
+char led_brightness_task_stack[200];
+
 PIN_Config led_pin_table[] = {
     // LED controller:
     LED_LE         | PIN_GPIO_OUTPUT_EN | PIN_GPIO_LOW | PIN_PUSHPULL | PIN_DRVSTR_MAX,
@@ -72,6 +101,7 @@ volatile uint16_t mp_curr_scan_line = 0;
 GPTimerCC26XX_Handle tlc_gclk_timer_h;
 PWM_Handle tlc_gclk_pwm_h;
 SPI_Transaction tlc_gs_spi_transaction;
+SPI_Transaction tlc_fn_spi_transaction;
 SPI_Handle tlc_spi;
 
 uint8_t tlc_msg_fun_base[] = {
@@ -158,15 +188,16 @@ inline void mp_shift() {
 }
 
 void mp_tick(GPTimerCC26XX_Handle handle, GPTimerCC26XX_IntMask interruptMask) {
+    if (tlc_gs_spi_transaction.status == SPI_TRANSFER_STARTED)
+        return; // We're writing something. Try again next tick.
+
     for (uint8_t i=0; i<15; i++) {
         tlc_msg_gs_buf[2 + i*2] = 0xff; // LSB
         tlc_msg_gs_buf[2 + i*2 + 1] = 0xff; // MSB
 //        tlc_gs_buf[2 + i*2 + 1] = led_buf[tlc_led_map[scan_line][i][0]][led_map[scan_line][i][1]][led_map[scan_line][i][2]];
     }
 
-    tlc_gs_spi_transaction.txBuf = tlc_msg_gs_buf;
-    tlc_gs_spi_transaction.rxBuf = NULL;
-    tlc_gs_spi_transaction.count = sizeof tlc_msg_all_on;
+    // TODO: Can this work like this?
     SPI_transfer(tlc_spi, &tlc_gs_spi_transaction);
 }
 
@@ -182,7 +213,51 @@ void tlc_spi_cb(SPI_Handle handle, SPI_Transaction *transaction) {
     if (((uint8_t *)transaction->txBuf)[0] == TLC_THISISGS) mp_shift();
     PIN_setOutputValue(led_pin_h, LED_LE, 0);
 
+    if (tlc_update_brightness) {
+        // TODO: Can this work like this?
+//        fun_data_transaction.txBuf = tlc_msg_fun_base;
+//        fun_data_transaction.rxBuf = NULL;
+//        fun_data_transaction.count = sizeof tlc_msg_fun_base;
+        SPI_transfer(tlc_spi, &tlc_fn_spi_transaction);
+    }
+
     Hwi_restore(hwiKey);
+}
+
+void led_brightness_task_fn(UArg a0, UArg a1)
+{
+    ADC_Handle adc;
+    ADC_Params adcp;
+    ADC_Params_init(&adcp);
+    adc = ADC_open(QC14BOARD_ADC7_LIGHT, &adcp);
+
+    int_fast16_t res;
+    uint_fast16_t adc_value = 0;
+    uint_fast8_t target_brightness_level;
+    do {
+        res = ADC_convert(adc, (uint16_t*) &adc_value);
+        if (res == ADC_STATUS_SUCCESS) {
+            // Do stuff with the ADC status value.
+            target_brightness_level = 0;
+            while (target_brightness_level < (LED_NUM_BRIGHTNESS_STEPS-1) &&
+                    res > BRIGHTNESS_STEPS[target_brightness_level][0]) {
+                target_brightness_level++;
+            }
+
+            if (led_global_brightness_level != target_brightness_level) {
+                if (target_brightness_level>led_global_brightness_level)
+                    led_global_brightness_level++;
+                else
+                    led_global_brightness_level--;
+
+                // TODO: write the brightness to the thing.
+                tlc_msg_fun_base[18] = BRIGHTNESS_STEPS[led_global_brightness_level][1];
+                tlc_update_brightness = 1;
+            }
+
+        }
+        Task_sleep(50000);
+    } while (1);
 }
 
 // Initialization functions:
@@ -217,16 +292,20 @@ void tlc_spi_init() {
     tlc_spi_params.bitRate = 12000000;
     tlc_spi = SPI_open(QC14BOARD_TLC_SPI, &tlc_spi_params);
 
-    SPI_Transaction fun_data_transaction;
-    fun_data_transaction.txBuf = tlc_msg_fun_base;
-    fun_data_transaction.rxBuf = NULL;
-    fun_data_transaction.count = sizeof tlc_msg_fun_base;
+    tlc_fn_spi_transaction.txBuf = tlc_msg_fun_base;
+    tlc_fn_spi_transaction.rxBuf = NULL;
+    tlc_fn_spi_transaction.count = sizeof tlc_msg_fun_base;
 
-    SPI_transfer(tlc_spi, &fun_data_transaction);
-    while (fun_data_transaction.status != SPI_TRANSFER_COMPLETED);
+    // TODO: Can this work like this?
+    tlc_gs_spi_transaction.txBuf = tlc_msg_gs_buf;
+    tlc_gs_spi_transaction.rxBuf = NULL;
+    tlc_gs_spi_transaction.count = sizeof tlc_msg_all_on;
+
+    SPI_transfer(tlc_spi, &tlc_fn_spi_transaction);
+    while (tlc_fn_spi_transaction.status != SPI_TRANSFER_COMPLETED);
 }
 
-void tlc_mp_init() {
+void mp_init() {
     // TODO: Is this clear necessary?
     // Flush out and clear the shift register:
     PIN_setOutputValue(led_pin_h, MP0_CLR, 0);
@@ -251,11 +330,22 @@ void tlc_mp_init() {
     GPTimerCC26XX_start(tlc_gclk_timer_h);
 }
 
+void led_brightness_task_init() {
+    Task_Params taskParams;
+    Task_Params_init(&taskParams);
+    taskParams.stack = led_brightness_task_stack;
+    taskParams.stackSize = sizeof(led_brightness_task_stack);
+    taskParams.priority = 1;
+    Task_construct(&led_brightness_task, led_brightness_task_fn, &taskParams, NULL);
+}
+
 // TODO: Does this need to be called from a task?
 void led_init_from_task() {
     // Set up our GPIO:
     led_pin_h = PIN_open(&led_pin_state, led_pin_table);
+
     tlc_spi_init();
     tlc_gclk_init();
-    tlc_mp_init();
+    mp_init();
+    led_brightness_task_init();
 }
