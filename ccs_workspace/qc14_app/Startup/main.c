@@ -19,7 +19,6 @@
 #include <ti/drivers/PIN.h>
 #include <ti/drivers/pin/PINCC26XX.h>
 #include <ti/drivers/UART.h>
-#include <ti/drivers/ADC.h>
 
 // TI-BLE Stack
 #include "icall.h"
@@ -110,42 +109,30 @@ void init_switch() {
     sw_clock = Clock_create(sw_clock_f, 2, &clockParams, &eb);
 }
 
-Task_Struct qcTask;
-char qcTaskStack[2000];
 
-void qc_task_fn(UArg a0, UArg a1)
-{
-    ADC_Handle adc;
-    ADC_Params adcp;
-    ADC_Params_init(&adcp);
-    adc = ADC_open(QC14BOARD_ADC7_LIGHT, &adcp);
-
-    UART_Handle uh;
-    UART_Params p;
-    UART_Params_init(&p);
-    p.baudRate = 9600;
-
-    uint8_t uart_id = 0;
-    char buf[12] = "test";
-    uint_fast16_t adc_value = 0;
-    do {
-        ADC_convert(adc, &adc_value);
-
-        sprintf(buf, "%d\r\n", adc_value);
-
-        uh = UART_open(uart_id, &p);
-        UART_write(uh, buf, strlen(buf));
-        UART_close(uh);
-        uart_id = (uart_id+1) % QC14BOARD_UARTCOUNT;
-        Task_sleep(5000);
-    } while (1);
+//    UART_Handle uh;
+//    UART_Params p;
+//    UART_Params_init(&p);
+//    p.baudRate = 9600;
+//
+//    uint8_t uart_id = 0;
+//    char buf[12] = "test";
+//    do {
+//
+//        sprintf(buf, "%d\r\n", adc_value);
+//
+//        uh = UART_open(uart_id, &p);
+//        UART_write(uh, buf, strlen(buf));
+//        UART_close(uh);
+//        uart_id = (uart_id+1) % QC14BOARD_UARTCOUNT;
+//        Task_sleep(5000);
+//    } while (1);
 
 //
 //    while (1)
 //    {
 //        Task_sleep(BIOS_WAIT_FOREVER);
 //    }
-}
 
 void init_ble() {
     /* Initialize ICall module */
@@ -176,14 +163,6 @@ int main()
 
     // Initialize badge peripherals:
     init_badge_peripherals();
-
-    Task_Params taskParams;
-    Task_Params_init(&taskParams);
-    taskParams.stack = qcTaskStack;
-    taskParams.stackSize = sizeof(qcTaskStack);
-    taskParams.priority = 1;
-    Task_construct(&qcTask, qc_task_fn, &taskParams, NULL);
-
     // And we're off to see the wizard!
     BIOS_start();
 
