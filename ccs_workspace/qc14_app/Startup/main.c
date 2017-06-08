@@ -42,7 +42,8 @@ bleUserCfg_t user0Cfg = BLE_USER_CFG;
 #include <ti/mw/display/Display.h>
 
 // 45-50k best so far.
-#define LED_MP_RATE 45000
+#define LED_MP_RATE 48000
+//#define LED_MP_RATE 16777215
 
 extern Display_Handle dispHandle;
 
@@ -100,6 +101,7 @@ uint8_t fun_base[] = {
         // B121 / TMGRST        1
         // B120 / DSPRPT        1:
         0b10000111,
+//        0b10000101,
         // B119 / BLANK
         // and 7 bits of global brightness correction:
 //        0xff, // blank on.
@@ -175,15 +177,20 @@ void init_ble() {
 
 }
 
-inline void mp_shift() {
+inline static void mp_shift() {
     scan_line++;
     scan_line %= 15;
-    PIN_setOutputValue(mbi_pin_h, MP0_OUT, scan_line != 0);
-    PIN_setOutputValue(mbi_pin_h, MP_CTR_CLK, 1); // pulse clock
-    PIN_setOutputValue(mbi_pin_h, MP_CTR_CLK, 0);
-    if (scan_line == 7) {
-        PIN_setOutputValue(mbi_pin_h, MP_CTR_CLK, 1); // pulse clock
-        PIN_setOutputValue(mbi_pin_h, MP_CTR_CLK, 0);
+//    PIN_setOutputValue(mbi_pin_h, MP0_OUT, scan_line > 1);
+    if (!scan_line) PINCC26XX_setOutputValue(MP0_OUT, 0);
+//    PIN_setOutputValue(mbi_pin_h, MP_CTR_CLK, 1); // pulse clock
+//    PIN_setOutputValue(mbi_pin_h, MP_CTR_CLK, 0);
+    PINCC26XX_setOutputValue(MP_CTR_CLK, 1); // pulse clock
+    PINCC26XX_setOutputValue(MP_CTR_CLK, 0);
+    if (!scan_line) {
+        PINCC26XX_setOutputValue(MP0_OUT, 1);
+    } else if (scan_line == 7) {
+        PINCC26XX_setOutputValue(MP_CTR_CLK, 1); // pulse clock
+        PINCC26XX_setOutputValue(MP_CTR_CLK, 0);
     }
 }
 
