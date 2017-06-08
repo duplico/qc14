@@ -39,6 +39,7 @@ const uint16_t BRIGHTNESS_STEPS[LED_NUM_BRIGHTNESS_STEPS][2] = {
 };
 
 // LED systemwide declarations:
+void led_start();
 static PIN_State led_pin_state;
 PIN_Handle led_pin_h;
 
@@ -69,10 +70,10 @@ uint8_t led_buf[11][7][3] = {
     {{0x00, 0xff, 0x00}, {0x00, 0xff, 0x00}, {0x00, 0xff, 0x00}, {0x00, 0xff, 0x00}, {0x00, 0xff, 0x00}, {0x00, 0xff, 0x00}, {0x00, 0xff, 0x00}},
     {{0x00, 0x00, 0xff}, {0x00, 0x00, 0xff}, {0x00, 0x00, 0xff}, {0x00, 0x00, 0xff}, {0x00, 0x00, 0xff}, {0x00, 0x00, 0xff}, {0x00, 0x00, 0xff}},
     {{0x00, 0x00, 0xff}, {0x00, 0x00, 0xff}, {0x00, 0x00, 0xff}, {0x00, 0x00, 0xff}, {0x00, 0x00, 0xff}, {0x00, 0x00, 0xff}, {0x00, 0x00, 0xff}},
-    {{0xff, 0xff, 0xff}, {0xff, 0xff, 0xff}, {0xff, 0xff, 0xff}, {0xff, 0xff, 0xff}, {0xff, 0xff, 0xff}, {0xff, 0xff, 0xff}, {0,0,0}},
-    {{0xff, 0xff, 0xff}, {0xff, 0xff, 0xff}, {0xff, 0xff, 0xff}, {0xff, 0xff, 0xff}, {0xff, 0xff, 0xff}, {0xff, 0xff, 0xff}, {0,0,0}},
-    {{0xff, 0xff, 0xff}, {0xff, 0xff, 0xff}, {0xff, 0xff, 0xff}, {0xff, 0xff, 0xff}, {0xff, 0xff, 0xff}, {0xff, 0xff, 0xff}, {0,0,0}},
-    {{0xff, 0xff, 0xff}, {0xff, 0xff, 0xff}, {0xff, 0xff, 0xff}, {0xff, 0xff, 0xff}, {0xff, 0xff, 0xff}, {0xff, 0xff, 0xff}, {0,0,0}},
+    {{0x01, 0x01, 0x01}, {0x01, 0x01, 0x01}, {0x01, 0x01, 0x01}, {0x01, 0x01, 0x01}, {0x01, 0x01, 0x01}, {0x01, 0x01, 0x01}, {0,0,0}},
+    {{0x01, 0x01, 0x01}, {0x01, 0x01, 0x01}, {0x01, 0x01, 0x01}, {0x01, 0x01, 0x01}, {0x01, 0x01, 0x01}, {0x01, 0x01, 0x01}, {0,0,0}},
+    {{0x01, 0x01, 0x01}, {0x01, 0x01, 0x01}, {0x01, 0x01, 0x01}, {0x01, 0x01, 0x01}, {0x01, 0x01, 0x01}, {0x01, 0x01, 0x01}, {0,0,0}},
+    {{0x01, 0x01, 0x01}, {0x01, 0x01, 0x01}, {0x01, 0x01, 0x01}, {0x01, 0x01, 0x01}, {0x01, 0x01, 0x01}, {0x01, 0x01, 0x01}, {0,0,0}},
 };
 
 // Mapping of scan lines and channels onto row,column,color:
@@ -125,7 +126,7 @@ uint8_t tlc_msg_fun_base[] = {
         // B122 / ESPWM         1
         // B121 / TMGRST        1
         // B120 / DSPRPT        1:
-        0b10000111,
+        0b10000011,
         // B119 / BLANK
         // and 7 bits of global brightness correction:
 //        0xff, // blank on.
@@ -190,13 +191,15 @@ inline static void mp_shift() {
 }
 
 void mp_tick(GPTimerCC26XX_Handle handle, GPTimerCC26XX_IntMask interruptMask) {
-    if (tlc_gs_spi_transaction.status == SPI_TRANSFER_STARTED)
+    if (tlc_fn_spi_transaction.status == SPI_TRANSFER_STARTED) {
         return; // We're writing something. Try again next tick.
+    }
+
 
     for (uint8_t i=0; i<15; i++) {
-        tlc_msg_gs_buf[2 + i*2] = 0xff; // LSB
+        tlc_msg_gs_buf[2 + i*2] = 0; // LSB
         tlc_msg_gs_buf[2 + i*2 + 1] = 0xff; // MSB
-//        tlc_gs_buf[2 + i*2 + 1] = led_buf[tlc_led_map[scan_line][i][0]][led_map[scan_line][i][1]][led_map[scan_line][i][2]];
+//        tlc_msg_gs_buf[2 + i*2 + 1] = led_buf[led_map[mp_curr_scan_line][i][0]][led_map[mp_curr_scan_line][i][1]][led_map[mp_curr_scan_line][i][2]];
     }
 
     // TODO: Can this work like this?
@@ -206,13 +209,14 @@ void mp_tick(GPTimerCC26XX_Handle handle, GPTimerCC26XX_IntMask interruptMask) {
 void tlc_spi_cb(SPI_Handle handle, SPI_Transaction *transaction) {
     // We only have the one SPI, so we can pretty well ignore these parameters.
     // TODO: We may want to check whether transaction.status == SPI_TRANSFER_COMPLETED???
-    // LATCH!
     static uint16_t hwiKey;
     // Disable hardware interrupts.
     hwiKey  = (uint16_t) Hwi_disable();
 
+    PWM_stop(tlc_gclk_pwm_h);
     PIN_setOutputValue(led_pin_h, LED_LE, 1);
     if (((uint8_t *)transaction->txBuf)[0] == TLC_THISISGS) mp_shift();
+    PWM_start(tlc_gclk_pwm_h);
     PIN_setOutputValue(led_pin_h, LED_LE, 0);
 
     if (tlc_update_brightness) {
@@ -220,7 +224,8 @@ void tlc_spi_cb(SPI_Handle handle, SPI_Transaction *transaction) {
 //        fun_data_transaction.txBuf = tlc_msg_fun_base;
 //        fun_data_transaction.rxBuf = NULL;
 //        fun_data_transaction.count = sizeof tlc_msg_fun_base;
-        SPI_transfer(tlc_spi, &tlc_fn_spi_transaction);
+//        SPI_transfer(tlc_spi, &tlc_fn_spi_transaction);
+        tlc_update_brightness=0;
     }
 
     Hwi_restore(hwiKey);
@@ -228,6 +233,8 @@ void tlc_spi_cb(SPI_Handle handle, SPI_Transaction *transaction) {
 
 void led_brightness_task_fn(UArg a0, UArg a1)
 {
+    led_start();
+
     ADC_Handle adc;
     ADC_Params adcp;
     ADC_Params_init(&adcp);
@@ -242,7 +249,7 @@ void led_brightness_task_fn(UArg a0, UArg a1)
             // Do stuff with the ADC status value.
             target_brightness_level = 0;
             while (target_brightness_level < (LED_NUM_BRIGHTNESS_STEPS-1) &&
-                    res > BRIGHTNESS_STEPS[target_brightness_level][0]) {
+                    adc_value > BRIGHTNESS_STEPS[target_brightness_level][0]) {
                 target_brightness_level++;
             }
 
@@ -293,7 +300,9 @@ void tlc_spi_init() {
     tlc_spi_params.transferCallbackFxn = tlc_spi_cb;
     tlc_spi_params.bitRate = 12000000;
     tlc_spi = SPI_open(QC14BOARD_TLC_SPI, &tlc_spi_params);
+}
 
+void tlc_spi_start() {
     tlc_fn_spi_transaction.txBuf = tlc_msg_fun_base;
     tlc_fn_spi_transaction.rxBuf = NULL;
     tlc_fn_spi_transaction.count = sizeof tlc_msg_fun_base;
@@ -341,8 +350,12 @@ void led_brightness_task_init() {
     Task_construct(&led_brightness_task, led_brightness_task_fn, &taskParams, NULL);
 }
 
+void led_start() {
+    tlc_spi_start();
+}
+
 // TODO: Does this need to be called from a task?
-void led_init_from_task() {
+void led_init() {
     // Set up our GPIO:
     led_pin_h = PIN_open(&led_pin_state, led_pin_table);
 

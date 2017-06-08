@@ -145,7 +145,7 @@ void init_ble() {
 void init_badge_peripherals() {
     init_ble();
     init_switch();
-    led_init_from_task();
+    led_init();
 }
 
 int main()
