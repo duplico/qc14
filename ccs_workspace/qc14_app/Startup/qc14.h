@@ -12,5 +12,6 @@
 // 45-50k best so far.
 #define LED_MP_RATE 48000
 //#define LED_MP_RATE 16777215
+//#define LED_MP_RATE 12500
 
 #endif /* STARTUP_QC14_H_ */
