@@ -19,6 +19,9 @@
 #include <ti/drivers/PIN.h>
 #include <ti/drivers/pin/PINCC26XX.h>
 #include <ti/drivers/UART.h>
+#include <ti/drivers/ADC.h>
+#include <ti/drivers/SPI.h>
+#include <ti/drivers/PWM.h>
 
 // TI-BLE Stack
 #include "icall.h"
