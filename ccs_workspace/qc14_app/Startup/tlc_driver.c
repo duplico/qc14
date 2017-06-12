@@ -1,3 +1,5 @@
+#include <string.h>
+
 // SYS/BIOS primitives
 #include <ti/sysbios/BIOS.h>
 #include <ti/sysbios/knl/Task.h>
@@ -14,6 +16,7 @@
 
 #include "qc14.h"
 #include "board.h"
+#include "ExtFlash.h"
 
 // General convention:
 //  Things that deal with the LED system driver as a whole: led_
@@ -70,6 +73,10 @@ PIN_Config led_pin_table[] = {
     PIN_TERMINATE
 };
 
+uint8_t game_bmp[7][7][3] = {{{0, 0, 0}, {0, 0, 0}, {0, 140, 255}, {0, 140, 255}, {0, 140, 255}, {0, 0, 0}, {0, 0, 0}}, {{0, 0, 0}, {0, 140, 255}, {0, 140, 255}, {0, 140, 255}, {0, 140, 255}, {0, 140, 255}, {0, 0, 0}}, {{0, 140, 255}, {0, 0, 0}, {0, 0, 0}, {0, 140, 255}, {0, 0, 0}, {0, 0, 0}, {0, 140, 255}}, {{0, 140, 255}, {0, 0, 0}, {99, 58, 148}, {0, 140, 255}, {0, 0, 0}, {99, 58, 148}, {0, 140, 255}}, {{0, 140, 255}, {0, 140, 255}, {0, 140, 255}, {0, 140, 255}, {0, 140, 255}, {0, 140, 255}, {0, 140, 255}}, {{0, 140, 255}, {0, 140, 255}, {0, 140, 255}, {0, 140, 255}, {0, 140, 255}, {0, 140, 255}, {0, 140, 255}}, {{0, 140, 255}, {0, 0, 0}, {0, 140, 255}, {0, 140, 255}, {0, 140, 255}, {0, 0, 0}, {0, 140, 255}}};
+
+uint8_t rainbow_bmp[7][7][3] = {{{255, 0, 0}, {255, 0, 0}, {156, 16, 0}, {156, 16, 0}, {255, 255, 0}, {255, 255, 0}, {0, 255, 0}}, {{255, 0, 0}, {156, 16, 0}, {156, 16, 0}, {255, 255, 0}, {255, 255, 0}, {0, 255, 0}, {0, 255, 0}}, {{156, 16, 0}, {156, 16, 0}, {255, 255, 0}, {255, 255, 0}, {0, 255, 0}, {0, 255, 0}, {0, 0, 255}}, {{156, 16, 0}, {255, 255, 0}, {255, 255, 0}, {0, 255, 0}, {0, 255, 0}, {0, 0, 255}, {0, 0, 255}}, {{255, 255, 0}, {255, 255, 0}, {0, 255, 0}, {0, 255, 0}, {0, 0, 255}, {0, 0, 255}, {118, 0, 255}}, {{255, 255, 0}, {0, 255, 0}, {0, 255, 0}, {0, 0, 255}, {0, 0, 255}, {118, 0, 255}, {118, 0, 255}}, {{0, 255, 0}, {0, 255, 0}, {0, 0, 255}, {0, 0, 255}, {118, 0, 255}, {118, 0, 255}, {0, 0, 0}}};
+
 // The screen buffer:
 uint8_t led_buf[11][7][3] = {
     {{0x00, 0x00, 0x00}, {0x00, 0x00, 0x00}, {0x00, 0x00, 0x00}, {0x00, 0x00, 0x00}, {0x00, 0x00, 0x00}, {0x00, 0x00, 0x00}, {0x00, 0x00, 0x00}},
@@ -79,10 +86,10 @@ uint8_t led_buf[11][7][3] = {
     {{0x00, 0x00, 0x00}, {0x00, 0x00, 0x00}, {0x00, 0x00, 0x00}, {0x00, 0x00, 0x00}, {0x00, 0x00, 0x00}, {0x00, 0x00, 0x00}, {0x00, 0x00, 0x00}},
     {{0x00, 0x00, 0x00}, {0x00, 0x00, 0x00}, {0x00, 0x00, 0x00}, {0x00, 0x00, 0x00}, {0x00, 0x00, 0x00}, {0x00, 0x00, 0x00}, {0x00, 0x00, 0x00}},
     {{0x00, 0x00, 0x00}, {0x00, 0x00, 0x00}, {0x00, 0x00, 0x00}, {0x00, 0x00, 0x00}, {0x00, 0x00, 0x00}, {0x00, 0x00, 0x00}, {0x00, 0x00, 0x00}},
-    {{0xff, 0xff, 0xff}, {0xff, 0xff, 0xff}, {0xff, 0xff, 0xff}, {0xff, 0xff, 0xff}, {0xff, 0xff, 0xff}, {0xff, 0xff, 0xff}, {0,0,0}},
-    {{0xff, 0xff, 0xff}, {0xff, 0xff, 0xff}, {0xff, 0xff, 0xff}, {0xff, 0xff, 0xff}, {0xff, 0xff, 0xff}, {0xff, 0xff, 0xff}, {0,0,0}},
-    {{0xff, 0xff, 0xff}, {0xff, 0xff, 0xff}, {0xff, 0xff, 0xff}, {0xff, 0xff, 0xff}, {0xff, 0xff, 0xff}, {0xff, 0xff, 0xff}, {0,0,0}},
-    {{0xff, 0xff, 0xff}, {0xff, 0xff, 0xff}, {0xff, 0xff, 0xff}, {0xff, 0xff, 0xff}, {0xff, 0xff, 0xff}, {0xff, 0xff, 0xff}, {0,0,0}},
+    {{0x00, 0x00, 0x00}, {0x00, 0x00, 0x00}, {0x00, 0x00, 0x00}, {0x00, 0x00, 0x00}, {0x00, 0x00, 0x00}, {0x00, 0x00, 0x00}, {0,0,0}},
+    {{0x00, 0x00, 0x00}, {0x00, 0x00, 0x00}, {0x00, 0x00, 0x00}, {0x00, 0x00, 0x00}, {0x00, 0x00, 0x00}, {0x00, 0x00, 0x00}, {0,0,0}},
+    {{0x00, 0x00, 0x00}, {0x00, 0x00, 0x00}, {0x00, 0x00, 0x00}, {0x00, 0x00, 0x00}, {0x00, 0x00, 0x00}, {0x00, 0x00, 0x00}, {0,0,0}},
+    {{0x00, 0x00, 0x00}, {0x00, 0x00, 0x00}, {0x00, 0x00, 0x00}, {0x00, 0x00, 0x00}, {0x00, 0x00, 0x00}, {0x00, 0x00, 0x00}, {0,0,0}},
 };
 
 // Mapping of scan lines and channels onto row,column,color:
@@ -141,8 +148,22 @@ uint8_t tlc_msg_fun_base[] = {
 //        0xff, // blank on.
         0x00, // after this there are 16 7-tets of dot correction. // blank off
         //We'll send it as 14 octets.
-        0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
-        0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+        0b00000001,
+        0b10101100,
+        0b11001111,
+        0b11111101,
+        0b01100110,
+        0b01111111,
+        0b11101011,
+        0b00110011,
+        0b11111111,
+        0b01011001,
+        0b10011111,
+        0b11111010,
+        0b11001100,
+        0b11111111
+//        0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+//        0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
 };
 
 uint8_t tlc_msg_all_on[] = {
@@ -208,7 +229,7 @@ void mp_tick(GPTimerCC26XX_Handle handle, GPTimerCC26XX_IntMask interruptMask) {
 
     for (uint8_t i=0; i<15; i++) {
         tlc_msg_gs_buf[3 + i*2] = led_buf[led_map[mp_curr_scan_line][i][0]][led_map[mp_curr_scan_line][i][1]][led_map[mp_curr_scan_line][i][2]];
-        tlc_msg_gs_buf[3 + i*2 + 1] = tlc_msg_gs_buf[3 + i*2] ? 0xff : 0; // LSB
+        tlc_msg_gs_buf[3 + i*2 + 1] = led_buf[led_map[mp_curr_scan_line][i][0]][led_map[mp_curr_scan_line][i][1]][led_map[mp_curr_scan_line][i][2]]; // LSB
     }
 
     SPI_transfer(tlc_spi, &tlc_gs_spi_transaction);
@@ -251,6 +272,11 @@ void led_brightness_task_fn(UArg a0, UArg a1)
     ADC_Params adcp;
     ADC_Params_init(&adcp);
     adc = ADC_open(QC14BOARD_ADC7_LIGHT, &adcp);
+
+//    ExtFlash_open();
+    ExtFlash_test();
+
+
 
     int_fast16_t res;
     uint_fast16_t adc_value = 0;
@@ -357,6 +383,10 @@ void led_brightness_task_init() {
 }
 
 void led_init() {
+    // Load an image:
+    memcpy(led_buf, rainbow_bmp, sizeof(game_bmp));
+//    memset(led_buf, 0xff, sizeof(led_buf));
+
     // Set up our GPIO:
     led_pin_h = PIN_open(&led_pin_state, led_pin_table);
 
