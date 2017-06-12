@@ -17,6 +17,8 @@ screen = [
     [59, 58, 57, 60, 72, 56]
 ]
 
+scan_correction = [10, 9, 12, 7, 1, 4, 5, 0, 13, 6, 11, 8, 14, 3, 2]
+
 screen_transforms = []
 
 for i in range(15):
@@ -38,13 +40,13 @@ for screen_row in range(11):
         scanline = int((led_id-1)/5)
         print scanline, channel
         for color in range(3):
-            screen_transforms[scanline][channel+color] = '{%d, %d, %d}' % (screen_row, screen_column, color)
+            screen_transforms[scan_correction[scanline]][14-(channel+color)] = '{%d, %d, %d}' % (screen_row, screen_column, color)
             #screen_transforms[scanline][channel+color] = '&(screen[%d][%d][%d])' % (screen_row, screen_column, color)
             
 for scanline in range(15):
     for channel in range(15):
         if not screen_transforms[scanline][channel]:
-            screen_transforms[scanline][channel] = '{0, 0, 0}'
+            screen_transforms[scanline][channel] = '{7, 6, 0}'
             
 pprint.pprint(screen_transforms)
 
