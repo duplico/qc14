@@ -35,6 +35,7 @@
 // QC14 Drivers
 #include "ExtFlash.h"
 #include "tlc_driver.h"
+#include "screen.h"
 
 // Configuration includes:
 #include "ble_user_config.h"
@@ -149,6 +150,7 @@ void init_badge_peripherals() {
     init_ble();
     init_switch();
     led_init();
+    screen_init();
 }
 
 int main()

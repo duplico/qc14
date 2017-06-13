@@ -1,15 +1,18 @@
+import math
 import argparse
 
 from PIL import Image
 
 # CONSIDERATION: Maybe let's normalize everything - try to keep everything that's not OFF, the same intensity????
 
+# /   printf("%e*V+.5, ", (pow((double)x / 255.0, 2.5)));
+
 def print_array(img_path):
     i = Image.open(img_path)
     i.thumbnail([7,7])
     
     bytes = list(map(ord, i.tobytes()))
-    bytes = [(a*a)/255 for a in bytes]
+    bytes = [int(math.pow(a/255.0,2.5)*255 + 0.5) for a in bytes]
 
     pixels = []
 
