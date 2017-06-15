@@ -4,6 +4,7 @@
  *  Created on: Jun 12, 2017
  *      Author: George
  */
+#include <string.h>
 
 #include <ti/sysbios/BIOS.h>
 #include <ti/sysbios/knl/Task.h>
@@ -23,16 +24,37 @@ void screen_anim_tick(UArg a0) {
     Semaphore_post(anim_sem);
 }
 
+uint8_t rainbow_colors[6][3] = {{255,0,0}, {255,30,0}, {255,255,0}, {0,255,0}, {0,0,255}, {98,0,255}};
+
 void screen_anim_task_fn(UArg a0, UArg a1) {
     static uint8_t all_led_color = 0;
+    static uint8_t rainbow_index = 0;
+
     while (1) {
         Semaphore_pend(anim_sem, BIOS_WAIT_FOREVER);
-        for (uint8_t r=0; r<11; r++)
-            for (uint8_t c=0; c<7; c++)
-                for (uint8_t q=0; q<3; q++)
-                    led_buf[r][c][q] = all_led_color;
-        all_led_color++;
-        Task_sleep(10);
+        memset(led_buf, 0xff, sizeof led_buf);
+        Clock_setPeriod(screen_anim_clock_h, 5000); // set time for next animation
+        continue;
+
+        memset(led_buf, 0, 147);
+        for (int i=0; i<6; i++) {
+            int r;
+            r = (rainbow_index + i) % 7;
+            for (int c=0; c<7; c++) {
+                led_buf[r][c][0] = rainbow_colors[i][0];
+                led_buf[r][c][1] = rainbow_colors[i][1];
+                led_buf[r][c][2] = rainbow_colors[i][2];
+            }
+        }
+        rainbow_index = (rainbow_index+1) % 7;
+        Clock_setPeriod(screen_anim_clock_h, 5000); // set time for next animation
+
+//        for (uint8_t r=0; r<11; r++)
+//            for (uint8_t c=0; c<7; c++)
+//                for (uint8_t q=0; q<3; q++)
+//                    led_buf[r][c][q] = all_led_color;
+//        all_led_color++;
+//        Clock_setPeriod(screen_anim_clock_h, 3000); // set time for next animation
     }
 }
 
