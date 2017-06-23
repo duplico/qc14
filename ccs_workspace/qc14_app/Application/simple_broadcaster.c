@@ -143,14 +143,16 @@ Char sbbTaskStack[SBB_TASK_STACK_SIZE];
 static uint8 scanRspData[] =
 {
   // complete name
-  15,   // length of this data
+  17,   // length of this data
   GAP_ADTYPE_LOCAL_NAME_COMPLETE,
-  'G',
-  'e',
-  'o',
-  'r',
-  'g',
-  'e',
+  '1',
+  '2',
+  '3',
+  '4',
+  '5',
+  '6',
+  '7',
+  '8',
   '\'',
   's',
   ' ',
@@ -173,58 +175,35 @@ static uint8 advertData[] =
   // Flags; this sets the device to use limited discoverable
   // mode (advertises for 30 seconds at a time) instead of general
   // discoverable mode (advertises indefinitely)
-  0x02,   // length of this data
-  GAP_ADTYPE_FLAGS,
-  GAP_ADTYPE_FLAGS_BREDR_NOT_SUPPORTED,
+  2,   // length of this data
+  GAP_ADTYPE_FLAGS, // 0x01
+  GAP_ADTYPE_FLAGS_BREDR_NOT_SUPPORTED, // 0x04
 
-#ifndef BEACON_FEATURE
+  // Appearance: This is a #badgelife header.
+  3,    // Length of this data
+  GAP_ADTYPE_APPEARANCE, // Data type: "Appearance" // 0x19
+  0xDC, // DC
+  0x19, // 19 #badgelife
 
-  // three-byte broadcast of the data "1 2 3"
-  0x04,   // length of this data including the data type byte
-  GAP_ADTYPE_MANUFACTURER_SPECIFIC, // manufacturer specific adv data type
-  0xD3, // Company ID - Fixed
-  0x04, // Company ID - Fixed
-  3
+  // Queercon data: ID, current icon, etc
+  15, // length of this data including the data type byte
+  GAP_ADTYPE_MANUFACTURER_SPECIFIC, // manufacturer specific adv data type // 0xff
+  0xD3, // Company ID - Fixed (queercon)
+  0x04, // Company ID - Fixed (queercon)
+  0x00, // Badge ID MSB
+  0x00, // Badge ID LSB
+  0x00, // Current icon ID
+  0x00, // RESERVED
+  0x00, // icon 32..39
+  0x00, // icon 24..31
+  0x00, // icon 16..23
+  0x00, // icon  8..15
+  0x00, // icon  0.. 7
+  0x00, // CHECK
 
-#else
-
-  // 25 byte beacon advertisement data
-  // Preamble: Company ID - 0x04D3 for Queercon, refer to https://www.bluetooth.org/en-us/specification/assigned-numbers/company-identifiers
-  // Data type: Beacon (0x02)
-  // Data length: 0x15
-  // UUID: 00000000-0000-0000-0000-000000000000 (null beacon)
-  // Major: 1 (0x0001)
-  // Minor: 1 (0x0001)
-  // Measured Power: -59 (0xc5)
-  0x1A, // length of this data including the data type byte
-  GAP_ADTYPE_MANUFACTURER_SPECIFIC, // manufacturer specific adv data type
-  0xD3, // Company ID - Fixed
-  0x04, // Company ID - Fixed
-  0x02, // Data Type - Fixed
-  0x15, // Data Length - Fixed
-  0x00, // UUID - Variable based on different use cases/applications
-  0x00, // UUID
-  0x00, // UUID
-  0x00, // UUID
-  0x00, // UUID
-  0x00, // UUID
-  0x00, // UUID
-  0x00, // UUID
-  0x00, // UUID
-  0x00, // UUID
-  0x00, // UUID
-  0x00, // UUID
-  0x00, // UUID
-  0x00, // UUID
-  0x00, // UUID
-  0x00, // UUID
-  0x00, // Major
-  0x01, // Major
-  0x00, // Minor
-  0x01, // Minor
-  0xc5  // Power - The 2's complement of the calibrated Tx Power
-
-#endif // !BEACON_FEATURE
+  9,
+  GAP_ADTYPE_LOCAL_NAME_SHORT, // 0x08
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 };
 
 /*********************************************************************
