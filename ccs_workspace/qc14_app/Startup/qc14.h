@@ -15,5 +15,11 @@
 #define LED_MP_RATE LED_MP_RATE_BEST
 #define LED_BRIGHTNESS_INTERVAL 12500
 
+// Switch signals
+#define SW_SIGNAL_OPEN 0
+#define SW_SIGNAL_L 0b1
+#define SW_SIGNAL_R 0b10
+#define SW_SIGNAL_DIR_MASK 0x11
+#define SW_SIGNAL_C 0b100
 
 #endif /* STARTUP_QC14_H_ */
