@@ -273,7 +273,7 @@ void led_brightness_task_fn(UArg a0, UArg a1)
     ADC_Params_init(&adcp);
     adc = ADC_open(QC14BOARD_ADC7_LIGHT, &adcp);
 
-//    ExtFlash_open();
+//    ExtFlash_open(); // TODO
     ExtFlash_test();
 
 
