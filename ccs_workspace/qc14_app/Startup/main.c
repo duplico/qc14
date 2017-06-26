@@ -55,6 +55,8 @@ PIN_Config sw_pin_table[] = {
     PIN_TERMINATE
 };
 
+uint8_t click_signal = SW_SIGNAL_OPEN;
+
 uint8_t sw_l_clicked = 0;
 uint8_t sw_r_clicked = 0;
 uint8_t sw_c_clicked = 0;
@@ -71,32 +73,42 @@ void sw_clock_f() {
     if (!sw_l_curr && !sw_l_last && !sw_l_clicked) {
         // left clicked
         sw_l_clicked = 1;
+        click_signal = SW_SIGNAL_L;
         // do stuff
     } else if (sw_l_curr && sw_l_last && sw_l_clicked) {
         sw_l_clicked = 0;
+        click_signal = SW_SIGNAL_OPEN;
         // unclicked.
     }
     sw_l_last = sw_l_curr;
 
     if (!sw_r_curr && !sw_r_last && !sw_r_clicked) {
-        // left clicked
+        // right clicked
         sw_r_clicked = 1;
+        click_signal = SW_SIGNAL_R;
         // do stuff
     } else if (sw_r_curr && sw_r_last && sw_r_clicked) {
         sw_r_clicked = 0;
+        click_signal = SW_SIGNAL_OPEN;
         // unclicked.
     }
     sw_r_last = sw_r_curr;
 
     if (!sw_c_curr && !sw_c_last && !sw_c_clicked) {
-        // left clicked
+        // click clicked
         sw_c_clicked = 1;
+        click_signal = SW_SIGNAL_C;
         // do stuff
     } else if (sw_c_curr && sw_c_last && sw_c_clicked) {
         sw_c_clicked = 0;
+        click_signal = SW_SIGNAL_OPEN;
         // unclicked.
     }
     sw_c_last = sw_c_curr;
+
+    if (click_signal) {
+        // User interaction of some kind.
+    }
 }
 
 Clock_Handle sw_clock;
