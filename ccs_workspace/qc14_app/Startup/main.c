@@ -36,6 +36,7 @@
 #include "ExtFlash.h"
 #include "tlc_driver.h"
 #include "screen.h"
+#include "ui.h"
 
 // Configuration includes:
 #include "ble_user_config.h"
@@ -55,74 +56,8 @@ PIN_Config sw_pin_table[] = {
     PIN_TERMINATE
 };
 
-uint8_t click_signal = SW_SIGNAL_OPEN;
-
-uint8_t sw_l_clicked = 0;
-uint8_t sw_r_clicked = 0;
-uint8_t sw_c_clicked = 0;
-
-void sw_clock_f() {
-    static uint8_t sw_l_last = 1;
-    static uint8_t sw_r_last = 1;
-    static uint8_t sw_c_last = 1;
-
-    uint8_t sw_l_curr = PIN_getInputValue(SW_L);
-    uint8_t sw_r_curr = PIN_getInputValue(SW_R);
-    uint8_t sw_c_curr = PIN_getInputValue(SW_CLICK);
-
-    if (!sw_l_curr && !sw_l_last && !sw_l_clicked) {
-        // left clicked
-        sw_l_clicked = 1;
-        click_signal = SW_SIGNAL_L;
-        // do stuff
-    } else if (sw_l_curr && sw_l_last && sw_l_clicked) {
-        sw_l_clicked = 0;
-        click_signal = SW_SIGNAL_OPEN;
-        // unclicked.
-    }
-    sw_l_last = sw_l_curr;
-
-    if (!sw_r_curr && !sw_r_last && !sw_r_clicked) {
-        // right clicked
-        sw_r_clicked = 1;
-        click_signal = SW_SIGNAL_R;
-        // do stuff
-    } else if (sw_r_curr && sw_r_last && sw_r_clicked) {
-        sw_r_clicked = 0;
-        click_signal = SW_SIGNAL_OPEN;
-        // unclicked.
-    }
-    sw_r_last = sw_r_curr;
-
-    if (!sw_c_curr && !sw_c_last && !sw_c_clicked) {
-        // click clicked
-        sw_c_clicked = 1;
-        click_signal = SW_SIGNAL_C;
-        // do stuff
-    } else if (sw_c_curr && sw_c_last && sw_c_clicked) {
-        sw_c_clicked = 0;
-        click_signal = SW_SIGNAL_OPEN;
-        // unclicked.
-    }
-    sw_c_last = sw_c_curr;
-
-    if (click_signal) {
-        // User interaction of some kind.
-    }
-}
-
-Clock_Handle sw_clock;
-
 void init_switch() {
     sw_pin_h = PIN_open(&sw_pin_state, sw_pin_table);
-
-    Clock_Params clockParams;
-    Error_Block eb;
-    Error_init(&eb);
-    Clock_Params_init(&clockParams);
-    clockParams.period = 100;
-    clockParams.startFlag = TRUE;
-    sw_clock = Clock_create(sw_clock_f, 2, &clockParams, &eb);
 }
 
 
@@ -163,6 +98,7 @@ void init_badge_peripherals() {
     init_switch();
     led_init();
     screen_init();
+    ui_init();
 }
 
 int main()

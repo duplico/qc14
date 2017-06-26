@@ -51,7 +51,6 @@ void screen_anim_task_fn(UArg a0, UArg a1) {
     }
 }
 
-
 void screen_init() {
     Semaphore_Params params;
     Semaphore_Params_init(&params);

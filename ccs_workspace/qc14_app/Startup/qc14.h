@@ -8,6 +8,8 @@
 #ifndef STARTUP_QC14_H_
 #define STARTUP_QC14_H_
 
+#include "board.h"
+
 #define LED_MP_RATE_MIN 16777215
 #define LED_MP_RATE_BEST 48000
 
