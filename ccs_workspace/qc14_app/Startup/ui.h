@@ -20,5 +20,6 @@
 #define UI_SCREEN_SWITCHABLE (ui_screen & UI_SCREEN_SWITCHABLE_MASK)
 
 void ui_click(uint8_t sw_signal);
+void ui_init();
 
 #endif /* STARTUP_UI_H_ */
