@@ -59,7 +59,7 @@ uint8_t led_global_brightness_level = 0;
 uint8_t tlc_update_brightness = 0;
 
 Task_Struct led_brightness_task;
-char led_brightness_task_stack[200];
+char led_brightness_task_stack[512];
 
 PIN_Config led_pin_table[] = {
     // LED controller:
@@ -270,9 +270,7 @@ void led_brightness_task_fn(UArg a0, UArg a1)
     adc = ADC_open(QC14BOARD_ADC7_LIGHT, &adcp);
 
 //    ExtFlash_open(); // TODO
-    ExtFlash_test();
-
-
+//    ExtFlash_test();
 
     int_fast16_t res;
     uint_fast16_t adc_value = 0;
