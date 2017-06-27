@@ -58,7 +58,6 @@ PIN_Config sw_pin_table[] = {
     PIN_TERMINATE
 };
 
-void sw_clock_f(UArg a0) {
 void init_switch() {
     sw_pin_h = PIN_open(&sw_pin_state, sw_pin_table);
 }
@@ -106,7 +105,6 @@ PIN_Config arm_gpio_init_tables[4][3] = {
 PIN_State arm_gpio_pin_states[4];
 PIN_Handle arm_gpio_pin_handles[4];
 
-
 uint64_t arm_gpio_txs[4] = {P1_TX, P2_TX, P3_TX, P4_TX};
 uint64_t arm_gpio_rxs[4] = {P1_RX, P2_RX, P3_RX, P4_RX};
 
@@ -148,6 +146,9 @@ void serial_do_stuff(uint8_t uart_id) {
     arm_gpio_pin_handle = PIN_open(&arm_gpio_pin_state, arm_gpio_init_table); // This table holds the correct *disconnected* values.
 }
 
+uint8_t rainbow_bmp[7][7][3] = {{{255, 0, 0}, {255, 0, 0}, {255, 30, 0}, {255, 30, 0}, {255, 255, 0}, {255, 255, 0}, {0, 255, 0}}, {{255, 0, 0}, {255, 30, 0}, {255, 30, 0}, {255, 255, 0}, {255, 255, 0}, {0, 255, 0}, {0, 255, 0}}, {{255, 30, 0}, {255, 30, 0}, {255, 255, 0}, {255, 255, 0}, {0, 255, 0}, {0, 255, 0}, {0, 0, 255}}, {{255, 30, 0}, {255, 255, 0}, {255, 255, 0}, {0, 255, 0}, {0, 255, 0}, {0, 0, 255}, {0, 0, 255}}, {{255, 255, 0}, {255, 255, 0}, {0, 255, 0}, {0, 255, 0}, {0, 0, 255}, {0, 0, 255}, {98, 0, 255}}, {{255, 255, 0}, {0, 255, 0}, {0, 255, 0}, {0, 0, 255}, {0, 0, 255}, {98, 0, 255}, {98, 0, 255}}, {{0, 255, 0}, {0, 255, 0}, {0, 0, 255}, {0, 0, 255}, {98, 0, 255}, {98, 0, 255}, {255, 0, 0}}};
+uint8_t game_placeholder[7][7][3] = {{{0, 0, 0}, {0, 0, 0}, {11, 11, 11}, {255, 255, 255}, {11, 11, 11}, {0, 0, 0}, {0, 0, 0}}, {{0, 0, 0}, {0, 0, 0}, {105, 105, 105}, {64, 64, 64}, {104, 104, 104}, {0, 0, 0}, {0, 0, 0}}, {{0, 0, 0}, {1, 1, 1}, {170, 170, 170}, {0, 0, 0}, {174, 174, 174}, {1, 1, 1}, {0, 0, 0}}, {{0, 0, 0}, {54, 54, 54}, {35, 35, 35}, {0, 0, 0}, {36, 36, 36}, {53, 53, 53}, {0, 0, 0}}, {{0, 0, 0}, {208, 208, 208}, {255, 255, 255}, {255, 255, 255}, {255, 255, 255}, {208, 208, 208}, {0, 0, 0}}, {{22, 22, 22}, {81, 81, 81}, {0, 0, 0}, {0, 0, 0}, {0, 0, 0}, {81, 81, 81}, {21, 21, 21}}, {{142, 142, 142}, {5, 5, 5}, {0, 0, 0}, {0, 0, 0}, {0, 0, 0}, {5, 5, 5}, {141, 141, 141}}};
+
 // All four arms share the same function, even though they have separate tasks.
 void serial_arm_task(UArg uart_id, UArg arg1) {
     arm_gpio_pin_handle = PIN_open(&arm_gpio_pin_state, arm_gpio_init_table); // This table holds the correct disconnected values.
@@ -163,6 +164,7 @@ void serial_arm_task(UArg uart_id, UArg arg1) {
             // can react to IN going low.
             if (!arm_read_in_debounced(uart_id)) {
                 arm_proto_state = PROTO_STATE_IDLE;
+                memcpy(led_buf, rainbow_bmp, sizeof(rainbow_bmp));
             }
             break;
         case PROTO_STATE_IDLE:
@@ -206,6 +208,7 @@ void serial_arm_task(UArg uart_id, UArg arg1) {
                 // DISCONNECTED!!!
                 arm_proto_state = PROTO_STATE_DIS;
                 PINCC26XX_setOutputValue(arm_gpio_tx, 0); // Bring output low.
+                memcpy(led_buf, game_placeholder, sizeof(game_placeholder));
             }
 
         }
