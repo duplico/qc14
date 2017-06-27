@@ -67,5 +67,5 @@ void screen_init() {
     clockParams.startFlag = TRUE;
     screen_anim_clock_h = Clock_create(screen_anim_tick, 2, &clockParams, NULL);
 
-    memcpy(led_buf, power_bmp, sizeof(power_bmp));
+//    memcpy(led_buf, power_bmp, sizeof(power_bmp)); // TODO: ok so this breaks ble for some reason.
 }

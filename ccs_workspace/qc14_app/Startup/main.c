@@ -260,6 +260,8 @@ void init_badge_peripherals() {
 
 int main()
 {
+    memset(&led_buf[0][0][0], 0, 11*7*3);
+
     // TI-RTOS driver initializations:
     PIN_init(BoardGpioInitTable);
     PWM_init();
