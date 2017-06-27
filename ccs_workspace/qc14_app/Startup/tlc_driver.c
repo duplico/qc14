@@ -224,8 +224,8 @@ void mp_tick(GPTimerCC26XX_Handle handle, GPTimerCC26XX_IntMask interruptMask) {
 
 
     for (uint8_t i=0; i<15; i++) {
-        tlc_msg_gs_buf[3 + i*2] = led_buf[led_map[mp_curr_scan_line][i][0]][led_map[mp_curr_scan_line][i][1]][led_map[mp_curr_scan_line][i][2]];
-        tlc_msg_gs_buf[3 + i*2 + 1] = led_buf[led_map[mp_curr_scan_line][i][0]][led_map[mp_curr_scan_line][i][1]][led_map[mp_curr_scan_line][i][2]]; // LSB
+//        tlc_msg_gs_buf[3 + i*2] = led_buf[led_map[mp_curr_scan_line][i][0]][led_map[mp_curr_scan_line][i][1]][led_map[mp_curr_scan_line][i][2]];
+//        tlc_msg_gs_buf[3 + i*2 + 1] = led_buf[led_map[mp_curr_scan_line][i][0]][led_map[mp_curr_scan_line][i][1]][led_map[mp_curr_scan_line][i][2]]; // LSB
     }
 
     SPI_transfer(tlc_spi, &tlc_gs_spi_transaction);
@@ -378,7 +378,7 @@ void led_brightness_task_init() {
 
 void led_init() {
     // Load an image:
-    memset(led_buf, 0x00, sizeof led_buf); // clear out the buffer.
+//    memset(led_buf, 0x00, sizeof led_buf); // clear out the buffer. // TODO: ok so this breaks things for some reason.
 
     // Set up our GPIO:
     led_pin_h = PIN_open(&led_pin_state, led_pin_table);
