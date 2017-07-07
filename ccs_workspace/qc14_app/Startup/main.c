@@ -153,7 +153,6 @@ uint8_t game_placeholder[7][7][3] = {{{0, 0, 0}, {0, 0, 0}, {11, 11, 11}, {255, 
 void serial_arm_task(UArg uart_id, UArg arg1) {
     arm_gpio_pin_handle = PIN_open(&arm_gpio_pin_state, arm_gpio_init_table); // This table holds the correct disconnected values.
     do {
-        // TODO: Perhaps implement this using EVENTS instead of busy-waiting.
         // Possible "events":
         //  IN Low (debounced)
         //  IN High (debounced)
@@ -176,7 +175,7 @@ void serial_arm_task(UArg uart_id, UArg arg1) {
                 // Either way, we wait until we have control of our UART, and
                 // attempt to respond.
                 arm_proto_state = PROTO_STATE_RTS_WAIT;
-                arm_timeout = Clock_getTicks() + RTS_TIMEOUT; // TODO: guard for overflows.
+                arm_timeout = Clock_getTicks() + RTS_TIMEOUT;
                 // fall through...
             } else {
                 break;
@@ -191,8 +190,6 @@ void serial_arm_task(UArg uart_id, UArg arg1) {
                 arm_proto_state = PROTO_STATE_CTS_WAIT;
             } else {
                 // We didn't get the UART in time.
-                // TODO: Do we even need to *have* a timeout here?
-                //       I'm not convinced we do.
                 // arm_proto_state = PROTO_STATE_DIS;
             }
             break;
@@ -204,7 +201,7 @@ void serial_arm_task(UArg uart_id, UArg arg1) {
                 // Our CTS has been acknowledged.
             }
             // can react to TIMEOUT.
-            if (Clock_getTicks() > arm_timeout) { // TODO: system clock ticks wrap every 11-12 hours or so.
+            if (Clock_getTicks() > arm_timeout) {
                 // DISCONNECTED!!!
                 arm_proto_state = PROTO_STATE_DIS;
                 PINCC26XX_setOutputValue(arm_gpio_tx, 0); // Bring output low.
@@ -225,7 +222,7 @@ void serial_init() {
     uart_mutex = Semaphore_create(1, &uart_mutex_params, NULL);
 
     UART_Params_init(&uart_p);
-    uart_p.baudRate = 9600; // TODO: SPEEEEEED
+    uart_p.baudRate = 9600;
 
     // Create the 4 tasks:
     for (uint8_t task_arm_id=0; task_arm_id<4; task_arm_id++) {
@@ -270,7 +267,6 @@ int main()
     UART_init();
 
     // Keep the external HF oscillator on at all times:
-    // TODO: May not be needed if we're always writing SPI from RAM.
     Power_setDependency(PowerCC26XX_XOSC_HF);
 
     // Initialize badge peripherals:

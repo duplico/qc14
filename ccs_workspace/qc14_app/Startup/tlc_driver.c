@@ -269,9 +269,6 @@ void led_brightness_task_fn(UArg a0, UArg a1)
     ADC_Params_init(&adcp);
     adc = ADC_open(QC14BOARD_ADC7_LIGHT, &adcp);
 
-//    ExtFlash_open(); // TODO
-//    ExtFlash_test();
-
     int_fast16_t res;
     uint_fast16_t adc_value = 0;
     uint_fast8_t target_brightness_level;
@@ -343,14 +340,12 @@ void tlc_spi_init() {
 }
 
 void mp_init() {
-    // TODO: Is this clear necessary?
     // Flush out and clear the shift register:
     PIN_setOutputValue(led_pin_h, MP0_CLR, 0);
     PIN_setOutputValue(led_pin_h, MP1_CLR, 0);
     PIN_setOutputValue(led_pin_h, MP0_CLR, 1);
     PIN_setOutputValue(led_pin_h, MP1_CLR, 1);
 
-    // TODO: Do I need two of these?
     do { // Clear out & prime the shift register:
         mp_shift();
     } while (mp_curr_scan_line);
@@ -378,7 +373,7 @@ void led_brightness_task_init() {
 
 void led_init() {
     // Load an image:
-//    memset(led_buf, 0x00, sizeof led_buf); // clear out the buffer. // TODO: ok so this breaks things for some reason.
+//    memset(led_buf, 0x00, sizeof led_buf); // clear out the buffer.
 
     // Set up our GPIO:
     led_pin_h = PIN_open(&led_pin_state, led_pin_table);

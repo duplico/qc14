@@ -458,7 +458,6 @@ const Display_Config Display_config[] = {
  *  ========================= Display end ======================================
  */
 
-// TODO:
 /*
  *  ============================ GPTimer begin =================================
  *  Remove unused entries to reduce flash usage both in Board.c and Board.h
@@ -500,8 +499,6 @@ const GPTimerCC26XX_Config GPTimerCC26XX_config[QC14BOARD_GPTIMERPARTSCOUNT] = {
  *  ============================ GPTimer end ===================================
  */
 
-
-// TODO: unused.
 /*
  *  ============================= PWM begin ====================================
  *  Remove unused entries to reduce flash usage both in Board.c and Board.h
@@ -546,8 +543,6 @@ const PWM_Config PWM_config[QC14BOARD_PWMCOUNT + 1] = {
 /*
  *  ============================= PWM end ======================================
  */
-
-// TODO:
 
 /*
  *  ========================== ADCBuf begin =========================================
@@ -605,8 +600,6 @@ const ADCBuf_Config ADCBuf_config[] = {
  *  ========================== ADCBuf end =========================================
  */
 
-
-// TODO:
 /*
  *  ========================== ADC begin =========================================
  */
