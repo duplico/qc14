@@ -15,11 +15,15 @@
 #define UI_SCREEN_SLEEP 0x02
 #define UI_SCREEN_SLEEPING 0x12
 
-#define UI_SCREEN_SWITCHABLE_MASK 0x10
+#define UI_SCREEN_SEL_MASK 0x10
 
-#define UI_SCREEN_SWITCHABLE (ui_screen & UI_SCREEN_SWITCHABLE_MASK)
+// Derived UI configuration
+#define UI_CLOCK_TICKS (UI_CLOCK_MS * 100)
+#define UI_TIMEOUT_MATCH_SEL (1000 * UI_SEL_TIMEOUT_SEC / UI_CLOCK_MS)
+#define UI_TIMEOUT_MATCH_MAIN (1000 * UI_MAIN_TIMEOUT_SEC / UI_CLOCK_MS)
 
 void ui_click(uint8_t sw_signal);
 void ui_init();
+void ui_timeout();
 
 #endif /* STARTUP_UI_H_ */
