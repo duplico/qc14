@@ -75,11 +75,11 @@ UART_Params uart_p;
 Semaphore_Handle uart_mutex;
 
 Task_Struct uart_arm_tasks[4];
-char uart_arm_task_stacks[4][100];
+char uart_arm_task_stacks[4][512];
 
 uint32_t uart_rts_timeout[4] = {0, 0, 0, 0};
-uint8_t uart_rts_old_val[4] = {0, 0, 0, 0};
-uint8_t uart_rts_cur_val[4] = {0, 0, 0, 0};
+uint8_t uart_rts_old_val[4] = {1, 1, 1, 1};
+uint8_t uart_rts_cur_val[4] = {1, 1, 1, 1};
 uint8_t uart_proto_state[4] = {0, 0, 0, 0};
 uint8_t uart_hold_sem[4] = {0, 0, 0, 0};
 
@@ -169,7 +169,7 @@ void serial_arm_task(UArg uart_id, UArg arg1) {
         case PROTO_STATE_IDLE:
             // input has pullup, output low.
             // can react to IN going high.
-            if (arm_read_in_debounced(uart_id)) {
+            if (arm_read_in_debounced(uart_id)) { // TODO: What we really want to do is wait for this to be stable over a second or so.
                 // debounced input has gone high.
                 // this is either a disconnect or a RTS signal.
                 // Either way, we wait until we have control of our UART, and
@@ -188,6 +188,8 @@ void serial_arm_task(UArg uart_id, UArg arg1) {
                 // We are clear to send. Signal CTS.
                 PINCC26XX_setOutputValue(arm_gpio_tx, 1);
                 arm_proto_state = PROTO_STATE_CTS_WAIT;
+                // TODO: Release it at the real time.
+                Semaphore_post(uart_mutex);
             } else {
                 // We didn't get the UART in time.
                 // arm_proto_state = PROTO_STATE_DIS;
@@ -207,7 +209,6 @@ void serial_arm_task(UArg uart_id, UArg arg1) {
                 PINCC26XX_setOutputValue(arm_gpio_tx, 0); // Bring output low.
                 memcpy(led_buf, game_placeholder, sizeof(game_placeholder));
             }
-
         }
 
         Task_sleep(100); // 1000 us
@@ -253,11 +254,11 @@ void init_badge_peripherals() {
     led_init();
     screen_init();
     ui_init();
+    serial_init();
 }
 
 int main()
 {
-    memset(&led_buf[0][0][0], 0, 11*7*3);
 
     // TI-RTOS driver initializations:
     PIN_init(BoardGpioInitTable);

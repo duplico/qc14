@@ -47,7 +47,7 @@ void screen_anim_task_fn(UArg a0, UArg a1) {
 //        if (blink)
 //            memset(led_buf, 0x00, sizeof led_buf); // clear out the buffer.
 //        else
-//            memcpy(led_buf, power_bmp, sizeof(power_bmp));
+//            memcpy(led_buf, power_bmp, sizeof power_bmp);
 //
 //        blink = !blink;
 
