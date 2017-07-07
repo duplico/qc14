@@ -22,7 +22,6 @@ Clock_Handle screen_anim_clock_h;
 Semaphore_Handle anim_sem;
 
 void screen_update_now() {
-    // TODO: Handle the race condition.
     Clock_stop(screen_anim_clock_h);
     Semaphore_post(anim_sem);
 }
@@ -45,7 +44,7 @@ void screen_anim_task_fn(UArg a0, UArg a1) {
     while (1) {
         Semaphore_pend(anim_sem, BIOS_WAIT_FOREVER);
 //
-//        if (blink) // TODO: Don't do this.
+//        if (blink)
 //            memset(led_buf, 0x00, sizeof led_buf); // clear out the buffer.
 //        else
 //            memcpy(led_buf, power_bmp, sizeof(power_bmp));
@@ -75,5 +74,5 @@ void screen_init() {
     clockParams.startFlag = TRUE;
     screen_anim_clock_h = Clock_create(screen_anim_tick, 100, &clockParams, NULL); // Wait 100 ticks (1ms) before firing for the first time.
 
-//    memcpy(led_buf, power_bmp, sizeof(power_bmp)); // TODO: ok so this breaks ble for some reason.
+//    memcpy(led_buf, power_bmp, sizeof(power_bmp));
 }

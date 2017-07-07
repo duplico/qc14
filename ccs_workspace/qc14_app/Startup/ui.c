@@ -1,8 +1,3 @@
-
-// TODO: Handle timeouts.
-// TODO: We probably need a blinking timeloop.
-// TODO: Probably merge this with the screen module.
-
 /*
  * ui.c
  *
@@ -32,7 +27,6 @@ uint8_t sw_c_clicked = 0;
 
 uint_fast32_t timeout_ticks = 0;
 
-// TODO: This is a SWI. Confirm we're not doing too much.
 void sw_clock_f(UArg a0) {
     static uint8_t sw_l_last = 1;
     static uint8_t sw_r_last = 1;
@@ -99,7 +93,6 @@ void ui_click(uint8_t sw_signal)
     // Disregard if mated.
     if (uart_proto_state[0] || uart_proto_state[1] || uart_proto_state[2] || uart_proto_state[3])
         return; // No UI during mating.
-    // TODO: When mating is over we should treat that like a timeout.
 
     // Disregard if it's a release.
     if (sw_signal == SW_SIGNAL_OPEN)
@@ -129,7 +122,6 @@ void ui_click(uint8_t sw_signal)
 }
 
 void ui_timeout() {
-    // TODO: Change based on what time it is.
     if (ui_screen == UI_SCREEN_GAME)
         return; // Nothing to do.
 
@@ -138,7 +130,6 @@ void ui_timeout() {
 }
 
 void ui_update() {
-    // TODO: Do the graphics update.
 }
 
 void ui_init() {
