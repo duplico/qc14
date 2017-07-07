@@ -365,7 +365,7 @@ void led_brightness_task_init() {
 
 void led_init() {
     // Load an image:
-    memset(led_buf, 0x00, sizeof led_buf); // clear out the buffer.
+    memset(led_buf, 0xff, sizeof led_buf); // clear out the buffer.
 
     // Set up our GPIO:
     led_pin_h = PIN_open(&led_pin_state, led_pin_table);
