@@ -16,10 +16,11 @@
 
 #include "qc14.h"
 #include "ui.h"
+#include "screen.h"
 
 uint8_t ui_screen = UI_SCREEN_GAME;
 
-uint8_t click_signal = SW_SIGNAL_OPEN;
+uint8_t click_signal = SW_SIGNAL_NONE;
 
 uint8_t sw_l_clicked = 0;
 uint8_t sw_r_clicked = 0;
@@ -35,6 +36,8 @@ void sw_clock_f(UArg a0) {
     uint8_t sw_l_curr = PIN_getInputValue(SW_L);
     uint8_t sw_r_curr = PIN_getInputValue(SW_R);
     uint8_t sw_c_curr = PIN_getInputValue(SW_CLICK);
+
+    click_signal = SW_SIGNAL_NONE;
 
     if (!sw_l_curr && !sw_l_last && !sw_l_clicked) {
         // left clicked
@@ -72,7 +75,7 @@ void sw_clock_f(UArg a0) {
     }
     sw_c_last = sw_c_curr;
 
-    if (click_signal) {
+    if (click_signal != SW_SIGNAL_NONE) {
         // User interaction of some kind.
         timeout_ticks = 0;
         ui_click(click_signal);
@@ -100,12 +103,17 @@ void ui_click(uint8_t sw_signal)
 
     switch(ui_screen) {
     case UI_SCREEN_GAME_SEL: // Icon select
+        if (sw_signal & SW_SIGNAL_DIR_MASK)
+            screen_blink_off();
         break;
     case UI_SCREEN_TILE_SEL: // Tile select
+        if (sw_signal & SW_SIGNAL_DIR_MASK)
+            screen_blink_off();
         break;
     case UI_SCREEN_SLEEPING: // We're asleep.
         // Doesn't matter what we click. Time to wake up and go to UI_SCREEN_SLEEP:
-        ui_screen = UI_SCREEN_SLEEP;
+        if (sw_signal & SW_SIGNAL_DIR_MASK)
+            screen_blink_off();
         break;
     default: // We are in one of the switchable versions:
         if (sw_signal & SW_SIGNAL_DIR_MASK) { // Left or right was clicked.
@@ -115,6 +123,7 @@ void ui_click(uint8_t sw_signal)
                 ui_screen = (ui_screen + 1) % 3; // Go right.
         } else { // CLICK was clicked, and screen is switchable (so goto clicked version):
             ui_screen = ui_screen | UI_SCREEN_SEL_MASK;
+            screen_blink_on();
         }
     }
 
@@ -130,6 +139,7 @@ void ui_timeout() {
 }
 
 void ui_update() {
+    screen_update_now();
 }
 
 void ui_init() {

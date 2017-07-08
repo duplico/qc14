@@ -259,7 +259,6 @@ void init_badge_peripherals() {
 
 int main()
 {
-
     // TI-RTOS driver initializations:
     PIN_init(BoardGpioInitTable);
     PWM_init();
