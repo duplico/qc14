@@ -103,27 +103,35 @@ void ui_click(uint8_t sw_signal)
 
     switch(ui_screen) {
     case UI_SCREEN_GAME_SEL: // Icon select
-        if (sw_signal & SW_SIGNAL_DIR_MASK)
-            screen_blink_off();
+        if (sw_signal & SW_SIGNAL_DIR_MASK) {
+            // left or right
+        } else {
+            // click.
+            ui_screen = UI_SCREEN_GAME;
+        }
         break;
     case UI_SCREEN_TILE_SEL: // Tile select
-        if (sw_signal & SW_SIGNAL_DIR_MASK)
-            screen_blink_off();
+        if (sw_signal & SW_SIGNAL_DIR_MASK) {
+            // left or right
+        } else {
+            // click.
+            ui_screen = UI_SCREEN_TILE;
+        }
         break;
     case UI_SCREEN_SLEEPING: // We're asleep.
         // Doesn't matter what we click. Time to wake up and go to UI_SCREEN_SLEEP:
-        if (sw_signal & SW_SIGNAL_DIR_MASK)
-            screen_blink_off();
+        ui_screen = UI_SCREEN_SLEEP;
         break;
     default: // We are in one of the switchable versions:
-        if (sw_signal & SW_SIGNAL_DIR_MASK) { // Left or right was clicked.
-            if (sw_signal == SW_SIGNAL_L)
-                ui_screen = (ui_screen + 2) % 3; // Go left.
-            else
-                ui_screen = (ui_screen + 1) % 3; // Go right.
-        } else { // CLICK was clicked, and screen is switchable (so goto clicked version):
+        switch(sw_signal) {
+        case SW_SIGNAL_L:
+            ui_screen = (ui_screen + 2) % 3; // Go left.
+            break;
+        case SW_SIGNAL_R:
+            ui_screen = (ui_screen + 1) % 3; // Go right.
+            break;
+        default: // click
             ui_screen = ui_screen | UI_SCREEN_SEL_MASK;
-            screen_blink_on();
         }
     }
 
@@ -139,6 +147,13 @@ void ui_timeout() {
 }
 
 void ui_update() {
+    if (ui_screen == UI_SCREEN_SLEEPING) {
+        // Shut it down. Shut everything down.
+    } else if (ui_screen == UI_SCREEN_SLEEP || (ui_screen & UI_SCREEN_SEL_MASK)) {
+        screen_blink_on();
+    } else {
+        screen_blink_off();
+    }
     screen_update_now();
 }
 
