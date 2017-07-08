@@ -43,8 +43,8 @@
 #define PROTO_STATE_SERIAL_PLACEHOLDER 4
 
 // in 10s of us:
-#define RTS_TIMEOUT 50000
-#define PLUG_TIMEOUT 100000
+#define RTS_TIMEOUT (RTS_TIMEOUT_MS*100)
+#define PLUG_TIMEOUT (PLUG_TIMEOUT_MS*100)
 
 UART_Handle uart_h;
 UART_Params uart_p;
