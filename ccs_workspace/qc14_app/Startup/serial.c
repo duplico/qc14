@@ -172,7 +172,7 @@ void serial_arm_task(UArg uart_id, UArg arg1) {
                 // Our CTS has been acknowledged.
             }
             // can react to TIMEOUT.
-            if (Clock_getTicks() > arm_timeout) {
+            if ((int32_t) (arm_timeout - Clock_getTicks()) <= 0) {
                 // DISCONNECTED!!!
                 arm_proto_state = PROTO_STATE_DIS;
                 PINCC26XX_setOutputValue(arm_gpio_tx, 0); // Bring output low.
