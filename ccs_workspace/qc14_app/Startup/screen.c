@@ -37,7 +37,7 @@ void screen_anim_tick(UArg a0) {
 volatile uint8_t blink_status = 0;
 
 void screen_blink_on() {
-    blink_status = 1;
+    blink_status = (ui_screen != UI_SCREEN_SLEEP);
     Clock_start(screen_blink_clock_h);
 }
 
