@@ -7,6 +7,7 @@
 // Standard library includes
 #include <stdio.h>
 #include <stdint.h>
+#include <string.h>
 
 // TI runtime
 #include <xdc/runtime/Error.h>
@@ -32,15 +33,18 @@
 // QC14 Drivers
 #include "serial.h"
 #include "qc14.h"
-
+#include "tlc_driver.h"
 
 #define PROTO_STATE_DIS 0
+#define PROTO_STATE_PLUGGING 5
 #define PROTO_STATE_IDLE 1
 #define PROTO_STATE_RTS_WAIT 2
 #define PROTO_STATE_CTS_WAIT 3
 #define PROTO_STATE_SERIAL_PLACEHOLDER 4
 
+// in 10s of us:
 #define RTS_TIMEOUT 50000
+#define PLUG_TIMEOUT 100000
 
 UART_Handle uart_h;
 UART_Params uart_p;
@@ -50,6 +54,7 @@ Task_Struct uart_arm_tasks[4];
 char uart_arm_task_stacks[4][512];
 
 uint32_t uart_rts_timeout[4] = {0, 0, 0, 0};
+uint32_t uart_plug_timeout[4] = {0, 0, 0, 0};
 uint8_t uart_rts_old_val[4] = {1, 1, 1, 1};
 uint8_t uart_rts_cur_val[4] = {1, 1, 1, 1};
 uint8_t uart_proto_state[4] = {0, 0, 0, 0};
@@ -80,7 +85,8 @@ PIN_Handle arm_gpio_pin_handles[4];
 uint64_t arm_gpio_txs[4] = {P1_TX, P2_TX, P3_TX, P4_TX};
 uint64_t arm_gpio_rxs[4] = {P1_RX, P2_RX, P3_RX, P4_RX};
 
-#define arm_timeout uart_rts_timeout[uart_id]
+#define arm_rts_timeout uart_rts_timeout[uart_id]
+#define arm_plug_timeout uart_plug_timeout[uart_id]
 #define arm_old_val uart_rts_old_val[uart_id]
 #define arm_cur_val uart_rts_cur_val[uart_id]
 #define arm_proto_state uart_proto_state[uart_id]
@@ -101,6 +107,18 @@ uint8_t arm_read_in_debounced(uint8_t uart_id) {
     return arm_cur_val;
 }
 
+uint8_t arm_read_same(uint8_t uart_id) {
+    uint8_t read_val = PINCC26XX_getInputValue(arm_gpio_rx);
+
+    if (arm_old_val == read_val) {
+        arm_cur_val = read_val;
+        return 1;
+    }
+    arm_old_val = read_val;
+
+    return 0;
+}
+
 //void serial_do_stuff(uint8_t uart_id) {
 //    char buf[12] = "test";
 //
@@ -118,6 +136,26 @@ uint8_t arm_read_in_debounced(uint8_t uart_id) {
 //    arm_gpio_pin_handle = PIN_open(&arm_gpio_pin_state, arm_gpio_init_table); // This table holds the correct *disconnected* values.
 //}
 
+void set_state(UArg uart_id, uint8_t dest_state) {
+    arm_proto_state = dest_state;
+
+    switch(dest_state) {
+    case PROTO_STATE_DIS:
+        memset(led_buf[7+uart_id], 0x00, 6*3);
+        break;
+    case PROTO_STATE_PLUGGING:
+        memset(led_buf[7+uart_id], 0x20, 6*3);
+        break;
+    case PROTO_STATE_IDLE:
+        memset(led_buf[7+uart_id], 0xff, 6*3);
+        break;
+    case PROTO_STATE_RTS_WAIT:
+        break;
+    case PROTO_STATE_CTS_WAIT:
+        break;
+    }
+}
+
 // All four arms share the same function, even though they have separate tasks.
 void serial_arm_task(UArg uart_id, UArg arg1) {
     arm_gpio_pin_handle = PIN_open(&arm_gpio_pin_state, arm_gpio_init_table); // This table holds the correct disconnected values.
@@ -131,20 +169,36 @@ void serial_arm_task(UArg uart_id, UArg arg1) {
             // input has pullup, output low.
             // can react to IN going low.
             if (!arm_read_in_debounced(uart_id)) {
-                arm_proto_state = PROTO_STATE_IDLE;
-                //memcpy(led_buf, rainbow_bmp, sizeof(rainbow_bmp)); // TODO
+                set_state(uart_id, PROTO_STATE_PLUGGING);
+                arm_plug_timeout = Clock_getTicks() + PLUG_TIMEOUT;
+            }
+            break;
+        case PROTO_STATE_PLUGGING:
+            if (arm_read_same(uart_id)) {
+                // counting toward timeout continues
+                if ((int32_t) (arm_plug_timeout - Clock_getTicks()) <= 0) {
+                    // timed out: we've settled.
+                    if (arm_cur_val) { // input high, disconnected
+                        set_state(uart_id, PROTO_STATE_DIS);
+                    } else { // input low, fully connected
+                        set_state(uart_id, PROTO_STATE_IDLE);
+                    }
+                }
+            } else {
+                // reset timeout
+                arm_plug_timeout = Clock_getTicks() + PLUG_TIMEOUT;
             }
             break;
         case PROTO_STATE_IDLE:
             // input has pullup, output low.
             // can react to IN going high.
-            if (arm_read_in_debounced(uart_id)) { // TODO: What we really want to do is wait for this to be stable over a second or so.
+            if (arm_read_in_debounced(uart_id)) {
                 // debounced input has gone high.
                 // this is either a disconnect or a RTS signal.
                 // Either way, we wait until we have control of our UART, and
                 // attempt to respond.
-                arm_proto_state = PROTO_STATE_RTS_WAIT;
-                arm_timeout = Clock_getTicks() + RTS_TIMEOUT;
+                set_state(uart_id, PROTO_STATE_RTS_WAIT);
+                arm_rts_timeout = Clock_getTicks() + RTS_TIMEOUT;
                 // fall through...
             } else {
                 break;
@@ -156,7 +210,7 @@ void serial_arm_task(UArg uart_id, UArg arg1) {
                 arm_i_have_uart = 1;
                 // We are clear to send. Signal CTS.
                 PINCC26XX_setOutputValue(arm_gpio_tx, 1);
-                arm_proto_state = PROTO_STATE_CTS_WAIT;
+                set_state(uart_id, PROTO_STATE_CTS_WAIT);
                 // TODO: Release it at the real time.
                 Semaphore_post(uart_mutex);
             } else {
@@ -172,11 +226,10 @@ void serial_arm_task(UArg uart_id, UArg arg1) {
                 // Our CTS has been acknowledged.
             }
             // can react to TIMEOUT.
-            if ((int32_t) (arm_timeout - Clock_getTicks()) <= 0) {
+            if ((int32_t) (arm_rts_timeout - Clock_getTicks()) <= 0) {
                 // DISCONNECTED!!!
-                arm_proto_state = PROTO_STATE_DIS;
+                set_state(uart_id, PROTO_STATE_DIS);
                 PINCC26XX_setOutputValue(arm_gpio_tx, 0); // Bring output low.
-//                memcpy(led_buf, game_placeholder, sizeof(game_placeholder)); // TODO
             }
         }
 
