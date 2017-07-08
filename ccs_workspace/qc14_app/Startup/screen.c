@@ -13,6 +13,7 @@
 #include <ti/sysbios/knl/Swi.h>
 
 #include "tlc_driver.h"
+#include "ui.h"
 
 extern uint8_t led_buf[11][7][3];
 
@@ -41,7 +42,12 @@ void screen_blink_on() {
 }
 
 void screen_blink_off() {
-    if (blink_status)
+    // Don't bother sending new `fun` data if blink_status is 0. Of course,
+    // blink_status==0 implies the lights are lit, but since we invert
+    // blink_status _after_ we set the bit in the `fun` buffer, actually
+    // blink_status==0 means we're in the off part of a cycle.
+    // also, lol, look a 3-deep stack of `blink_status` in this comment.
+    if (!blink_status)
         led_blank_set(0);
     Clock_stop(screen_blink_clock_h);
 }
@@ -60,19 +66,26 @@ uint8_t tile_placeholder[7][7][3] = {{{0, 0, 0}, {0, 0, 0}, {0, 0, 0}, {0, 0, 0}
 //uint8_t game_placeholder[7][7][3] = {{{0, 0, 0}, {0, 0, 0}, {11, 11, 11}, {255, 255, 255}, {11, 11, 11}, {0, 0, 0}, {0, 0, 0}}, {{0, 0, 0}, {0, 0, 0}, {105, 105, 105}, {64, 64, 64}, {104, 104, 104}, {0, 0, 0}, {0, 0, 0}}, {{0, 0, 0}, {1, 1, 1}, {170, 170, 170}, {0, 0, 0}, {174, 174, 174}, {1, 1, 1}, {0, 0, 0}}, {{0, 0, 0}, {54, 54, 54}, {35, 35, 35}, {0, 0, 0}, {36, 36, 36}, {53, 53, 53}, {0, 0, 0}}, {{0, 0, 0}, {208, 208, 208}, {255, 255, 255}, {255, 255, 255}, {255, 255, 255}, {208, 208, 208}, {0, 0, 0}}, {{22, 22, 22}, {81, 81, 81}, {0, 0, 0}, {0, 0, 0}, {0, 0, 0}, {81, 81, 81}, {21, 21, 21}}, {{142, 142, 142}, {5, 5, 5}, {0, 0, 0}, {0, 0, 0}, {0, 0, 0}, {5, 5, 5}, {141, 141, 141}}};
 
 void screen_anim_task_fn(UArg a0, UArg a1) {
-    static uint8_t blink = 0;
 
     while (1) {
         Semaphore_pend(anim_sem, BIOS_WAIT_FOREVER);
-
-        if (blink)
-            memset(led_buf, 0x00, sizeof led_buf); // clear out the buffer.
-        else
+        switch(ui_screen) {
+        case UI_SCREEN_GAME:
+        case UI_SCREEN_GAME_SEL:
+            memcpy(led_buf, game_bmp, sizeof game_bmp);
+            break;
+        case UI_SCREEN_TILE:
+        case UI_SCREEN_TILE_SEL:
+            memcpy(led_buf, tile_placeholder, sizeof tile_placeholder);
+            break;
+        case UI_SCREEN_SLEEP:
             memcpy(led_buf, power_bmp, sizeof power_bmp);
+            break;
+        case UI_SCREEN_SLEEPING:
+            memset(led_buf, 0, sizeof led_buf);
+        }
 
-        blink = !blink;
-
-        Clock_setTimeout(screen_anim_clock_h, 50000); // set time for next animation
+        Clock_setTimeout(screen_anim_clock_h, 500000); // 5 seconds
         Clock_start(screen_anim_clock_h);
     }
 }
@@ -100,6 +113,4 @@ void screen_init() {
     blink_clock_params.period = 50000; // 500 ms recurring
     blink_clock_params.startFlag = FALSE; // Don't auto-start (only when we blink-on)
     screen_blink_clock_h = Clock_create(screen_blink_tick, 0, &blink_clock_params, NULL);
-
-//    memcpy(led_buf, power_bmp, sizeof(power_bmp));
 }

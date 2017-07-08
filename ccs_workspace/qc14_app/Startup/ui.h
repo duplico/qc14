@@ -8,14 +8,14 @@
 #ifndef STARTUP_UI_H_
 #define STARTUP_UI_H_
 
+#define UI_SCREEN_SEL_MASK 0x10
+
 #define UI_SCREEN_GAME 0x00
-#define UI_SCREEN_GAME_SEL 0x10
+#define UI_SCREEN_GAME_SEL (UI_SCREEN_GAME | UI_SCREEN_SEL_MASK)
 #define UI_SCREEN_TILE 0x01
-#define UI_SCREEN_TILE_SEL 0x11
+#define UI_SCREEN_TILE_SEL (UI_SCREEN_TILE | UI_SCREEN_SEL_MASK)
 #define UI_SCREEN_SLEEP 0x02
 #define UI_SCREEN_SLEEPING 0x12
-
-#define UI_SCREEN_SEL_MASK 0x10
 
 // Derived UI configuration
 #define UI_CLOCK_TICKS (UI_CLOCK_MS * 100)
@@ -25,5 +25,7 @@
 void ui_click(uint8_t sw_signal);
 void ui_init();
 void ui_timeout();
+
+extern uint8_t ui_screen;
 
 #endif /* STARTUP_UI_H_ */
