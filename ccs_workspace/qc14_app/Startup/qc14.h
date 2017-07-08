@@ -27,7 +27,7 @@
 
 // UI constant configuration
 #define UI_CLOCK_MS 10
-#define UI_SEL_TIMEOUT_SEC 40
+#define UI_SEL_TIMEOUT_SEC 10
 #define UI_MAIN_TIMEOUT_SEC 600
 
 // UART Protocol states:
