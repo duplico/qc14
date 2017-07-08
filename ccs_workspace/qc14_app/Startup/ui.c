@@ -46,6 +46,9 @@ void sw_clock_f(UArg a0) {
     static uint8_t sw_r_last = 1;
     static uint8_t sw_c_last = 1;
 
+    if (uart_proto_state[0] || uart_proto_state[1] || uart_proto_state[2] || uart_proto_state[3])
+        return; // No UI during mating.
+
     uint8_t sw_l_curr = PIN_getInputValue(SW_L);
     uint8_t sw_r_curr = PIN_getInputValue(SW_R);
     uint8_t sw_c_curr = PIN_getInputValue(SW_CLICK);
@@ -103,10 +106,6 @@ void sw_clock_f(UArg a0) {
 
 void ui_click(uint8_t sw_signal)
 {
-    // Disregard if mated.
-    if (uart_proto_state[0] || uart_proto_state[1] || uart_proto_state[2] || uart_proto_state[3])
-        return; // No UI during mating.
-
     // Disregard if it's a release.
     if (sw_signal == SW_SIGNAL_OPEN)
         return; // We don't care
