@@ -25,6 +25,10 @@
 #define SW_SIGNAL_DIR_MASK 0x11
 #define SW_SIGNAL_C 0b100
 
+// Serial timeout configuration
+#define RTS_TIMEOUT_MS 500
+#define PLUG_TIMEOUT_MS 2500
+
 // UI constant configuration
 #define UI_CLOCK_MS 10
 #define UI_SEL_TIMEOUT_SEC 10
