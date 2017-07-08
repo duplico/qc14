@@ -19,14 +19,25 @@
 #include "screen.h"
 
 uint8_t ui_screen = UI_SCREEN_GAME;
-
 uint8_t click_signal = SW_SIGNAL_NONE;
 
+Clock_Handle sw_clock;
 uint8_t sw_l_clicked = 0;
 uint8_t sw_r_clicked = 0;
 uint8_t sw_c_clicked = 0;
 
 uint_fast32_t timeout_ticks = 0;
+
+static PIN_State sw_pin_state;
+PIN_Handle sw_pin_h;
+
+PIN_Config sw_pin_table[] = {
+    // Rocker switch:
+    SW_L            | PIN_INPUT_EN | PIN_PULLUP | PIN_HYSTERESIS | PIN_IRQ_NEGEDGE,
+    SW_R            | PIN_INPUT_EN | PIN_PULLUP | PIN_HYSTERESIS | PIN_IRQ_NEGEDGE,
+    SW_CLICK        | PIN_INPUT_EN | PIN_PULLUP | PIN_HYSTERESIS | PIN_IRQ_NEGEDGE,
+    PIN_TERMINATE
+};
 
 void sw_clock_f(UArg a0) {
     static uint8_t sw_l_last = 1;
@@ -88,7 +99,6 @@ void sw_clock_f(UArg a0) {
     }
 }
 
-Clock_Handle sw_clock;
 void ui_update();
 
 void ui_click(uint8_t sw_signal)
@@ -158,6 +168,8 @@ void ui_update() {
 }
 
 void ui_init() {
+    sw_pin_h = PIN_open(&sw_pin_state, sw_pin_table);
+
     Clock_Params clockParams;
     Error_Block eb;
     Error_init(&eb);
