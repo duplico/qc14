@@ -18,7 +18,8 @@
 #define LED_BRIGHTNESS_INTERVAL 12500
 
 // Switch signals
-#define SW_SIGNAL_OPEN 0
+#define SW_SIGNAL_NONE 0
+#define SW_SIGNAL_OPEN 0b1000
 #define SW_SIGNAL_L 0b1
 #define SW_SIGNAL_R 0b10
 #define SW_SIGNAL_DIR_MASK 0x11

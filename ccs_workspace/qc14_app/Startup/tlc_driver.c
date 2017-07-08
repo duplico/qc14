@@ -56,7 +56,7 @@ static PIN_State led_pin_state;
 PIN_Handle led_pin_h;
 
 uint8_t led_global_brightness_level = 0;
-uint8_t tlc_update_brightness = 0;
+uint8_t tlc_update_fun = 0;
 
 Task_Struct led_brightness_task;
 char led_brightness_task_stack[512];
@@ -190,6 +190,14 @@ uint8_t tlc_msg_gs_buf[] = {
         0xff, 0xff,
 };
 
+void led_blank_set(uint8_t blank) {
+    if (blank)
+        tlc_msg_fun_base[18] |= 0b10000000;
+    else
+        tlc_msg_fun_base[18] &= 0b01111111;
+    tlc_update_fun = 1;
+}
+
 inline static void mp_shift() {
     mp_curr_scan_line++;
     mp_curr_scan_line %= 15;
@@ -231,7 +239,7 @@ void tlc_spi_cb(SPI_Handle handle, SPI_Transaction *transaction) {
         PWM_start(tlc_gclk_pwm_h);
         PIN_setOutputValue(led_pin_h, LED_LE, 0);
 
-        if (tlc_update_brightness) {
+        if (tlc_update_fun) {
             GPTimerCC26XX_stop(tlc_gclk_timer_h);
             SPI_transfer(tlc_spi, &tlc_fn_spi_transaction);
         }
@@ -239,9 +247,9 @@ void tlc_spi_cb(SPI_Handle handle, SPI_Transaction *transaction) {
         PIN_setOutputValue(led_pin_h, LED_LE, 1);
         PIN_setOutputValue(led_pin_h, LED_LE, 0);
 
-        if (tlc_update_brightness) {
+        if (tlc_update_fun) {
             // We just did a brightness update, time to re-enable GS:
-            tlc_update_brightness=0;
+            tlc_update_fun=0;
             GPTimerCC26XX_start(tlc_gclk_timer_h);
         }
     }
@@ -276,7 +284,7 @@ void led_brightness_task_fn(UArg a0, UArg a1)
                     led_global_brightness_level--;
 
                 tlc_msg_fun_base[18] = BRIGHTNESS_STEPS[led_global_brightness_level][1];
-                tlc_update_brightness = 1;
+                tlc_update_fun = 1;
             }
         }
         Task_sleep(LED_BRIGHTNESS_INTERVAL);
