@@ -18,6 +18,8 @@
 #include "ui.h"
 #include "screen.h"
 
+void ui_update();
+
 uint8_t ui_screen = UI_SCREEN_GAME;
 uint8_t click_signal = SW_SIGNAL_NONE;
 
@@ -99,8 +101,6 @@ void sw_clock_f(UArg a0) {
     }
 }
 
-void ui_update();
-
 void ui_click(uint8_t sw_signal)
 {
     // Disregard if mated.
@@ -149,10 +149,20 @@ void ui_click(uint8_t sw_signal)
 }
 
 void ui_timeout() {
-    if (ui_screen == UI_SCREEN_GAME)
+    // Are we in a SEL mode? If so, timeout back to the non-SEL version.
+    // This can't be called while we're sleeping, because we don't do timeouts
+    // from inside sw_clock_f().
+    if (ui_screen & UI_SCREEN_SEL_MASK) {
+        ui_screen &= ~UI_SCREEN_SEL_MASK;
+    } else if (ui_screen == UI_SCREEN_GAME) {
+        // We're already in the GAME mode.
         return; // Nothing to do.
+    } else {
+        // We're in the wrong mode. Time to timeout to game.
+        ui_screen = UI_SCREEN_GAME;
+    }
 
-    ui_screen = UI_SCREEN_GAME;
+    // Update the stuff to display the correct things:
     ui_update();
 }
 
