@@ -42,6 +42,23 @@ bleUserCfg_t user0Cfg = BLE_USER_CFG; // BLE user defined configuration
 #include "serial.h"
 #include "qc14.h"
 
+qc14_badge_conf_t my_conf;
+
+unsigned short crc16(volatile unsigned char *sbuf,unsigned char len){
+    unsigned short crc=0xFFFF;
+
+    while(len){
+        crc=(unsigned char)(crc >> 8) | (crc << 8);
+        crc^=(unsigned char) *sbuf;
+        crc^=(unsigned char)(crc & 0xff) >> 4;
+        crc^=(crc << 8) << 4;
+        crc^=((crc & 0xff) << 4) << 1;
+        len--;
+        sbuf++;
+    }
+    return crc;
+}//crc16()
+
 void init_ble() {
     // Initialize the BLE stack Indirect Call (ICall) module
     ICall_init();
