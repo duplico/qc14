@@ -195,6 +195,7 @@ void serial_handle_state_machine(UArg uart_id) {
         // input has pullup, output low.
         // can react to IN going low.
         if (!arm_read_in_debounced(uart_id)) {
+            // TODO: maybe clear out the debouncing on a disconnect?
             set_state(uart_id, PROTO_STATE_PLUGGING);
         }
         break;
@@ -359,6 +360,11 @@ void serial_init() {
     uart_p.baudRate = 9600;
 //    uart_p.readTimeout = RTS_TIMEOUT;
 //    uart_p.writeTimeout = RTS_TIMEOUT;
+    // TODO: Deal with these.
+    uart_p.writeTimeout = UART_WAIT_FOREVER;
+    uart_p.readTimeout = UART_WAIT_FOREVER;
+    uart_p.readMode = UART_MODE_BLOCKING;
+    uart_p.writeMode = UART_MODE_BLOCKING;
     uart_p.readEcho = UART_ECHO_OFF;
     uart_p.readDataMode = UART_DATA_BINARY;
     uart_p.writeDataMode = UART_DATA_BINARY;
