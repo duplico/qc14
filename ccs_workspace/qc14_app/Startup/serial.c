@@ -148,18 +148,13 @@ void set_state(UArg uart_id, uint8_t dest_state) {
         // We're leaving one of the two states in which we hold the
         // UART semaphore. We need to clean up GPIO and UART so we
         // can guarantee they're ready to go for everybody else.
-
-        PIN_close(arm_gpio_pin_handle);
-        UART_close(uart_h);
-        arm_gpio_pin_handle = PIN_open(&arm_gpio_pin_state, arm_gpio_init_table);
-        Semaphore_post(uart_mutex);
     }
 
     switch(dest_state) {
     case PROTO_STATE_DIS:
         // Return to a known good default disconnected state.
         arm_nts = SERIAL_MSG_TYPE_NOMSG;
-        PINCC26XX_setOutputValue(arm_gpio_tx, 0); // Bring output low.
+        PINCC26XX_setOutputValue(arm_gpio_tx, 0); // Bring output low (normal)
         // TODO: See if we need to adjust the output anywhere else.
         arm_color(uart_id, 0,0,0);
         break;
@@ -168,6 +163,7 @@ void set_state(UArg uart_id, uint8_t dest_state) {
         arm_color(uart_id, 100,100,0);
         break;
     case PROTO_STATE_IDLE:
+        PINCC26XX_setOutputValue(arm_gpio_tx, 0); // Bring output low (normal)
         if (arm_proto_state == PROTO_STATE_PLUGGING) {
             // we just made a new connection and need to handshake.
             send_serial_handshake(uart_id);
@@ -185,7 +181,7 @@ void set_state(UArg uart_id, uint8_t dest_state) {
     case PROTO_STATE_RTS_OUT:
         arm_color(uart_id, 0,255,0);
         // We're going to say we're RTS and then wait to hear a CTS back.
-        PINCC26XX_setOutputValue(arm_gpio_tx, 1); // Bring output low.
+        PINCC26XX_setOutputValue(arm_gpio_tx, 1); // Bring output high
         arm_timeout = Clock_getTicks() + RTS_TIMEOUT;
         break;
     }
@@ -271,7 +267,10 @@ void serial_handle_state_machine(UArg uart_id) {
             // Tear down my GPIO and prepare to switch to the peripheral:
             PIN_close(arm_gpio_pin_handle);
             uart_h = UART_open(uart_id, &uart_p);
-            results_flag = UART_read(uart_h, &uart_rx_buf, sizeof(serial_message_t));
+            results_flag = UART_readPolling(uart_h, &uart_rx_buf, sizeof(serial_message_t));
+            UART_close(uart_h);
+            arm_gpio_pin_handle = PIN_open(&arm_gpio_pin_state, arm_gpio_init_table);
+            Semaphore_post(uart_mutex);
 
             if (results_flag == UART_ERROR || results_flag<sizeof(serial_message_t)) {
                 // borken:
@@ -284,6 +283,7 @@ void serial_handle_state_machine(UArg uart_id) {
         else if ((int32_t) (arm_timeout - Clock_getTicks()) <= 0) {
             // TODO: get our GPIO and UART in known-good states.
             // DISCONNECTED!!!
+            Semaphore_post(uart_mutex);
             set_state(uart_id, PROTO_STATE_DIS);
         }
         break;
@@ -307,8 +307,12 @@ void serial_handle_state_machine(UArg uart_id) {
             // Tear down my GPIO and prepare to switch to the peripheral:
             PIN_close(arm_gpio_pin_handle);
             uart_h = UART_open(uart_id, &uart_p);
-            results_flag = UART_write(uart_h, &uart_tx_buf, sizeof(serial_message_t));
+            results_flag = UART_writePolling(uart_h, &uart_tx_buf, sizeof(serial_message_t));
             arm_nts = SERIAL_MSG_TYPE_NOMSG;
+
+            UART_close(uart_h);
+            arm_gpio_pin_handle = PIN_open(&arm_gpio_pin_state, arm_gpio_init_table);
+            Semaphore_post(uart_mutex);
 
             if (results_flag == UART_ERROR || results_flag<sizeof(serial_message_t)) {
                 // something broke:
@@ -322,6 +326,7 @@ void serial_handle_state_machine(UArg uart_id) {
             // The other side couldn't get its UART in time.
             // Or else it had some other kind of error. Fail to
             // disconnected.
+            Semaphore_post(uart_mutex);
             set_state(uart_id, PROTO_STATE_DIS); // TODO: Should this be idle?
         }
         break;
@@ -352,8 +357,8 @@ void serial_init() {
     // Defaults used:
     // blocking reads and writes, no write timeout, 8N1.
     uart_p.baudRate = 9600;
-    uart_p.readTimeout = RTS_TIMEOUT;
-    uart_p.writeTimeout = RTS_TIMEOUT;
+//    uart_p.readTimeout = RTS_TIMEOUT;
+//    uart_p.writeTimeout = RTS_TIMEOUT;
     uart_p.readEcho = UART_ECHO_OFF;
     uart_p.readDataMode = UART_DATA_BINARY;
     uart_p.writeDataMode = UART_DATA_BINARY;
