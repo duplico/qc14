@@ -161,7 +161,7 @@ void set_state(UArg uart_id, uint8_t dest_state) {
         PINCC26XX_setOutputValue(arm_gpio_tx, 1); // Bring output high (normal)
         if (arm_proto_state == PROTO_STATE_PLUGGING) {
             // we just made a new connection and need to handshake.
-            if (uart_id == 2)
+            if (uart_id == 0)
                 send_serial_handshake(uart_id); // TODO
         }
         if (arm_nts == SERIAL_MSG_TYPE_HANDSHAKE)
@@ -381,21 +381,144 @@ void serial_handle_state_machine(UArg uart_id) {
     }
 }
 
+#define STATE_DIS 0
+#define STATE_CON 1
+
 // All four arms share the same function, even though they have separate tasks.
 void serial_arm_task(UArg uart_id, UArg arg1) {
+    uint8_t state=STATE_DIS;
+    uint32_t timeout_ms = PLUG_TIMEOUT;
+
     arm_gpio_pin_handle = PIN_open(&arm_gpio_pin_state, arm_gpio_init_table); // This table holds the correct disconnected values.
 
     do {
         Task_sleep(1);
+        serial_handle_state_machine(uart_id);
+    } while (1);
 
-        if (uart_id == 0) {
-            serial_handle_state_machine(0);
+    do {
+        // A "continue" takes us here:
+        Task_sleep(0); // yield.
+
+        if (state == STATE_DIS) { // We are disconnected.
+            while (timeout_ms) {
+                if (arm_read_in_debounced(uart_id))
+                    timeout_ms--;
+                else
+                    timeout_ms = STATE_DIS;
+                Task_sleep(100); // 1 ms.
+            }
+            // we are now connected, can fall through:
+            state = STATE_CON;
         }
 
-        if (uart_id == 2) {
-            serial_handle_state_machine(2);
+        if (state==STATE_CON) { // We are connected.
+            if (arm_nts) { // need to send
+                /*
+                 *  If we DO need to send:
+                 *   Get the semaphore.
+                 *   Set our input LOW.
+                 *   Wait for input LOW.
+                 *   They have accepted, or have disconnected. Set output HIGH.
+                 *   Wait with timeout for input HIGH:
+                 *      If we time out, we are DISCONNECTED.
+                 *      If we receive input HIGH then we need to send a message. (the HIGH came from other side's UART)
+                 *      Switch to UART mode
+                 *      Send.
+                 *      We are now IDLE. On error, we are DISCONNECTED.
+                 */
+                // TODO: fill this in:
+            } else { // don't need to send.
+                /*
+                 *  If we DON'T need to send:
+                 *   Listen for input LOW.
+                 *   Get the semaphore, and bring our input LOW.
+                 *   Wait with timeout for input HIGH:
+                 *      If we time out, we are DISCONNECTED.
+                 *      If we receive input HIGH then we need to receive a message.
+                 *      Switch to UART mode (idle has output high).
+                 *      Receive.
+                 *      Process message.
+                 *      We are now connected and idle. On error, we are DISCONNECTED.
+                 */
+                if (arm_read_in_debounced(uart_id))
+                    continue; // Back to the start.
+
+                // We got a LOW input.
+                // Get the semaphore.
+                Semaphore_pend(uart_mutex, BIOS_WAIT_FOREVER);
+                // Set our own low:
+                PINCC26XX_setOutputValue(arm_gpio_tx, 0);
+                // Wait with a timeout for a HIGH input:
+                if (!wait_with_timeout(uart_id, 1)) { // TODO: write this.
+                    // timed out. We are DISCONNECTED.
+                    state = STATE_DIS;
+                    continue; // back to the beginning.
+                }
+                // We got the HIGH we needed.
+                // Time to set up to receive. A byproduct of this is sending a HIGH.
+                PIN_close(arm_gpio_pin_handle);
+                uart_h = UART_open(uart_id, &uart_p);
+                results_flag = UART_read(uart_h, &uart_rx_buf, sizeof(serial_message_t));
+                // Got the message. Check for errors:
+
+                if (results_flag == UART_ERROR || results_flag<sizeof(serial_message_t)) {
+                    // Error. We are now disconnected.
+                    volatile UARTCC26XX_Object *o = (UARTCC26XX_Object *) uart_h->object;
+                    o->status;
+                    state = STATE_DIS;
+                } else { // success:
+                    // Successful read.
+                    // Process message here.
+                }
+                UART_close(uart_h);
+                arm_gpio_pin_handle = PIN_open(&arm_gpio_pin_state, arm_gpio_init_table); // This table holds the correct disconnected values.
+                Semaphore_post(uart_mutex);
+                // Free up resources, loop again.
+                continue;
+            }
         }
     } while (1);
+
+
+
+    // Let's try something different.
+    /*
+     *
+     * While disconnected:
+     *  Listen for input HIGH.
+     *  Wait for it to stay HIGH for PLUG_TIMEOUT.
+     *  We are now connected and idle.
+     *
+     * While connected and idle:
+     *  If we DON'T need to send:
+     *   Listen for input LOW.
+     *   Get the semaphore, and bring our input LOW.
+     *   Wait with timeout for input HIGH:
+     *      If we time out, we are DISCONNECTED.
+     *      If we receive input HIGH then we need to receive a message.
+     *      Switch to UART mode (idle has output high).
+     *      Receive.
+     *      Process message.
+     *      We are now connected and idle. On error, we are DISCONNECTED.
+     *  If we DO need to send:
+     *   Get the semaphore.
+     *   Set our input LOW.
+     *   Wait for input LOW.
+     *   They have accepted, or have disconnected. Set output HIGH.
+     *   Wait with timeout for input HIGH:
+     *      If we time out, we are DISCONNECTED.
+     *      If we receive input HIGH then we need to send a message. (the HIGH came from other side's UART)
+     *      Switch to UART mode
+     *      Send.
+     *      We are now IDLE. On error, we are DISCONNECTED.
+     *
+     *
+     */
+
+
+
+
 }
 
 void serial_init() {
