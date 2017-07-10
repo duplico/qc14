@@ -145,12 +145,6 @@ void arm_color(UArg uart_id, uint8_t r, uint8_t g, uint8_t b) {
 }
 
 void set_state(UArg uart_id, uint8_t dest_state) {
-    if (arm_proto_state == PROTO_STATE_CTS_WAIT || arm_proto_state == PROTO_STATE_RTS_OUT) {
-        // We're leaving one of the two states in which we hold the
-        // UART semaphore. We need to clean up GPIO and UART so we
-        // can guarantee they're ready to go for everybody else.
-    }
-
     switch(dest_state) {
     case PROTO_STATE_DIS:
         // Return to a known good default disconnected state.
@@ -171,7 +165,9 @@ void set_state(UArg uart_id, uint8_t dest_state) {
                 send_serial_handshake(uart_id); // TODO
         }
         if (arm_nts == SERIAL_MSG_TYPE_HANDSHAKE)
-            arm_timeout = Clock_getTicks() + IDLE_BACKOFF;
+            arm_timeout = IDLE_BACKOFF_MS;
+        else
+            arm_timeout = 0;
         arm_color(uart_id, 255,255,255);
         break;
     case PROTO_STATE_RTS_WAIT:
@@ -179,6 +175,7 @@ void set_state(UArg uart_id, uint8_t dest_state) {
 //        arm_color(uart_id, 0,0,100);
         break;
     case PROTO_STATE_CTS_WAIT:
+        arm_timeout = RTS_TIMEOUT_MS;
 //        arm_color(uart_id, 0,0,255);
         break;
     case PROTO_STATE_RTS_OUT:
@@ -198,7 +195,6 @@ void set_state(UArg uart_id, uint8_t dest_state) {
 
 void serial_handle_state_machine(UArg uart_id) {
     int results_flag;
-    uint32_t wait_ms;
     switch(arm_proto_state) {
     case PROTO_STATE_DIS:
         // input has pulldown, output high.
@@ -208,13 +204,13 @@ void serial_handle_state_machine(UArg uart_id) {
         }
         break;
     case PROTO_STATE_PLUGGING:
-        wait_ms = 2000;
-        while (wait_ms) {
+        arm_timeout = PLUG_TIMEOUT_MS;
+        while (arm_timeout) {
             Task_sleep(100); // 1 ms
             if (!arm_read_same(uart_id))
-                wait_ms = 2000; // change, reset timeout
+                arm_timeout = PLUG_TIMEOUT_MS; // change, reset timeout
             else
-                wait_ms--; // no change, keep ticking
+                arm_timeout--; // no change, keep ticking
         }
         // timeout over.
         if (arm_cur_val) { // input high, connected.
@@ -232,18 +228,21 @@ void serial_handle_state_machine(UArg uart_id) {
             // Either way, we wait until we have control of our UART, and
             // attempt to respond.
             set_state(uart_id, PROTO_STATE_RTS_WAIT);
-            // fall through...
-//        } else if ((arm_nts == SERIAL_MSG_TYPE_HANDSHAKE && ((int32_t) (arm_timeout - Clock_getTicks()) <= 0) && Semaphore_pend(uart_mutex, BIOS_NO_WAIT))
-//                   ||  (arm_nts && arm_nts != SERIAL_MSG_TYPE_HANDSHAKE && Semaphore_pend(uart_mutex, BIOS_NO_WAIT)))
-//        {
-//            set_state(uart_id, PROTO_STATE_RTS_OUT);
-//            break;
-        }  else {
-            // either no need to send or not ready to send what we need.
-            // We'll be back soon.
-            break;
+            // We could fall through here, but let's just loop back around and
+            //  grab our section on the next iteration.
+        } else if (arm_nts) { // We need to send:
+            // Does the backoff apply (sending a handshake)?
+            if (arm_nts == SERIAL_MSG_TYPE_HANDSHAKE && arm_timeout) {
+                // Yes, backoff applies and we still need to wait.
+                arm_timeout--;
+                Task_sleep(100); // 1 ms.
+            } else if (Semaphore_pend(uart_mutex, BIOS_NO_WAIT)) {
+                // Either we don't need to wait, or we've already waited
+                //  and we have the semaphore so we're ready to send.
+                set_state(uart_id, PROTO_STATE_RTS_OUT);
+            }
         }
-        // body of first if statement will fall through...
+        break;
     case PROTO_STATE_RTS_WAIT:
         // We have an incoming "ready to send" signal. We need to
         //  get ready to receive it. Once we have the UART semaphore,
@@ -270,10 +269,13 @@ void serial_handle_state_machine(UArg uart_id) {
         // This low output should be acknowledged by a high. wait a moment to make sure
         //  it actually happens. If it doesn't, we're disconnected and should restart.
 
-        Task_sleep(100000); // 1000000 us = 1000 ms
+        while (arm_timeout-- && !arm_read_in_debounced(uart_id)) {
+            Task_sleep(100);
+        }
 
-        if (!PINCC26XX_getInputValue(arm_gpio_rx)) {
+        if (!arm_timeout) { // time ran out.
             // still low, probably disconnected.
+            Task_sleep(RTS_TIMEOUT); // Pause for a while to give them something to think about.
             PINCC26XX_setOutputValue(arm_gpio_tx, 1);
             arm_color(uart_id, 0,0,0);
             arm_gpio_pin_handle = PIN_open(&arm_gpio_pin_state, arm_gpio_init_table); // This table holds the correct disconnected values.
@@ -281,6 +283,8 @@ void serial_handle_state_machine(UArg uart_id) {
             set_state(uart_id, PROTO_STATE_DIS);
             break;
         }
+
+        // still connected! Yay!
         // cyan = still connected, rts+cts:
         arm_color(uart_id, 0,100,100);
 
@@ -297,23 +301,19 @@ void serial_handle_state_machine(UArg uart_id) {
             // something broke:
             volatile UARTCC26XX_Object *o = (UARTCC26XX_Object *) uart_h->object;
             o->status;
-            set_state(uart_id, PROTO_STATE_DIS);
             // red = failed read:
             arm_color(uart_id, 100,0,0);
-            UART_close(uart_h);
-            arm_gpio_pin_handle = PIN_open(&arm_gpio_pin_state, arm_gpio_init_table); // This table holds the correct disconnected values.
-            Semaphore_post(uart_mutex);
             Task_sleep(40000); // 400000 us = 400 ms
             set_state(uart_id, PROTO_STATE_DIS);
         } else { // success:
             // green = successful read:
             arm_color(uart_id, 0,100,0);
-            UART_close(uart_h);
-            arm_gpio_pin_handle = PIN_open(&arm_gpio_pin_state, arm_gpio_init_table); // This table holds the correct disconnected values.
-            Semaphore_post(uart_mutex);
             Task_sleep(40000); // 400000 us = 400 ms
             set_state(uart_id, PROTO_STATE_IDLE);
         }
+        UART_close(uart_h);
+        arm_gpio_pin_handle = PIN_open(&arm_gpio_pin_state, arm_gpio_init_table); // This table holds the correct disconnected values.
+        Semaphore_post(uart_mutex);
         break;
     case PROTO_STATE_RTS_OUT:
         // We've asserted our RTS (low). The expected response is to see
@@ -383,16 +383,10 @@ void serial_handle_state_machine(UArg uart_id) {
 
 // All four arms share the same function, even though they have separate tasks.
 void serial_arm_task(UArg uart_id, UArg arg1) {
-    int results_flag;
     arm_gpio_pin_handle = PIN_open(&arm_gpio_pin_state, arm_gpio_init_table); // This table holds the correct disconnected values.
 
-
-    if (uart_id == 2) {
-        send_serial_handshake(uart_id);
-    }
-
     do {
-        Task_sleep(100); // 1000 us
+        Task_sleep(1);
 
         if (uart_id == 0) {
             serial_handle_state_machine(0);
@@ -400,65 +394,6 @@ void serial_arm_task(UArg uart_id, UArg arg1) {
 
         if (uart_id == 2) {
             serial_handle_state_machine(2);
-
-
-
-//            while (!arm_read_in_debounced(uart_id)) {
-//                // while reading low (disconnected).
-//                // off = disconnected
-//                arm_color(uart_id, 0,0,0);
-//                Task_sleep(1000);
-//            }
-//            // white = connected
-//            arm_color(uart_id, 100,100,100);
-//
-//            // Now it's high! We're connected.
-//            // Give it a few seconds to settle.
-//            Task_sleep(300000);
-//
-//            // Now it's high! We're connected. Let's try doing a signal to send something...
-//            PINCC26XX_setOutputValue(arm_gpio_tx, 0); // Bring output low. Hopefully the other side goes low too...
-//            // cyan=rts sent
-//            arm_color(uart_id, 0,100,100);
-//
-//            while (arm_read_in_debounced(uart_id)) Task_sleep(0); // wait while high.
-//            // it's low now.
-//
-//            // Response received!
-//            // greener cyan=rts sent, cts received:
-//            arm_color(uart_id, 0,200,100);
-//            // Go high again to set up ground state for comms and wait for them to do the same:
-//            PINCC26XX_setOutputValue(arm_gpio_tx, 1);
-//
-//            while (!arm_read_in_debounced(uart_id)) Task_sleep(0); // wait while low.
-//            // now it's high and we can send.
-//            // bright cyan=sending
-//            arm_color(uart_id, 0,255,255);
-//            Semaphore_pend(uart_mutex, BIOS_WAIT_FOREVER);
-//            PIN_close(arm_gpio_pin_handle);
-//            uart_h = UART_open(uart_id, &uart_p);
-//
-//            Task_sleep(1000); // give them a moment in case they're running behind.
-//
-//            results_flag = UART_write(uart_h, &uart_tx_buf, sizeof(serial_message_t));
-//
-//            if (results_flag == UART_ERROR || results_flag<sizeof(serial_message_t)) {
-//                // something broke:
-//                volatile UARTCC26XX_Object *o = (UARTCC26XX_Object *) uart_h->object;
-//                o->status;
-//                arm_color(uart_id, 100,0,0);
-//                UART_close(uart_h);
-//                arm_gpio_pin_handle = PIN_open(&arm_gpio_pin_state, arm_gpio_init_table); // This table holds the correct disconnected values.
-//                Semaphore_post(uart_mutex);
-//                Task_sleep(50000); // 500000 us = 500 ms
-//            } else {
-//                // sent successfully.
-//                arm_color(uart_id, 0,100,0);
-//                UART_close(uart_h);
-//                arm_gpio_pin_handle = PIN_open(&arm_gpio_pin_state, arm_gpio_init_table); // This table holds the correct disconnected values.
-//                Semaphore_post(uart_mutex);
-//                Task_sleep(50000); // 500000 us = 500 ms
-//            }
         }
     } while (1);
 }
@@ -477,8 +412,8 @@ void serial_init() {
 //    uart_p.readTimeout = RTS_TIMEOUT;
 //    uart_p.writeTimeout = RTS_TIMEOUT;
     // TODO: Deal with these.
-    uart_p.writeTimeout = 40000;
-    uart_p.readTimeout = 40000;
+//    uart_p.writeTimeout = 400000;
+//    uart_p.readTimeout = 400000;
     uart_p.readMode = UART_MODE_BLOCKING;
     uart_p.writeMode = UART_MODE_BLOCKING;
     uart_p.readEcho = UART_ECHO_OFF;
