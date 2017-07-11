@@ -108,7 +108,9 @@ void rx_done(UArg uart_id) {
 }
 
 void disconnected(UArg uart_id) {
-
+    arm_proto_state=SERIAL_PHY_STATE_DIS;
+    PINCC26XX_setOutputValue(arm_gpio_tx, 0);
+    Task_sleep(RTS_TIMEOUT*1.2);
 }
 
 void arm_color(UArg uart_id, uint8_t r, uint8_t g, uint8_t b) {
@@ -160,7 +162,7 @@ void serial_arm_task(UArg uart_id, UArg arg1) {
             PINCC26XX_setOutputValue(arm_gpio_tx, 1);
 
             timeout_ms = PLUG_TIMEOUT_MS;
-            arm_color(uart_id, 5,5,5);
+            arm_color(uart_id, 0,0,0);
 
             while (timeout_ms) {
                 // This is the only place we can get connected,
@@ -168,10 +170,14 @@ void serial_arm_task(UArg uart_id, UArg arg1) {
                 // however, need to yield so that other threads
                 // (including other arms) can actually function.
 
-                if (PINCC26XX_getInputValue(arm_gpio_rx))
+                // TODO: use wait_with_timeout for this?
+                if (PINCC26XX_getInputValue(arm_gpio_rx)) {
                     timeout_ms--;
-                else
+                    arm_color(uart_id, 5,5,5);
+                } else {
                     timeout_ms = PLUG_TIMEOUT_MS;
+                    arm_color(uart_id, 0,0,0);
+                }
                 Task_sleep(100); // 1 ms.
             }
             // we are now connected, can fall through:
@@ -245,10 +251,7 @@ void serial_arm_task(UArg uart_id, UArg arg1) {
                             // Yield ALL THE THINGS // TODO: MOVE
                             UART_close(uart_h);
                             arm_gpio_pin_handle = PIN_open(&arm_gpio_pin_state, arm_gpio_init_table); // This table holds the correct disconnected values.
-                            // red = failed:
-                            arm_color(uart_id, 100,0,0);
-                            Task_sleep(40000); // 400000 us = 400 ms
-                            arm_proto_state = SERIAL_PHY_STATE_DIS;
+                            disconnected(uart_id);
                         } else { // success:
                             // Yield ALL THE THINGS // TODO: MOVE
                             UART_close(uart_h);
@@ -261,7 +264,7 @@ void serial_arm_task(UArg uart_id, UArg arg1) {
                         }
                     } else {
                         // They never went high. Means they've disconnected.
-                        arm_proto_state = SERIAL_PHY_STATE_DIS;
+                        disconnected(uart_id);
                     }
                     Semaphore_post(uart_mutex);
                 } // if (arm_nts)
@@ -290,8 +293,8 @@ void serial_arm_task(UArg uart_id, UArg arg1) {
             // Wait with a timeout for a HIGH input:
             if (!wait_with_timeout(uart_id, 1, RTS_TIMEOUT_MS, SERIAL_SETTLE_TIME_MS)) {
                 // timed out. We are DISCONNECTED.
-                arm_proto_state = SERIAL_PHY_STATE_DIS; // TODO: When disconnect, hold low longer than the timeout.
                 Semaphore_post(uart_mutex);
+                disconnected(uart_id);
                 continue; // back to the beginning.
             }
             // We got the HIGH we needed.
@@ -310,12 +313,9 @@ void serial_arm_task(UArg uart_id, UArg arg1) {
 
             if (results_flag == UART_ERROR || results_flag<sizeof(serial_message_t)) {
                 // Error. We are now disconnected.
-                volatile UARTCC26XX_Object *o = (UARTCC26XX_Object *) uart_h->object;
-                o->status;
-                arm_proto_state = SERIAL_PHY_STATE_DIS;
-                // red = unsuccessful:
-                arm_color(uart_id, 100,0,0);
-                Task_sleep(40000); // 400000 us = 400 ms
+//                volatile UARTCC26XX_Object *o = (UARTCC26XX_Object *) uart_h->object;
+//                o->status;
+                disconnected(uart_id);
             } else { // success:
                 // Process message here.
                 // green = successful:
