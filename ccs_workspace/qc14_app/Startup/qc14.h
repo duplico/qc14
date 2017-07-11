@@ -26,8 +26,8 @@
 #define SW_SIGNAL_C 0b100
 
 // Serial timeout configuration
-#define RTS_TIMEOUT_MS 500
-#define SERIAL_SETTLE_TIME_MS 50
+#define RTS_TIMEOUT_MS 50
+#define SERIAL_SETTLE_TIME_MS 25
 #define PLUG_TIMEOUT_MS 2500
 #define IDLE_BACKOFF_MS 1000
 
