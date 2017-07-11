@@ -42,9 +42,9 @@
 #define PLUG_TIMEOUT (PLUG_TIMEOUT_MS*100)
 #define IDLE_BACKOFF (IDLE_BACKOFF_MS*100)
 
-// NB: These should probably be protected by the semaphore:
-serial_message_t uart_tx_buf;
-serial_message_t uart_rx_buf;
+serial_message_t uart_tx_buf[4] = {0};
+// NB: This must be protected by the semaphore:
+serial_message_t arm_rx_buf;
 
 UART_Handle uart_h;
 UART_Params uart_p;
@@ -54,8 +54,6 @@ Task_Struct uart_arm_tasks[4];
 char uart_arm_task_stacks[4][512];
 
 uint32_t uart_timeout[4] = {0, 0, 0, 0};
-uint8_t uart_rts_old_val[4] = {0, 0, 0, 0};
-uint8_t uart_rts_cur_val[4] = {0, 0, 0, 0};
 uint8_t uart_proto_state[4] = {0, 0, 0, 0};
 uint8_t uart_nts_flag[4] = {0, 0, 0, 0};
 
@@ -84,10 +82,9 @@ PIN_Handle arm_gpio_pin_handles[4];
 uint64_t arm_gpio_txs[4] = {P1_TX, P2_TX, P3_TX, P4_TX};
 uint64_t arm_gpio_rxs[4] = {P1_RX, P2_RX, P3_RX, P4_RX};
 
+#define arm_tx_buf uart_tx_buf[uart_id]
 #define arm_nts uart_nts_flag[uart_id]
 #define arm_timeout uart_timeout[uart_id]
-#define arm_old_val uart_rts_old_val[uart_id]
-#define arm_cur_val uart_rts_cur_val[uart_id]
 #define arm_proto_state uart_proto_state[uart_id]
 #define arm_gpio_init_table arm_gpio_init_tables[uart_id]
 #define arm_gpio_pin_state arm_gpio_pin_states[uart_id]
@@ -95,32 +92,10 @@ uint64_t arm_gpio_rxs[4] = {P1_RX, P2_RX, P3_RX, P4_RX};
 #define arm_gpio_tx arm_gpio_txs[uart_id]
 #define arm_gpio_rx arm_gpio_rxs[uart_id]
 
-uint8_t arm_read_in_debounced(uint8_t uart_id) {
-    uint8_t read_val = PINCC26XX_getInputValue(arm_gpio_rx);
-
-    if (arm_old_val == read_val)
-        arm_cur_val = read_val;
-    arm_old_val = read_val;
-
-    return arm_cur_val;
-}
-
-uint8_t arm_read_same(uint8_t uart_id) {
-    uint8_t read_val = PINCC26XX_getInputValue(arm_gpio_rx);
-
-    if (arm_old_val == read_val) {
-        arm_cur_val = read_val;
-        return 1;
-    }
-    arm_old_val = read_val;
-
-    return 0;
-}
-
 inline void send_serial_handshake(UArg uart_id) {
-    uart_tx_buf.badge_id = my_conf.badge_id;
-    uart_tx_buf.msg_type = SERIAL_MSG_TYPE_HANDSHAKE;
-    uint8_t* payload = uart_tx_buf.payload;
+    arm_tx_buf.badge_id = my_conf.badge_id;
+    arm_tx_buf.msg_type = SERIAL_MSG_TYPE_HANDSHAKE;
+    uint8_t* payload = arm_tx_buf.payload;
     serial_handshake_t* handshake_payload = (serial_handshake_t*) payload;
     handshake_payload->current_mode = ui_screen;
     handshake_payload->current_icon_or_tile_id = (ui_screen? my_conf.current_tile : my_conf.current_icon);
@@ -144,9 +119,6 @@ void arm_color(UArg uart_id, uint8_t r, uint8_t g, uint8_t b) {
     }
 }
 
-#define STATE_DIS 0
-#define STATE_CON 1
-
 uint8_t wait_with_timeout(UArg uart_id, uint8_t match_val, uint32_t timeout_ms, uint32_t settle_reads) {
     uint32_t read_in_ms = 0;
 
@@ -167,7 +139,7 @@ uint8_t wait_with_timeout(UArg uart_id, uint8_t match_val, uint32_t timeout_ms, 
 
 // All four arms share the same function, even though they have separate tasks.
 void serial_arm_task(UArg uart_id, UArg arg1) {
-    uint8_t state=STATE_DIS;
+    arm_proto_state=SERIAL_PHY_STATE_DIS;
     uint32_t timeout_ms = PLUG_TIMEOUT_MS;
     int results_flag = 0;
 
@@ -178,7 +150,7 @@ void serial_arm_task(UArg uart_id, UArg arg1) {
         // A "continue" takes us here:
         Task_yield();
 
-        if (state == STATE_DIS) { // We are disconnected.
+        if (arm_proto_state == SERIAL_PHY_STATE_DIS) { // We are disconnected.
            /*
             * While disconnected:
             *  Listen for input HIGH.
@@ -203,7 +175,7 @@ void serial_arm_task(UArg uart_id, UArg arg1) {
                 Task_sleep(100); // 1 ms.
             }
             // we are now connected, can fall through:
-            state = STATE_CON;
+            arm_proto_state = SERIAL_PHY_STATE_CON;
             arm_color(uart_id, 255,255,255);
             if (uart_id == 2) {
                 // let things settle and then flag NTS.
@@ -212,7 +184,7 @@ void serial_arm_task(UArg uart_id, UArg arg1) {
             }
         }
 
-        if (state==STATE_CON) { // We are connected. (white arm)
+        if (arm_proto_state==SERIAL_PHY_STATE_CON) { // We are connected. (white arm)
             // Regardless of whether we need to send, we need to check whether
             //  the other badge has already decided _it_ needs to send:
 
@@ -260,7 +232,7 @@ void serial_arm_task(UArg uart_id, UArg arg1) {
                         // Switch to UART mode and send.
                         PIN_close(arm_gpio_pin_handle);
                         uart_h = UART_open(uart_id, &uart_p);
-                        results_flag = UART_write(uart_h, &uart_tx_buf, sizeof(serial_message_t));
+                        results_flag = UART_write(uart_h, &arm_tx_buf, sizeof(serial_message_t));
 
                         // Done sending, so we can cancel this flag:
                         arm_nts = SERIAL_MSG_TYPE_NOMSG;
@@ -276,7 +248,7 @@ void serial_arm_task(UArg uart_id, UArg arg1) {
                             // red = failed:
                             arm_color(uart_id, 100,0,0);
                             Task_sleep(40000); // 400000 us = 400 ms
-                            state = STATE_DIS;
+                            arm_proto_state = SERIAL_PHY_STATE_DIS;
                         } else { // success:
                             // Yield ALL THE THINGS // TODO: MOVE
                             UART_close(uart_h);
@@ -285,11 +257,11 @@ void serial_arm_task(UArg uart_id, UArg arg1) {
                             arm_color(uart_id, 0,100,0);
                             Task_sleep(40000); // 400000 us = 400 ms
                             arm_color(uart_id, 255,255,255);
-                            state = STATE_CON; // TODO: unneeded
+                            arm_proto_state = SERIAL_PHY_STATE_CON; // TODO: unneeded
                         }
                     } else {
                         // They never went high. Means they've disconnected.
-                        state = STATE_DIS;
+                        arm_proto_state = SERIAL_PHY_STATE_DIS;
                     }
                     Semaphore_post(uart_mutex);
                 } // if (arm_nts)
@@ -318,7 +290,7 @@ void serial_arm_task(UArg uart_id, UArg arg1) {
             // Wait with a timeout for a HIGH input:
             if (!wait_with_timeout(uart_id, 1, RTS_TIMEOUT_MS, SERIAL_SETTLE_TIME_MS)) {
                 // timed out. We are DISCONNECTED.
-                state = STATE_DIS; // TODO: When disconnect, hold low longer than the timeout.
+                arm_proto_state = SERIAL_PHY_STATE_DIS; // TODO: When disconnect, hold low longer than the timeout.
                 Semaphore_post(uart_mutex);
                 continue; // back to the beginning.
             }
@@ -327,7 +299,7 @@ void serial_arm_task(UArg uart_id, UArg arg1) {
             //  A byproduct of this is sending a HIGH.
             PIN_close(arm_gpio_pin_handle);
             uart_h = UART_open(uart_id, &uart_p);
-            results_flag = UART_read(uart_h, &uart_rx_buf, sizeof(serial_message_t));
+            results_flag = UART_read(uart_h, &arm_rx_buf, sizeof(serial_message_t));
 
             // Free up resources.
             UART_close(uart_h);
@@ -340,7 +312,7 @@ void serial_arm_task(UArg uart_id, UArg arg1) {
                 // Error. We are now disconnected.
                 volatile UARTCC26XX_Object *o = (UARTCC26XX_Object *) uart_h->object;
                 o->status;
-                state = STATE_DIS;
+                arm_proto_state = SERIAL_PHY_STATE_DIS;
                 // red = unsuccessful:
                 arm_color(uart_id, 100,0,0);
                 Task_sleep(40000); // 400000 us = 400 ms
