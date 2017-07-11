@@ -27,6 +27,7 @@
 
 // Serial timeout configuration
 #define RTS_TIMEOUT_MS 500
+#define SERIAL_SETTLE_TIME_MS 50
 #define PLUG_TIMEOUT_MS 2500
 #define IDLE_BACKOFF_MS 1000
 
