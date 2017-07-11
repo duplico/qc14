@@ -170,6 +170,8 @@ void serial_arm_task(UArg uart_id, UArg arg1) {
                 // however, need to yield so that other threads
                 // (including other arms) can actually function.
 
+                // TODO: If we just disconnected from a bad handshake,
+                //       let's have a way shorter plug timeout.
                 // TODO: use wait_with_timeout for this?
                 if (PINCC26XX_getInputValue(arm_gpio_rx)) {
                     timeout_ms--;
@@ -184,13 +186,14 @@ void serial_arm_task(UArg uart_id, UArg arg1) {
             arm_proto_state = SERIAL_PHY_STATE_CON;
             arm_color(uart_id, 255,255,255);
             if (uart_id == 2) {
+                // TODO: Do backoff better, make universal.
                 // let things settle and then flag NTS.
                 Task_sleep(50000); // 50000 * 10 us = 500ms
                 arm_nts = 1;
             }
         }
 
-        if (arm_proto_state==SERIAL_PHY_STATE_CON) { // We are connected. (white arm)
+        if (arm_proto_state==SERIAL_PHY_STATE_CON) { // We are connected.
             // Regardless of whether we need to send, we need to check whether
             //  the other badge has already decided _it_ needs to send:
 
@@ -227,7 +230,7 @@ void serial_arm_task(UArg uart_id, UArg arg1) {
                     }
                     arm_color(uart_id, 255,255,0);
 
-                    // Got the low input. They've either accepted, or disconnected.
+                    // Got low input. They've either accepted, or disconnected.
                     // Set output high and wait with timeout for high input.
                     PINCC26XX_setOutputValue(arm_gpio_tx, 1);
                     if (wait_with_timeout(uart_id, 1, RTS_TIMEOUT_MS, SERIAL_SETTLE_TIME_MS)) {
@@ -238,36 +241,37 @@ void serial_arm_task(UArg uart_id, UArg arg1) {
                         // Switch to UART mode and send.
                         PIN_close(arm_gpio_pin_handle);
                         uart_h = UART_open(uart_id, &uart_p);
-                        results_flag = UART_write(uart_h, &arm_tx_buf, sizeof(serial_message_t));
+                        results_flag = UART_write(uart_h, &arm_tx_buf,
+                                                  sizeof(serial_message_t));
 
                         // Done sending, so we can cancel this flag:
                         arm_nts = SERIAL_MSG_TYPE_NOMSG;
 
+                        // Yield ALL THE THINGS
+                        UART_close(uart_h);
+                        arm_gpio_pin_handle = PIN_open(&arm_gpio_pin_state,
+                                                       arm_gpio_init_table);
+                        Semaphore_post(uart_mutex);
+
                         // We are now IDLE. On error, we are DISCONNECTED:
                         if (results_flag == UART_ERROR || results_flag<sizeof(serial_message_t)) {
-                            // something broke:
-                            volatile UARTCC26XX_Object *o = (UARTCC26XX_Object *) uart_h->object;
-                            o->status;
-                            // Yield ALL THE THINGS // TODO: MOVE
-                            UART_close(uart_h);
-                            arm_gpio_pin_handle = PIN_open(&arm_gpio_pin_state, arm_gpio_init_table); // This table holds the correct disconnected values.
+                            // something broke.
+                            // The debugger can look at these lines to diagnose:
+                            // volatile UARTCC26XX_Object *o = (UARTCC26XX_Object *) uart_h->object;
+                            // o->status;
                             disconnected(uart_id);
                         } else { // success:
-                            // Yield ALL THE THINGS // TODO: MOVE
-                            UART_close(uart_h);
-                            arm_gpio_pin_handle = PIN_open(&arm_gpio_pin_state, arm_gpio_init_table); // This table holds the correct disconnected values.
-                            // green = successful:
-                            arm_color(uart_id, 0,100,0);
-                            Task_sleep(40000); // 400000 us = 400 ms
+                            // Good, back to connected.
                             arm_color(uart_id, 255,255,255);
-                            arm_proto_state = SERIAL_PHY_STATE_CON; // TODO: unneeded
+                            // Give the other side a bit to stabilize:
+                            Task_sleep(5000); // 50000 us = 50 ms
                         }
                     } else {
                         // They never went high. Means they've disconnected.
                         disconnected(uart_id);
+                        Semaphore_post(uart_mutex);
                     }
-                    Semaphore_post(uart_mutex);
-                } // if (arm_nts)
+                } // end of if (arm_nts)
                 continue; // No signal coming in, and regardless of whether we
                           // just sent something, we need to start over.
             }
@@ -305,25 +309,30 @@ void serial_arm_task(UArg uart_id, UArg arg1) {
             results_flag = UART_read(uart_h, &arm_rx_buf, sizeof(serial_message_t));
 
             // Free up resources.
+            // This must be up here because disconnected() needs gpio access:
             UART_close(uart_h);
-            arm_gpio_pin_handle = PIN_open(&arm_gpio_pin_state, arm_gpio_init_table); // This table holds the correct disconnected/idle values.
-            Semaphore_post(uart_mutex);
-
-            // Got the message. Check for errors:
+            arm_gpio_pin_handle = PIN_open(&arm_gpio_pin_state,
+                                           arm_gpio_init_table);
 
             if (results_flag == UART_ERROR || results_flag<sizeof(serial_message_t)) {
                 // Error. We are now disconnected.
-//                volatile UARTCC26XX_Object *o = (UARTCC26XX_Object *) uart_h->object;
-//                o->status;
                 disconnected(uart_id);
-            } else { // success:
-                // Process message here.
-                // green = successful:
-                arm_color(uart_id, 0,100,0);
-                Task_sleep(40000); // 400000 us = 400 ms
-                arm_color(uart_id, 255,255,255);
-            }
 
+                // The debugger can look at these to figure out what happened:
+                // volatile UARTCC26XX_Object *o = (UARTCC26XX_Object *) uart_h->object;
+                // o->status;
+
+            } else { // success:
+                // Process message.
+                rx_done(uart_id);
+
+                // Good, back to connected.
+                arm_color(uart_id, 255,255,255);
+                // Give the other side a bit to stabilize:
+                Task_sleep(5000); // 50000 us = 50 ms
+            }
+            // This must be here to protect the buffer in rx_done:
+            Semaphore_post(uart_mutex);
             // Loop again.
             continue;
         }
