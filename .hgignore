@@ -18,3 +18,4 @@ ccs_workspace/qc14_app/TOOLS/src/sysbios/m3_Hwi_asm.obj
 ccs_workspace/qc14_app/TOOLS/src/sysbios/m3_Hwi_asm_switch.obj
 ccs_workspace/qc14_app/TOOLS/src/sysbios/m3_TaskSupport_asm.obj
 ccs_workspace/qc14_app/TOOLS/src/sysbios/m3_IntrinsicsSupport_asm.obj
+etc/.qctmp.bmp
