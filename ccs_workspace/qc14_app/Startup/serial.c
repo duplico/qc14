@@ -99,7 +99,7 @@ inline void send_serial_handshake(UArg uart_id) {
     serial_handshake_t* handshake_payload = (serial_handshake_t*) payload;
     handshake_payload->current_mode = ui_screen;
     handshake_payload->current_icon_or_tile_id = (ui_screen? my_conf.current_tile : my_conf.current_icon);
-    memcpy(handshake_payload->badges_mated, my_conf.badges_mated, 36); // TODO: constant here?
+    memcpy(handshake_payload->badges_mated, my_conf.badges_mated, 36);
     arm_nts = SERIAL_MSG_TYPE_HANDSHAKE;
 }
 
@@ -139,9 +139,7 @@ uint8_t wait_with_timeout(UArg uart_id, uint8_t match_val, uint32_t timeout_ms, 
     return 0;
 }
 
-// All four arms share the same function, even though they have separate tasks.
 void serial_arm_task(UArg uart_id, UArg arg1) {
-    // TODO: Only pair in the correct modes.
     arm_proto_state=SERIAL_PHY_STATE_DIS;
     uint32_t timeout_ms = PLUG_TIMEOUT_MS;
     int results_flag = 0;
@@ -171,9 +169,6 @@ void serial_arm_task(UArg uart_id, UArg arg1) {
                 // however, need to yield so that other threads
                 // (including other arms) can actually function.
 
-                // TODO: If we just disconnected from a bad handshake,
-                //       let's have a way shorter plug timeout.
-                // TODO: use wait_with_timeout for this?
                 if (PINCC26XX_getInputValue(arm_gpio_rx)) {
                     timeout_ms--;
                     arm_color(uart_id, 5,5,5);
@@ -187,7 +182,6 @@ void serial_arm_task(UArg uart_id, UArg arg1) {
             arm_proto_state = SERIAL_PHY_STATE_CON;
             arm_color(uart_id, 255,255,255);
             if (uart_id == 2) {
-                // TODO: Do backoff better, make universal.
                 // let things settle and then flag NTS.
                 Task_sleep(50000); // 50000 * 10 us = 500ms
                 arm_nts = 1;
@@ -223,7 +217,6 @@ void serial_arm_task(UArg uart_id, UArg arg1) {
 
                     // Output low to signal RTS.
                     PINCC26XX_setOutputValue(arm_gpio_tx, 0);
-                    // TODO: race condition?
                     // Wait to get a low input (means CTS):
                     arm_color(uart_id, 0,0,50);
                     while (PINCC26XX_getInputValue(arm_gpio_rx)) {
