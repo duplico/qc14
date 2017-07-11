@@ -141,6 +141,7 @@ uint8_t wait_with_timeout(UArg uart_id, uint8_t match_val, uint32_t timeout_ms, 
 
 // All four arms share the same function, even though they have separate tasks.
 void serial_arm_task(UArg uart_id, UArg arg1) {
+    // TODO: Only pair in the correct modes.
     arm_proto_state=SERIAL_PHY_STATE_DIS;
     uint32_t timeout_ms = PLUG_TIMEOUT_MS;
     int results_flag = 0;
@@ -349,7 +350,7 @@ void serial_init() {
     UART_Params_init(&uart_p);
     // Defaults used:
     // blocking reads and writes, no write timeout, 8N1.
-    uart_p.baudRate = 9600;
+    uart_p.baudRate = 115200;
     uart_p.readTimeout = RTS_TIMEOUT;
     uart_p.writeTimeout = RTS_TIMEOUT;
     uart_p.readMode = UART_MODE_BLOCKING;
