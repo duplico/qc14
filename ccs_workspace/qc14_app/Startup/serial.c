@@ -384,28 +384,50 @@ void serial_handle_state_machine(UArg uart_id) {
 #define STATE_DIS 0
 #define STATE_CON 1
 
+uint8_t wait_with_timeout(UArg uart_id, uint8_t match_val) {
+    uint32_t timeout_ms = RTS_TIMEOUT_MS;
+
+    while (timeout_ms) {
+        if (arm_read_in_debounced(uart_id) == match_val)
+            return 1;
+        else
+            timeout_ms--;
+        Task_sleep(100); // 1 ms.
+    }
+    return 0;
+}
+
 // All four arms share the same function, even though they have separate tasks.
 void serial_arm_task(UArg uart_id, UArg arg1) {
     uint8_t state=STATE_DIS;
     uint32_t timeout_ms = PLUG_TIMEOUT;
+    int results_flag = 0;
 
-    arm_gpio_pin_handle = PIN_open(&arm_gpio_pin_state, arm_gpio_init_table); // This table holds the correct disconnected values.
-
-    do {
-        Task_sleep(1);
-        serial_handle_state_machine(uart_id);
-    } while (1);
+    // This table holds the correct disconnected values:
+    arm_gpio_pin_handle = PIN_open(&arm_gpio_pin_state, arm_gpio_init_table);
 
     do {
         // A "continue" takes us here:
         Task_sleep(0); // yield.
 
         if (state == STATE_DIS) { // We are disconnected.
+           /*
+            * While disconnected:
+            *  Listen for input HIGH.
+            *  Wait for it to stay HIGH for PLUG_TIMEOUT.
+            *  We are now connected and idle.
+            */
+
             while (timeout_ms) {
+                // This is the only place we can get connected,
+                // so there's no need to leave this loop. We do,
+                // however, need to yield so that other threads
+                // (including other arms) can actually function.
+
                 if (arm_read_in_debounced(uart_id))
                     timeout_ms--;
                 else
-                    timeout_ms = STATE_DIS;
+                    timeout_ms = PLUG_TIMEOUT;
                 Task_sleep(100); // 1 ms.
             }
             // we are now connected, can fall through:
@@ -417,17 +439,71 @@ void serial_arm_task(UArg uart_id, UArg arg1) {
                 /*
                  *  If we DO need to send:
                  *   Get the semaphore.
-                 *   Set our input LOW.
+                 *   Set our output LOW.
                  *   Wait for input LOW.
                  *   They have accepted, or have disconnected. Set output HIGH.
                  *   Wait with timeout for input HIGH:
                  *      If we time out, we are DISCONNECTED.
-                 *      If we receive input HIGH then we need to send a message. (the HIGH came from other side's UART)
+                 *      If we receive input HIGH then we need to send a message.
+                 *       (the HIGH came from other side's UART)
                  *      Switch to UART mode
                  *      Send.
                  *      We are now IDLE. On error, we are DISCONNECTED.
                  */
-                // TODO: fill this in:
+                if (!Semaphore_pend(uart_mutex, BIOS_NO_WAIT))
+                    continue; // didn't get the semaphore immediately, yield.
+
+                // Output low to signal RTS.
+                PINCC26XX_setOutputValue(arm_gpio_tx, 0);
+                // TODO: race condition?
+                // Wait to get a low input (means CTS):
+                while (arm_read_in_debounced(uart_id)) {
+                    Task_sleep(0); // it will always eventually go low
+                }
+
+                // Got the low input. They've either accepted, or disconnected.
+                // Set output high and wait with timeout for high input.
+                PINCC26XX_setOutputValue(arm_gpio_tx, 0);
+                if (wait_with_timeout(uart_id, 1)) {
+                    // They went high. Means they've accepted.
+                    // The HIGH signal came from the other side's UART,
+                    //  so it should be all built and such.
+                    // Switch to UART mode and send.
+                    PIN_close(arm_gpio_pin_handle);
+                    uart_h = UART_open(uart_id, &uart_p);
+                    results_flag = UART_write(uart_h, &uart_tx_buf, sizeof(serial_message_t));
+
+                    // Done sending, so we can cancel this flag:
+                    arm_nts = SERIAL_MSG_TYPE_NOMSG;
+
+                    // We are now IDLE. On error, we are DISCONNECTED:
+                    if (results_flag == UART_ERROR || results_flag<sizeof(serial_message_t)) {
+                        // something broke:
+                        volatile UARTCC26XX_Object *o = (UARTCC26XX_Object *) uart_h->object;
+                        o->status;
+                        // red = failed:
+                        arm_color(uart_id, 100,0,0);
+                        Task_sleep(40000); // 400000 us = 400 ms
+                        state = STATE_DIS;
+                    } else { // success:
+                        // green = successful:
+                        arm_color(uart_id, 0,100,0);
+                        Task_sleep(40000); // 400000 us = 400 ms
+                        state = STATE_CON; // TODO: unneeded
+                    }
+                } else {
+                    // They never went high. Means they've disconnected.
+                    state = STATE_DIS;
+                }
+
+                // Yield ALL THE THINGS
+                UART_close(uart_h);
+                arm_gpio_pin_handle = PIN_open(&arm_gpio_pin_state, arm_gpio_init_table); // This table holds the correct disconnected values.
+                Semaphore_post(uart_mutex);
+
+                // Done and done.
+                continue; // Yield.
+
             } else { // don't need to send.
                 /*
                  *  If we DON'T need to send:
@@ -435,11 +511,11 @@ void serial_arm_task(UArg uart_id, UArg arg1) {
                  *   Get the semaphore, and bring our input LOW.
                  *   Wait with timeout for input HIGH:
                  *      If we time out, we are DISCONNECTED.
-                 *      If we receive input HIGH then we need to receive a message.
+                 *      If we receive input HIGH then we need to receive.
                  *      Switch to UART mode (idle has output high).
                  *      Receive.
                  *      Process message.
-                 *      We are now connected and idle. On error, we are DISCONNECTED.
+                 *      We are now connected and idle. On error, DISCONNECTED.
                  */
                 if (arm_read_in_debounced(uart_id))
                     continue; // Back to the start.
@@ -450,13 +526,14 @@ void serial_arm_task(UArg uart_id, UArg arg1) {
                 // Set our own low:
                 PINCC26XX_setOutputValue(arm_gpio_tx, 0);
                 // Wait with a timeout for a HIGH input:
-                if (!wait_with_timeout(uart_id, 1)) { // TODO: write this.
+                if (!wait_with_timeout(uart_id, 1)) {
                     // timed out. We are DISCONNECTED.
                     state = STATE_DIS;
                     continue; // back to the beginning.
                 }
                 // We got the HIGH we needed.
-                // Time to set up to receive. A byproduct of this is sending a HIGH.
+                // Time to set up to receive.
+                //  A byproduct of this is sending a HIGH.
                 PIN_close(arm_gpio_pin_handle);
                 uart_h = UART_open(uart_id, &uart_p);
                 results_flag = UART_read(uart_h, &uart_rx_buf, sizeof(serial_message_t));
@@ -470,6 +547,9 @@ void serial_arm_task(UArg uart_id, UArg arg1) {
                 } else { // success:
                     // Successful read.
                     // Process message here.
+                    // green = successful:
+                    arm_color(uart_id, 0,100,0);
+                    Task_sleep(40000); // 400000 us = 400 ms
                 }
                 UART_close(uart_h);
                 arm_gpio_pin_handle = PIN_open(&arm_gpio_pin_state, arm_gpio_init_table); // This table holds the correct disconnected values.
@@ -479,46 +559,6 @@ void serial_arm_task(UArg uart_id, UArg arg1) {
             }
         }
     } while (1);
-
-
-
-    // Let's try something different.
-    /*
-     *
-     * While disconnected:
-     *  Listen for input HIGH.
-     *  Wait for it to stay HIGH for PLUG_TIMEOUT.
-     *  We are now connected and idle.
-     *
-     * While connected and idle:
-     *  If we DON'T need to send:
-     *   Listen for input LOW.
-     *   Get the semaphore, and bring our input LOW.
-     *   Wait with timeout for input HIGH:
-     *      If we time out, we are DISCONNECTED.
-     *      If we receive input HIGH then we need to receive a message.
-     *      Switch to UART mode (idle has output high).
-     *      Receive.
-     *      Process message.
-     *      We are now connected and idle. On error, we are DISCONNECTED.
-     *  If we DO need to send:
-     *   Get the semaphore.
-     *   Set our input LOW.
-     *   Wait for input LOW.
-     *   They have accepted, or have disconnected. Set output HIGH.
-     *   Wait with timeout for input HIGH:
-     *      If we time out, we are DISCONNECTED.
-     *      If we receive input HIGH then we need to send a message. (the HIGH came from other side's UART)
-     *      Switch to UART mode
-     *      Send.
-     *      We are now IDLE. On error, we are DISCONNECTED.
-     *
-     *
-     */
-
-
-
-
 }
 
 void serial_init() {
