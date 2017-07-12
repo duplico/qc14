@@ -47,24 +47,28 @@ def main():
         for i, frame in enumerate(iter_frames(im)):
             frame = frame.convert('RGB')
             frame.thumbnail((7,7))
-            frame.save('.qctmp.bmp',**frame.info)
-            imgsrcs.append(Image.open('.qctmp.bmp'))
+            imgsrcs.append(frame)
     else:
         imgsrcs = [Image.open(args.imgpath)]
 
+    start_addr = args.start_addr
     bts = []
-    for src in imgsrcs:
-        bts += bmp_bytes(src)
-        
     ih = IntelHex()
-    for i in range(len(bts)):
-        ih[args.start_addr + i] = bts[i]
+    total_len = 0
+    
+    for src in imgsrcs:
+        bts = bmp_bytes(src)
+        for i in range(len(bts)):
+            ih[start_addr + i] = bts[i]
+        start_addr += 0x0200
+        total_len += len(bts)
         
     if args.hexpath.endswith('.hex'):
         ih.write_hex_file(args.hexpath)
     else:
         ih.tobinfile(args.hexpath)
-    print len(bts)
+        
+    print total_len
     
 if __name__ == "__main__":
     main()
