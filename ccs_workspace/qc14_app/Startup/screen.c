@@ -20,7 +20,7 @@
 extern uint8_t led_buf[11][7][3];
 
 Task_Struct screen_anim_task;
-char screen_anim_task_stack[512]; // 332
+char screen_anim_task_stack[768];
 
 Clock_Handle screen_anim_clock_h;
 Clock_Handle screen_blink_clock_h;
@@ -98,7 +98,7 @@ inline void screen_put_buffer_indirect(uint32_t frame_id) {
 inline void screen_put_buffer_from_flash(uint32_t frame_id) {
     ExtFlash_open();
     // TODO: define for the starting point:
-    ExtFlash_read(0x010000 + frame_id*0x0200, // sizeof(screen_frame_t), // TODO
+    ExtFlash_read_skipodd(0x010000 + frame_id*sizeof(screen_frame_t), // TODO
                   7*7*3, (uint8_t *) led_buf);
     ExtFlash_close();
 }
@@ -113,9 +113,11 @@ void screen_anim_task_fn(UArg a0, UArg a1) {
 
     screen_anim_t *current_anim = &load_anim;
 
-//    ExtFlash_open();
+    ExtFlash_open();
+    ExtFlash_erase(0x020000, 2*10*0x100);
+    ExtFlash_write_skipodd(0x010000, 10*sizeof(screen_frame_t), (uint8_t*) master_anim_buf);
 //    ExtFlash_write(0x010000, 10*sizeof(screen_frame_t), (uint8_t*) master_anim_buf);
-//    ExtFlash_close();
+    ExtFlash_close();
 
     while (1) {
         Semaphore_pend(anim_sem, BIOS_WAIT_FOREVER);

@@ -496,13 +496,18 @@ bool ExtFlash_read_skipodd(size_t offset, size_t length, uint8_t *buf)
         // double the page number and start from the index within the page
         //  (initially this is as above; subsequent reads, the start_point
         //   within the page will always be 0.)
-        uint16_t wr_bytes = 0x100-start_point;
-        ret = ExtFlash_read(page_index * 0x200 + start_point, wr_bytes,
+        uint16_t wr_bytes;
+        wr_bytes = 0x100-start_point; // read the remainder of the page,
+        // unless that's more than the length remaining to read:
+        if (length < wr_bytes)
+            wr_bytes = length;
+
+        ret = ExtFlash_read(page_index * 0x100 + start_point, wr_bytes,
                             &buf[buf_index]);
         if (!ret)
             return false;
         length -= wr_bytes;
-        page_index++;
+        page_index += 2;
         start_point = 0;
         buf_index += wr_bytes;
     }
@@ -588,13 +593,18 @@ bool ExtFlash_write_skipodd(size_t offset, size_t length, uint8_t *buf)
         // double the page number and start from the index within the page
         //  (initially this is as above; subsequent reads, the start_point
         //   within the page will always be 0.)
-        uint16_t wr_bytes = 0x100-start_point;
-        ret = ExtFlash_write(page_index * 0x200 + start_point, wr_bytes,
+        uint16_t wr_bytes;
+        wr_bytes = 0x100-start_point; // write the remainder of the page,
+        // unless that's more than the length remaining to write:
+        if (length < wr_bytes)
+            wr_bytes = length;
+
+        ret = ExtFlash_write(page_index * 0x100 + start_point, wr_bytes,
                              &buf[buf_index]);
         if (!ret)
             return false;
         length -= wr_bytes;
-        page_index++;
+        page_index += 2;
         start_point = 0;
         buf_index += wr_bytes;
     }
