@@ -51,7 +51,7 @@ UART_Params uart_p;
 Semaphore_Handle uart_mutex;
 
 Task_Struct uart_arm_tasks[4];
-char uart_arm_task_stacks[4][512];
+char uart_arm_task_stacks[4][320];
 
 uint32_t uart_timeout[4] = {0, 0, 0, 0};
 uint8_t uart_proto_state[4] = {0, 0, 0, 0};
