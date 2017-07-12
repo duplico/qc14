@@ -95,6 +95,7 @@ extern bool ExtFlash_erase(size_t offset, size_t length);
 * @return True when successful.
 */
 extern bool ExtFlash_write(size_t offset, size_t length, const uint8_t *buf);
+bool ExtFlash_write_skipodd(size_t offset, size_t length, uint8_t *buf);
 
 /**
 * Test the flash (power on self-test)
