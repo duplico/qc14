@@ -39,6 +39,8 @@
 // UART Protocol states:
 extern uint8_t uart_proto_state[4];
 
+#define FLASH_SCREEN_FRAMES_STARTPT 0x010000
+
 unsigned short crc16(volatile unsigned char *sbuf,unsigned char len);
 
 typedef struct {
