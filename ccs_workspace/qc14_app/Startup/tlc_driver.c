@@ -14,6 +14,9 @@
 #include <ti/drivers/pwm/PWMTimerCC26XX.h>
 #include <ti/drivers/ADC.h>
 
+// CC26xxWARE
+#include <driverlib/aon_batmon.h>
+
 #include "qc14.h"
 #include "board.h"
 #include "ExtFlash.h"
@@ -287,6 +290,12 @@ void led_brightness_task_fn(UArg a0, UArg a1)
                 tlc_update_fun = 1;
             }
         }
+
+        if (AONBatMonNewTempMeasureReady()) {
+            if (AONBatMonTemperatureGetDegC() < 6) { // deg C (-256..255)
+            }
+        }
+
         Task_sleep(LED_BRIGHTNESS_INTERVAL);
     } while (1);
 }
