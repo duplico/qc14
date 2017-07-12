@@ -572,7 +572,6 @@ bool ExtFlash_write(size_t offset, size_t length, const uint8_t *buf)
     return true;
 }
 
-
 bool ExtFlash_write_skipodd(size_t offset, size_t length, uint8_t *buf)
 {
     size_t start_point = offset % 0x100;
