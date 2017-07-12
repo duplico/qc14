@@ -25,15 +25,21 @@ def iter_frames(im):
 def bmp_seq(imgpath):
     path = imgpath
     im = Image.open(path)
-    seq = []
+    length = 0
+    print 'screen_frame_t master_anim_buf[] = {'
     for i, frame in enumerate(iter_frames(im)):
+        print "// frame %d" % length
+        length+=1
+        frame = frame.convert('RGB')
         frame.thumbnail((7,7))
-        seq.append(frame)
-        # frame.save('%s.%03d.bmp' % (nameroot,i),**frame.info)
-    return seq
+        frame.save('.qctmp.bmp',**frame.info)
+        print_array('.qctmp.bmp', True)
+    print '}; // len: %d' % length
 
-def print_array(i):
-    
+def print_array(img_path, collection=False):
+    i = Image.open(img_path)
+    i.thumbnail([7,7])
+        
     bytes = list(map(ord, i.tobytes()))
     bytes = [int(math.pow(a/255.0,2.5)*255 + 0.5) for a in bytes]
 
@@ -42,27 +48,22 @@ def print_array(i):
     pixels = [bytes[x:x+3] for x in range(0, len(bytes), 3)]
 
     lines = [pixels[x:x+7] for x in range(0, len(pixels), 7)]
-
+    
     # for i in range(len(bytes))[::3]:
         # pixels.append('{%d, %d, %d}' % (bytes[i], bytes[i+1], bytes[i+2]))
         
-    print str(lines).replace('[', '{').replace(']', '}') + ';'
+    print str([lines, 0]).replace('[', '{').replace(']', '}') + (',' if collection else ';')
     
 def main():
-    parser = argparse.ArgumentParser("Create an integer array from a bmp or gif file.")
-    parser.add_argument('imgpath', action='store', type=str, help='Path to bitmap or gif file')
+    parser = argparse.ArgumentParser("Create an integer array from a bmp file.")
+    parser.add_argument('imgpath', action='store', type=str, help='Path to bitmap file')
     
     args = parser.parse_args()
-    
-    if args.imgpath.endswith('.gif'):
-        seq = bmp_seq(args.imgpath)
-    else:
-        i = Image.open(args.imgpath)
-        i.thumbnail
-        seq = [i]
         
-    for img in seq:
-        print_array(img)
+    if args.imgpath.endswith('.gif'):
+        bmp_seq(args.imgpath)
+    else:
+        print_array(args.imgpath)
     
 if __name__ == "__main__":
     main()
