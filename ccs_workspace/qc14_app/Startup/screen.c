@@ -96,19 +96,26 @@ inline void screen_put_buffer_indirect(uint32_t frame_id) {
 }
 
 inline void screen_put_buffer_from_flash(uint32_t frame_id) {
-    // TODO: There's going to be a load from flash here, actually.
-    memcpy(led_buf, &master_anim_buf[frame_id], 7*7*3);
+    ExtFlash_open();
+    // TODO: define for the starting point:
+    ExtFlash_read(0x010000 + frame_id*sizeof(screen_frame_t),
+                  7*7*3, (uint8_t *) led_buf);
+    ExtFlash_close();
 }
 
 void screen_anim_task_fn(UArg a0, UArg a1) {
     screen_anim_t load_anim = {
         0,
         10,
-        100
+        50
     };
     uint16_t frame_index = 0;
 
     screen_anim_t *current_anim = &load_anim;
+
+    ExtFlash_open();
+    ExtFlash_write(0x010000, 10*sizeof(screen_frame_t), (uint8_t*) master_anim_buf);
+    ExtFlash_close();
 
     while (1) {
         Semaphore_pend(anim_sem, BIOS_WAIT_FOREVER);
@@ -116,8 +123,8 @@ void screen_anim_task_fn(UArg a0, UArg a1) {
         case UI_SCREEN_GAME:
             // TODO: Do arms?
         case UI_SCREEN_GAME_SEL: // same, but blinking. and no arms.
-            screen_put_buffer_indirect(current_anim->anim_start_frame
-                                       + frame_index);
+            screen_put_buffer_from_flash(current_anim->anim_start_frame
+                                         + frame_index);
             frame_index += 1;
             if (frame_index == current_anim->anim_len) {
                 // TODO: looping heeeeere.
