@@ -80,6 +80,7 @@ extern ExtFlashInfo_t *ExtFlash_info(void);
 * @return True when successful.
 */
 extern bool ExtFlash_read(size_t offset, size_t length, uint8_t *buf);
+bool ExtFlash_read_skipodd(size_t offset, size_t length, uint8_t *buf);
 
 /**
 * Erase storage sectors corresponding to the range.
