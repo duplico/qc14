@@ -145,7 +145,7 @@ static ExtFlashInfo_t flashInfo[] =
     {
         .manfId = MF_SPANSION,   // Spansion
         .devId = 0x14,          // S25FL216K
-        .deviceSize = 0x200000  // 256 KByte (2 Mbit)
+        .deviceSize = 0x200000  // 2 MByte (16 Mbit)
     },
     {
         .manfId = 0x0,
