@@ -480,6 +480,35 @@ bool ExtFlash_read(size_t offset, size_t length, uint8_t *buf)
     return ret == 0;
 }
 
+bool ExtFlash_read_skipodd(size_t offset, size_t length, uint8_t *buf)
+{
+    size_t start_point = offset % 0x100;
+    size_t page_index;
+    size_t buf_index = 0;
+
+    page_index = 2 * (offset / 0x100);
+
+    bool ret;
+
+    // Are we going to read past a page boundary?
+    while (length) {
+        // while there's still something to read,
+        // double the page number and start from the index within the page
+        //  (initially this is as above; subsequent reads, the start_point
+        //   within the page will always be 0.)
+        uint16_t wr_bytes = 0x100-start_point;
+        ret = ExtFlash_read(page_index * 0x200 + start_point, wr_bytes,
+                            &buf[buf_index]);
+        if (!ret)
+            return false;
+        length -= wr_bytes;
+        page_index++;
+        start_point = 0;
+        buf_index += wr_bytes;
+    }
+    return true;
+}
+
 /* See ExtFlash.h file for description */
 bool ExtFlash_write(size_t offset, size_t length, const uint8_t *buf)
 {
@@ -540,6 +569,36 @@ bool ExtFlash_write(size_t offset, size_t length, const uint8_t *buf)
         extFlashDeselect();
     }
 
+    return true;
+}
+
+
+bool ExtFlash_write_skipodd(size_t offset, size_t length, uint8_t *buf)
+{
+    size_t start_point = offset % 0x100;
+    size_t page_index;
+    size_t buf_index = 0;
+
+    page_index = 2 * (offset / 0x100);
+
+    bool ret;
+
+    // Are we going to read past a page boundary?
+    while (length) {
+        // while there's still something to read,
+        // double the page number and start from the index within the page
+        //  (initially this is as above; subsequent reads, the start_point
+        //   within the page will always be 0.)
+        uint16_t wr_bytes = 0x100-start_point;
+        ret = ExtFlash_write(page_index * 0x200 + start_point, wr_bytes,
+                             &buf[buf_index]);
+        if (!ret)
+            return false;
+        length -= wr_bytes;
+        page_index++;
+        start_point = 0;
+        buf_index += wr_bytes;
+    }
     return true;
 }
 
