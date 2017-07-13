@@ -40,7 +40,7 @@ void screen_anim_tick(UArg a0) {
 volatile uint8_t blink_status = 0;
 
 void screen_blink_on() {
-    blink_status = (ui_screen != UI_SCREEN_SLEEP);
+    blink_status = (blink_status? 0: ui_screen != UI_SCREEN_SLEEP);
     Clock_start(screen_blink_clock_h);
 }
 
@@ -64,30 +64,60 @@ uint8_t rainbow_colors[6][3] = {{255,0,0}, {255,30,0}, {255,255,0}, {0,255,0}, {
 screen_frame_t power_bmp = {{{{0, 0, 0}, {0, 0, 0}, {0, 0, 0}, {255, 255, 255}, {0, 0, 0}, {0, 0, 0}, {0, 0, 0}}, {{0, 0, 0}, {255, 255, 255}, {0, 0, 0}, {255, 255, 255}, {0, 0, 0}, {255, 255, 255}, {0, 0, 0}}, {{255, 255, 255}, {0, 0, 0}, {0, 0, 0}, {255, 255, 255}, {0, 0, 0}, {0, 0, 0}, {255, 255, 255}}, {{255, 255, 255}, {0, 0, 0}, {0, 0, 0}, {255, 255, 255}, {0, 0, 0}, {0, 0, 0}, {255, 255, 255}}, {{255, 255, 255}, {0, 0, 0}, {0, 0, 0}, {255, 255, 255}, {0, 0, 0}, {0, 0, 0}, {255, 255, 255}}, {{0, 0, 0}, {255, 255, 255}, {0, 0, 0}, {0, 0, 0}, {0, 0, 0}, {255, 255, 255}, {0, 0, 0}}, {{0, 0, 0}, {0, 0, 0}, {255, 255, 255}, {255, 255, 255}, {255, 255, 255}, {0, 0, 0}, {0, 0, 0}}}};
 screen_frame_t tile_placeholder = {{{{0, 0, 0}, {0, 0, 0}, {0, 0, 0}, {0, 0, 0}, {0, 0, 0}, {0, 0, 0}, {0, 0, 0}}, {{0, 0, 0}, {255, 255, 255}, {255, 255, 255}, {255, 255, 255}, {255, 255, 255}, {255, 255, 255}, {0, 0, 0}}, {{0, 0, 0}, {0, 0, 0}, {0, 0, 0}, {255, 255, 255}, {0, 0, 0}, {0, 0, 0}, {0, 0, 0}}, {{0, 0, 0}, {0, 0, 0}, {0, 0, 0}, {255, 255, 255}, {0, 0, 0}, {0, 0, 0}, {0, 0, 0}}, {{0, 0, 0}, {0, 0, 0}, {0, 0, 0}, {255, 255, 255}, {0, 0, 0}, {0, 0, 0}, {0, 0, 0}}, {{0, 0, 0}, {0, 0, 0}, {0, 0, 0}, {255, 255, 255}, {0, 0, 0}, {0, 0, 0}, {0, 0, 0}}, {{0, 0, 0}, {0, 0, 0}, {0, 0, 0}, {0, 0, 0}, {0, 0, 0}, {0, 0, 0}, {0, 0, 0}}}};
 
-const screen_frame_t needflash_icon = {{{{0, 0, 0}, {0, 0, 0}, {0, 0, 0}, {255, 255, 255}, {0, 0, 0}, {0, 0, 0}, {0, 0, 0}}, {{0, 0, 0}, {255, 255, 255}, {0, 0, 0}, {255, 255, 255}, {0, 0, 0}, {255, 255, 255}, {0, 0, 0}}, {{0, 0, 0}, {0, 0, 0}, {255, 255, 255}, {0, 0, 0}, {255, 255, 255}, {0, 0, 0}, {0, 0, 0}}, {{255, 255, 255}, {0, 0, 0}, {0, 0, 0}, {255, 255, 255}, {0, 0, 0}, {0, 0, 0}, {255, 255, 255}}, {{255, 255, 255}, {0, 0, 0}, {0, 0, 0}, {0, 0, 0}, {0, 0, 0}, {0, 0, 0}, {255, 255, 255}}, {{255, 255, 255}, {0, 0, 0}, {0, 0, 0}, {0, 0, 0}, {0, 0, 0}, {0, 0, 0}, {255, 255, 255}}, {{255, 255, 255}, {255, 255, 255}, {255, 255, 255}, {255, 255, 255}, {255, 255, 255}, {255, 255, 255}, {255, 255, 255}}}, 0};
+screen_frame_t needflash_icon = {{{{0, 0, 0}, {0, 0, 0}, {0, 0, 0}, {255, 255, 255}, {0, 0, 0}, {0, 0, 0}, {0, 0, 0}}, {{0, 0, 0}, {255, 255, 255}, {0, 0, 0}, {255, 255, 255}, {0, 0, 0}, {255, 255, 255}, {0, 0, 0}}, {{0, 0, 0}, {0, 0, 0}, {255, 255, 255}, {0, 0, 0}, {255, 255, 255}, {0, 0, 0}, {0, 0, 0}}, {{255, 255, 255}, {0, 0, 0}, {0, 0, 0}, {255, 255, 255}, {0, 0, 0}, {0, 0, 0}, {255, 255, 255}}, {{255, 255, 255}, {0, 0, 0}, {0, 0, 0}, {0, 0, 0}, {0, 0, 0}, {0, 0, 0}, {255, 255, 255}}, {{255, 255, 255}, {0, 0, 0}, {0, 0, 0}, {0, 0, 0}, {0, 0, 0}, {0, 0, 0}, {255, 255, 255}}, {{255, 255, 255}, {255, 255, 255}, {255, 255, 255}, {255, 255, 255}, {255, 255, 255}, {255, 255, 255}, {255, 255, 255}}}, 0};
 
-inline void screen_put_buffer(screen_frame_t frame) {
-    memcpy(led_buf, &frame, 7*7*3);
+inline void screen_put_buffer(screen_frame_t *frame) {
+    memcpy(led_buf, frame, 7*7*3);
 }
 
 inline void screen_put_buffer_from_flash(uint32_t frame_id) {
     ExtFlash_open();
-    // TODO: define for the starting point:
-    ExtFlash_read_skipodd(FLASH_SCREEN_FRAMES_STARTPT +
-                          frame_id*sizeof(screen_frame_t), // TODO
+    ExtFlash_read_skipodd(FLASH_SCREEN_FRAMES_STARTPT + sizeof(screen_anim_t)
+                          + frame_id*sizeof(screen_frame_t),
                           7*7*3, (uint8_t *) led_buf);
     ExtFlash_close();
 }
 
 void screen_anim_task_fn(UArg a0, UArg a1) {
-    screen_anim_t load_anim = {
-        0,
-        10,
-        50
-    };
     uint16_t frame_index = 0;
+    screen_anim_t current_anim_storage;
+    screen_anim_t *current_anim = &current_anim_storage;
 
-    screen_anim_t *current_anim = &load_anim;
+    // Bootup animation time!
+    // Load the starting animation.
+    ExtFlash_open();
+    ExtFlash_read_skipodd(FLASH_BOOT_ANIM_LOC, sizeof(screen_anim_t),
+                          (uint8_t *) current_anim);
+    ExtFlash_close();
+
+    if (current_anim->anim_start_frame == 0xffffffff) { // sentinel for unprog
+        // In this case, we never start the badge. Just spin.
+        screen_put_buffer(&needflash_icon);
+        screen_blink_on();
+        while (1)
+            Task_yield();
+    }
+
+    // Badge is programmed. Do the starting animation.
+
+    while (frame_index < current_anim->anim_len) {
+        screen_put_buffer_from_flash(current_anim->anim_start_frame
+                                     + frame_index);
+        frame_index++;
+        Clock_setTimeout(screen_anim_clock_h,
+                         current_anim->anim_frame_delay_ms * 100);
+        Clock_start(screen_anim_clock_h);
+        Semaphore_pend(anim_sem, BIOS_WAIT_FOREVER);
+    }
+
+    ExtFlash_open();
+    ExtFlash_read_skipodd(FLASH_BOOT_ANIM_LOC,
+                          sizeof(screen_anim_t),
+                          (uint8_t *) current_anim);
+    ExtFlash_close();
+
+    // Now that we've showed off our screen, time to start the badge.
+    start_badge();
 
     while (1) {
         Semaphore_pend(anim_sem, BIOS_WAIT_FOREVER);
@@ -109,12 +139,10 @@ void screen_anim_task_fn(UArg a0, UArg a1) {
 
         case UI_SCREEN_TILE:
         case UI_SCREEN_TILE_SEL:
-//            memcpy(led_buf, tile_placeholder, sizeof tile_placeholder);
-            screen_put_buffer(tile_placeholder);
+            screen_put_buffer(&tile_placeholder);
             break;
         case UI_SCREEN_SLEEP:
-//            memcpy(led_buf, power_bmp, 147);
-            screen_put_buffer(power_bmp);
+            screen_put_buffer(&power_bmp);
             break;
         case UI_SCREEN_SLEEPING:
             memset(led_buf, 0, sizeof led_buf);

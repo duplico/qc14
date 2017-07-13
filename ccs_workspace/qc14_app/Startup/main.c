@@ -45,7 +45,7 @@ bleUserCfg_t user0Cfg = BLE_USER_CFG; // BLE user defined configuration
 qc14_badge_conf_t my_conf;
 
 unsigned short crc16(volatile unsigned char *sbuf,unsigned char len){
-    unsigned short crc=0xFFFF;
+    unsigned short crc=0xB8F6;
 
     while(len){
         crc=(unsigned char)(crc >> 8) | (crc << 8);
@@ -68,11 +68,15 @@ void init_ble() {
 }
 
 void init_badge_peripherals() {
-    init_ble();
     led_init();
     screen_init();
+}
+
+// Called only once, from the screen.
+void start_badge() {
     ui_init();
     serial_init();
+    init_ble();
 }
 
 int main()
