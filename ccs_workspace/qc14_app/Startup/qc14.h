@@ -22,7 +22,7 @@
 #define SW_SIGNAL_OPEN 0b1000
 #define SW_SIGNAL_L 0b01
 #define SW_SIGNAL_R 0b10
-#define SW_SIGNAL_DIR_MASK 0x11
+#define SW_SIGNAL_DIR_MASK 0b11
 #define SW_SIGNAL_C 0b100
 
 // Serial timeout configuration
@@ -40,20 +40,30 @@
 extern uint8_t uart_proto_state[4];
 
 #define FLASH_SCREEN_FRAMES_STARTPT 0x010000
+#define FLASH_BOOT_ANIM_LOC 0x00f000
+#define FLASH_ID_LOC 0x03f9
+#define FLASH_ID_LOC2 0xfffa
+#define FLASH_CONF_LOC 0x0100
+#define FLASH_CONF_BACKUP_LOC 0x0412
+#define FLASH_TILE_ANIM_LOC 0x0400
+#define FLASH_GAME_ANIM_LOC 0x2000
 
 unsigned short crc16(volatile unsigned char *sbuf,unsigned char len);
 
 typedef struct {
     uint16_t badge_id;
     uint8_t badges_mated[36];
+    uint8_t icons_been[6];
+    char handle[9];
     uint8_t current_icon;
     uint8_t icons_unlocked;
-    uint8_t icons_been[5];
     uint8_t current_tile;
-    uint8_t avail_tiles;
+    uint16_t avail_tiles;
     uint16_t crc;
 } qc14_badge_conf_t;
 
 extern qc14_badge_conf_t my_conf;
+
+void start_badge();
 
 #endif /* STARTUP_QC14_H_ */
