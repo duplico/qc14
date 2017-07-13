@@ -72,7 +72,7 @@ inline void screen_put_buffer(screen_frame_t *frame) {
 
 inline void screen_put_buffer_from_flash(uint32_t frame_id) {
     ExtFlash_open();
-    ExtFlash_read_skipodd(FLASH_SCREEN_FRAMES_STARTPT + sizeof(screen_anim_t)
+    ExtFlash_read_skipodd(FLASH_SCREEN_FRAMES_STARTPT
                           + frame_id*sizeof(screen_frame_t),
                           7*7*3, (uint8_t *) led_buf);
     ExtFlash_close();
@@ -111,10 +111,15 @@ void screen_anim_task_fn(UArg a0, UArg a1) {
     }
 
     ExtFlash_open();
-    ExtFlash_read_skipodd(FLASH_BOOT_ANIM_LOC,
+    ExtFlash_read_skipodd(FLASH_GAME_ANIM_LOC, // TODO: pick the right one
                           sizeof(screen_anim_t),
                           (uint8_t *) current_anim);
     ExtFlash_close();
+
+    frame_index = 0;
+    Clock_setTimeout(screen_anim_clock_h,
+                     current_anim->anim_frame_delay_ms * 100);
+    Clock_start(screen_anim_clock_h);
 
     // Now that we've showed off our screen, time to start the badge.
     start_badge();
