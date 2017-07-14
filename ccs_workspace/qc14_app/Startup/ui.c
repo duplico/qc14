@@ -40,6 +40,7 @@ void sw_clock_swi(UArg a0);
 
 Semaphore_Handle anim_sem; // Posted when we need a new screen
 Semaphore_Handle flash_sem; // Protects the flash.
+Semaphore_Handle sw_sem; // Posted when the switch is clicked.
 
 static PIN_State sw_pin_state;
 PIN_Handle sw_pin_h;
@@ -71,6 +72,8 @@ const uint8_t rainbow_colors[6][3] = {{255,0,0}, {255,30,0}, {255,255,0}, {0,255
 const screen_frame_t power_bmp = {{{{0, 0, 0}, {0, 0, 0}, {0, 0, 0}, {255, 255, 255}, {0, 0, 0}, {0, 0, 0}, {0, 0, 0}}, {{0, 0, 0}, {255, 255, 255}, {0, 0, 0}, {255, 255, 255}, {0, 0, 0}, {255, 255, 255}, {0, 0, 0}}, {{255, 255, 255}, {0, 0, 0}, {0, 0, 0}, {255, 255, 255}, {0, 0, 0}, {0, 0, 0}, {255, 255, 255}}, {{255, 255, 255}, {0, 0, 0}, {0, 0, 0}, {255, 255, 255}, {0, 0, 0}, {0, 0, 0}, {255, 255, 255}}, {{255, 255, 255}, {0, 0, 0}, {0, 0, 0}, {255, 255, 255}, {0, 0, 0}, {0, 0, 0}, {255, 255, 255}}, {{0, 0, 0}, {255, 255, 255}, {0, 0, 0}, {0, 0, 0}, {0, 0, 0}, {255, 255, 255}, {0, 0, 0}}, {{0, 0, 0}, {0, 0, 0}, {255, 255, 255}, {255, 255, 255}, {255, 255, 255}, {0, 0, 0}, {0, 0, 0}}}};
 const screen_frame_t tile_placeholder = {{{{0, 0, 0}, {0, 0, 0}, {0, 0, 0}, {0, 0, 0}, {0, 0, 0}, {0, 0, 0}, {0, 0, 0}}, {{0, 0, 0}, {255, 255, 255}, {255, 255, 255}, {255, 255, 255}, {255, 255, 255}, {255, 255, 255}, {0, 0, 0}}, {{0, 0, 0}, {0, 0, 0}, {0, 0, 0}, {255, 255, 255}, {0, 0, 0}, {0, 0, 0}, {0, 0, 0}}, {{0, 0, 0}, {0, 0, 0}, {0, 0, 0}, {255, 255, 255}, {0, 0, 0}, {0, 0, 0}, {0, 0, 0}}, {{0, 0, 0}, {0, 0, 0}, {0, 0, 0}, {255, 255, 255}, {0, 0, 0}, {0, 0, 0}, {0, 0, 0}}, {{0, 0, 0}, {0, 0, 0}, {0, 0, 0}, {255, 255, 255}, {0, 0, 0}, {0, 0, 0}, {0, 0, 0}}, {{0, 0, 0}, {0, 0, 0}, {0, 0, 0}, {0, 0, 0}, {0, 0, 0}, {0, 0, 0}, {0, 0, 0}}}};
 const screen_frame_t needflash_icon = {{{{0, 0, 0}, {0, 0, 0}, {0, 0, 0}, {255, 255, 255}, {0, 0, 0}, {0, 0, 0}, {0, 0, 0}}, {{0, 0, 0}, {255, 255, 255}, {0, 0, 0}, {255, 255, 255}, {0, 0, 0}, {255, 255, 255}, {0, 0, 0}}, {{0, 0, 0}, {0, 0, 0}, {255, 255, 255}, {0, 0, 0}, {255, 255, 255}, {0, 0, 0}, {0, 0, 0}}, {{255, 255, 255}, {0, 0, 0}, {0, 0, 0}, {255, 255, 255}, {0, 0, 0}, {0, 0, 0}, {255, 255, 255}}, {{255, 255, 255}, {0, 0, 0}, {0, 0, 0}, {0, 0, 0}, {0, 0, 0}, {0, 0, 0}, {255, 255, 255}}, {{255, 255, 255}, {0, 0, 0}, {0, 0, 0}, {0, 0, 0}, {0, 0, 0}, {0, 0, 0}, {255, 255, 255}}, {{255, 255, 255}, {255, 255, 255}, {255, 255, 255}, {255, 255, 255}, {255, 255, 255}, {255, 255, 255}, {255, 255, 255}}}, 0};
+const screen_frame_t all_off = {0};
+
 
 void screen_anim_tick_swi(UArg a0) {
     Semaphore_post(anim_sem);
@@ -133,109 +136,16 @@ void sw_clock_swi(UArg a0) {
     if (sw_signal != SW_SIGNAL_NONE) {
         // User interaction of some kind.
         screen_timeout_ticks = 0;
-        ui_click(sw_signal);
+        Semaphore_post(sw_sem);
     } else if (ui_screen != UI_SCREEN_SLEEPING) {
         screen_timeout_ticks++;
         if (((ui_screen & UI_SCREEN_SEL_MASK) && screen_timeout_ticks > UI_TIMEOUT_MATCH_SEL) || (screen_timeout_ticks > UI_TIMEOUT_MATCH_MAIN)) {
-            ui_timeout();
+            // Timeout.
             screen_timeout_ticks = 0;
+            sw_signal = SW_SIGNAL_TIMEOUT;
+            Semaphore_post(sw_sem);
         }
     }
-}
-
-// TODO: This should really be called from a _task_ context:
-void ui_click(uint8_t sw_signal)
-{
-    // Disregard if it's a release.
-    if (sw_signal == SW_SIGNAL_OPEN)
-        return; // We don't care
-
-    switch(ui_screen) {
-    case UI_SCREEN_BOOT:
-        return; // Should be unreachable.
-    case UI_SCREEN_HUNGRY_FOR_DATA:
-        // TODO: toggle between white and not.
-        break;
-    case UI_SCREEN_GAME_SEL: // Icon select
-        if (sw_signal & SW_SIGNAL_DIR_MASK) {
-            // left or right
-        } else {
-            // click.
-            ui_screen = UI_SCREEN_GAME;
-        }
-        break;
-    case UI_SCREEN_TILE_SEL: // Tile select
-        if (sw_signal & SW_SIGNAL_DIR_MASK) {
-            // left or right
-        } else {
-            // click.
-            ui_screen = UI_SCREEN_TILE;
-        }
-        break;
-    case UI_SCREEN_SLEEPING: // We're asleep.
-        // Doesn't matter what we click. Time to wake up and go to UI_SCREEN_SLEEP:
-        ui_screen = UI_SCREEN_SLEEP;
-        break;
-    default: // We are in one of the switchable versions:
-        switch(sw_signal) {
-        case SW_SIGNAL_L:
-            ui_screen = (ui_screen + 2) % 3; // Go left.
-            break;
-        case SW_SIGNAL_R:
-            ui_screen = (ui_screen + 1) % 3; // Go right.
-            break;
-        default: // click
-            ui_screen = ui_screen | UI_SCREEN_SEL_MASK;
-        }
-    }
-
-    ui_update();
-}
-
-void ui_timeout() {
-    // Are we in a SEL mode? If so, timeout back to the non-SEL version.
-    // This can't be called while we're sleeping, because we don't do timeouts
-    // from inside sw_clock_f().
-    if (ui_screen & UI_SCREEN_SEL_MASK) {
-        ui_screen &= ~UI_SCREEN_SEL_MASK;
-    } else if (ui_screen == UI_SCREEN_GAME) {
-        // We're already in the GAME mode.
-        return; // Nothing to do.
-    } else {
-        // We're in the wrong mode. Time to timeout to game.
-        ui_screen = UI_SCREEN_GAME;
-    }
-
-    // Update the stuff to display the correct things:
-    ui_update();
-}
-
-void ui_update() { // TODO: This should go away.
-    if (ui_screen == UI_SCREEN_SLEEPING) {
-        // Shut it down. Shut everything down.
-    } else if (ui_screen == UI_SCREEN_SLEEP || (ui_screen & UI_SCREEN_SEL_MASK)) {
-        screen_blink_on();
-    } else {
-        screen_blink_off();
-    }
-    screen_update_now();
-}
-
-void ui_init() {
-    sw_pin_h = PIN_open(&sw_pin_state, sw_pin_table);
-
-    Clock_Params clockParams;
-    Error_Block eb;
-    Error_init(&eb);
-    Clock_Params_init(&clockParams);
-    clockParams.period = UI_CLOCK_TICKS;
-    clockParams.startFlag = TRUE;
-    sw_debounce_clock = Clock_create(sw_clock_swi, 2, &clockParams, &eb);
-}
-
-void screen_update_now() {
-    Clock_stop(screen_anim_clock_h);
-    Semaphore_post(anim_sem);
 }
 
 void screen_blink_on() {
@@ -303,6 +213,106 @@ void set_screen_solid_local(const screen_frame_t *frame) {
     screen_put_buffer((screen_frame_t *)frame);
 }
 
+// NB: This should really be called from a _task_ context:
+void ui_click(uint8_t sw_signal)
+{
+    // Disregard if it's a release.
+    if (sw_signal == SW_SIGNAL_OPEN)
+        return; // We don't care
+
+    switch(ui_screen) {
+    case UI_SCREEN_BOOT:
+        return; // Should be unreachable.
+    case UI_SCREEN_HUNGRY_FOR_DATA:
+        // TODO: toggle between white and not.
+        break;
+    case UI_SCREEN_GAME_SEL: // Icon select
+        if (sw_signal & SW_SIGNAL_DIR_MASK) {
+            // left or right
+        } else {
+            // click.
+            ui_screen = UI_SCREEN_GAME;
+        }
+        break;
+    case UI_SCREEN_TILE_SEL: // Tile select
+        if (sw_signal & SW_SIGNAL_DIR_MASK) {
+            // left or right
+        } else {
+            // click.
+            ui_screen = UI_SCREEN_TILE;
+        }
+        break;
+    case UI_SCREEN_SLEEPING: // We're asleep.
+        // Doesn't matter what we click. Time to wake up and go to UI_SCREEN_SLEEP:
+        ui_screen = UI_SCREEN_SLEEP;
+        break;
+    default: // We are in one of the switchable versions:
+        switch(sw_signal) {
+        case SW_SIGNAL_L:
+            ui_screen = (ui_screen + 2) % 3; // Go left.
+            break;
+        case SW_SIGNAL_R:
+            ui_screen = (ui_screen + 1) % 3; // Go right.
+            break;
+        default: // click
+            ui_screen = ui_screen | UI_SCREEN_SEL_MASK;
+        }
+    }
+
+    ui_update();
+}
+
+void ui_timeout() {
+    // Are we in a SEL mode? If so, timeout back to the non-SEL version.
+    // This can't be called while we're sleeping, because we don't do timeouts
+    // from inside the switch clock SWI when sleeping.
+    if (ui_screen & UI_SCREEN_SEL_MASK) {
+        ui_screen &= ~UI_SCREEN_SEL_MASK;
+    } else if (ui_screen == UI_SCREEN_GAME) {
+        // We're already in the GAME mode.
+        return; // Nothing to do.
+    } else {
+        // We're in the wrong mode. Time to timeout to game.
+        ui_screen = UI_SCREEN_GAME;
+    }
+
+    // Update the stuff to display the correct things:
+    ui_update();
+}
+
+void ui_update() {
+    screen_blink_off();
+    switch(ui_screen) { // Destination screen:
+    case UI_SCREEN_SLEEPING:
+        // Shut it down. Shut everything down.
+        set_screen_solid_local(&all_off);
+        break;
+    case UI_SCREEN_SLEEP:
+        screen_blink_on();
+        set_screen_solid_local(&power_bmp);
+        break;
+    case UI_SCREEN_BOOT:
+        set_screen_animation(FLASH_BOOT_ANIM_LOC, 0);
+        break;
+    case UI_SCREEN_HUNGRY_FOR_DATA:
+        screen_blink_on();
+        set_screen_solid_local(&needflash_icon);
+        break;
+    case UI_SCREEN_GAME_SEL:
+        screen_blink_on();
+        // Fall through:
+    case UI_SCREEN_GAME:
+        set_screen_game(my_conf.current_icon);
+        break;
+    case UI_SCREEN_TILE_SEL:
+        screen_blink_on();
+        // fall through
+    case UI_SCREEN_TILE:
+        set_screen_tile(my_conf.current_tile);
+        break;
+    }
+}
+
 void do_animation_loop_body() {
     screen_put_buffer_from_flash(screen_anim->anim_start_frame
                                  + screen_frame_index);
@@ -325,17 +335,15 @@ inline void bootup_sequence() {
     set_screen_animation(FLASH_BOOT_ANIM_LOC, 0);
 
     if (screen_anim->anim_start_frame == 0xffffffff) { // sentinel for unprog
+        // Badge is not programmed. We're going to flash our hunger.
         ui_screen = UI_SCREEN_HUNGRY_FOR_DATA;
-        // TODO: Move this out into the main loop body.
-        // In this case, we never start the badge. Just spin.
-        set_screen_solid_local(&needflash_icon);
-        screen_blink_on();
-        while (1)
-            Task_yield();
+    } else {
+        // Badge has flash data. Do the intro animation, then
+        //  switch to game mode.
+        // TODO: Select based on time???
+        do_animation_loop();
+        ui_screen = UI_SCREEN_GAME;
     }
-
-    // Badge is programmed. Do the starting animation.
-    do_animation_loop();
 }
 
 void screen_anim_task_fn(UArg a0, UArg a1) {
@@ -345,46 +353,48 @@ void screen_anim_task_fn(UArg a0, UArg a1) {
 
     // Now that we've showed off our screen, time to start the badge.
     start_badge();
-
-    // TODO: Use our *current* game icon:
-    //       Probably should happen in start_badge.
-    set_screen_game(0);
+    ui_update();
 
     while (1) {
         // Handle user input:
-
-        // Handle animations:
-        if (Semaphore_pend(anim_sem, BIOS_WAIT_FOREVER)) {
-            switch(ui_screen) {
-            case UI_SCREEN_BOOT:
-                // Unreachable (lol)
-                break;
-            case UI_SCREEN_HUNGRY_FOR_DATA:
-                // Solid, no need to bother.
-                break;
-            case UI_SCREEN_GAME:
-                // TODO: Do arms?
-            case UI_SCREEN_GAME_SEL: // same, but blinking. and no arms.
-                do_animation_loop_body();
-                if (screen_frame_index == screen_anim->anim_len) {
-                    // TODO: looping heeeeere.
-                    screen_frame_index = 0;
-                }
-                continue;
-
-            case UI_SCREEN_TILE:
-            case UI_SCREEN_TILE_SEL:
-                screen_put_buffer(&tile_placeholder);
-                break;
-            case UI_SCREEN_SLEEP:
-                screen_put_buffer(&power_bmp);
-                break;
-            case UI_SCREEN_SLEEPING:
-                memset(led_buf, 0, sizeof led_buf);
+        if (Semaphore_pend(sw_sem, BIOS_NO_WAIT)) {
+            if (sw_signal == SW_SIGNAL_TIMEOUT) {
+                ui_timeout();
+            } else {
+                ui_click(sw_signal);
             }
         }
+
+        // Handle animations:
+        if (Semaphore_pend(anim_sem, BIOS_NO_WAIT)) {
+            do_animation_loop_body();
+
+            if (screen_frame_index == screen_anim->anim_len) {
+                if (ui_screen == UI_SCREEN_BOOT) {
+                    // TODO: do we care?
+                    // Currently this is unreachable.
+                } else {
+                    screen_frame_index = 0;
+                }
+            }
+        }
+
+        Task_yield(); // TODO: Sleep?
     }
 }
+
+void ui_init() {
+    sw_pin_h = PIN_open(&sw_pin_state, sw_pin_table);
+
+    Clock_Params clockParams;
+    Error_Block eb;
+    Error_init(&eb);
+    Clock_Params_init(&clockParams);
+    clockParams.period = UI_CLOCK_TICKS;
+    clockParams.startFlag = TRUE;
+    sw_debounce_clock = Clock_create(sw_clock_swi, 2, &clockParams, &eb);
+}
+
 
 void screen_init() {
     Semaphore_Params params;
@@ -393,6 +403,9 @@ void screen_init() {
 
     Semaphore_Params_init(&params);
     flash_sem = Semaphore_create(1, &params, NULL);
+
+    Semaphore_Params_init(&params);
+    sw_sem = Semaphore_create(0, &params, NULL);
 
     Task_Params taskParams;
     Task_Params_init(&taskParams);
