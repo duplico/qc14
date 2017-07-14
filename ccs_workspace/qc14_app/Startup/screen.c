@@ -27,6 +27,7 @@ Clock_Handle screen_anim_clock_h;
 Clock_Handle screen_blink_clock_h;
 
 Semaphore_Handle anim_sem;
+Semaphore_Handle anim_flash_sem;
 
 void screen_update_now() {
     Clock_stop(screen_anim_clock_h);
@@ -71,24 +72,55 @@ inline void screen_put_buffer(screen_frame_t *frame) {
 }
 
 inline void screen_put_buffer_from_flash(uint32_t frame_id) {
+    Semaphore_pend(anim_flash_sem, BIOS_WAIT_FOREVER);
     ExtFlash_open();
     ExtFlash_read_skipodd(FLASH_SCREEN_FRAMES_STARTPT
                           + frame_id*sizeof(screen_frame_t),
                           7*7*3, (uint8_t *) led_buf);
     ExtFlash_close();
+    Semaphore_post(anim_flash_sem);
+}
+
+uint16_t frame_index = 0;
+screen_anim_t current_anim_storage;
+screen_anim_t *current_anim = &current_anim_storage;
+
+void set_screen_animation(size_t base, uint32_t index) {
+    // Stop animating.
+    Clock_stop(screen_anim_clock_h);
+    Semaphore_pend(anim_flash_sem, BIOS_WAIT_FOREVER);
+    ExtFlash_open();
+    // Load up the animation from base and index.
+    ExtFlash_read_skipodd(base + index*sizeof(screen_anim_t),
+                          sizeof(screen_anim_t),
+                          (uint8_t *) current_anim);
+    frame_index = 0;
+    ExtFlash_close();
+    // Kick the clock back off to change frames basically immediately:
+    Clock_setTimeout(screen_anim_clock_h,
+                     2);
+    Clock_start(screen_anim_clock_h);
+    Semaphore_post(anim_flash_sem);
+}
+
+void do_animation_loop() {
+    while (frame_index < current_anim->anim_len) {
+        screen_put_buffer_from_flash(current_anim->anim_start_frame
+                                     + frame_index);
+        frame_index++;
+        Clock_setTimeout(screen_anim_clock_h,
+                         current_anim->anim_frame_delay_ms * 100);
+        Clock_start(screen_anim_clock_h);
+        Semaphore_pend(anim_sem, BIOS_WAIT_FOREVER);
+    }
 }
 
 void screen_anim_task_fn(UArg a0, UArg a1) {
-    uint16_t frame_index = 0;
-    screen_anim_t current_anim_storage;
-    screen_anim_t *current_anim = &current_anim_storage;
 
     // Bootup animation time!
     // Load the starting animation.
-    ExtFlash_open();
-    ExtFlash_read_skipodd(FLASH_BOOT_ANIM_LOC, sizeof(screen_anim_t),
-                          (uint8_t *) current_anim);
-    ExtFlash_close();
+
+    set_screen_animation(FLASH_BOOT_ANIM_LOC, 0);
 
     if (current_anim->anim_start_frame == 0xffffffff) { // sentinel for unprog
         // In this case, we never start the badge. Just spin.
@@ -99,22 +131,15 @@ void screen_anim_task_fn(UArg a0, UArg a1) {
     }
 
     // Badge is programmed. Do the starting animation.
+    do_animation_loop();
 
-    while (frame_index < current_anim->anim_len) {
-        screen_put_buffer_from_flash(current_anim->anim_start_frame
-                                     + frame_index);
-        frame_index++;
-        Clock_setTimeout(screen_anim_clock_h,
-                         current_anim->anim_frame_delay_ms * 100);
-        Clock_start(screen_anim_clock_h);
-        Semaphore_pend(anim_sem, BIOS_WAIT_FOREVER);
-    }
-
+    Semaphore_pend(anim_flash_sem, BIOS_WAIT_FOREVER);
     ExtFlash_open();
     ExtFlash_read_skipodd(FLASH_GAME_ANIM_LOC, // TODO: pick the right one
                           sizeof(screen_anim_t),
                           (uint8_t *) current_anim);
     ExtFlash_close();
+    Semaphore_post(anim_flash_sem);
 
     frame_index = 0;
     Clock_setTimeout(screen_anim_clock_h,
@@ -162,6 +187,9 @@ void screen_init() {
     Semaphore_Params params;
     Semaphore_Params_init(&params);
     anim_sem = Semaphore_create(0, &params, NULL);
+
+    Semaphore_Params_init(&params);
+    anim_flash_sem = Semaphore_create(1, &params, NULL);
 
     Task_Params taskParams;
     Task_Params_init(&taskParams);
