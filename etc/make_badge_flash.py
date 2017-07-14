@@ -112,9 +112,9 @@ def main():
     parser.add_argument('--workaround', action='store_true', help="Work around the issue where we cannot use odd numbered pages. Note that this must be paired with using the `skipodd` versions of the flash functions on the badge.")
     parser.add_argument('--frame-addr', type=int, default=0x010000, help='Starting offset for animation frames')
     parser.add_argument('--boot-addr', type=int, default=0x00f000, help="Address of the boot animation struct")
-    parser.add_argument('--tile-addr', type=int, default=0x03ff, help="Address of the tile animation buffer")
+    parser.add_argument('--tile-addr', type=int, default=0x0400, help="Address of the tile animation buffer")
     parser.add_argument('--game-addr', type=int, default=0x2000, help="Address of the game animation struct")
-    parser.add_argument('--id-addr', type=int, default=0x0400, help="Address of the badge ID.")
+    parser.add_argument('--id-addr', type=int, default=0x03f9, help="Address of the badge ID.")
     parser.add_argument('--id-addr2', type=int, default=0x00fffa, help="Address of the badge ID.")
     
     parser.add_argument('-o', '--hexpath', action='store', type=str, default='a.bin', help='Output file path')
