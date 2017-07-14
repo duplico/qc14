@@ -5,6 +5,7 @@
  *      Author: George
  */
 #include <stdint.h>
+#include <string.h>
 
 #include <xdc/runtime/Error.h>
 
@@ -12,25 +13,51 @@
 #include <ti/sysbios/knl/Clock.h>
 #include <ti/drivers/PIN.h>
 #include <ti/drivers/pin/PINCC26XX.h>
+#include <ti/sysbios/knl/Task.h>
+#include <ti/sysbios/knl/Semaphore.h>
+#include "ExtFlash.h"
 
 #include "qc14.h"
 #include "ui.h"
-#include "screen.h"
+#include "serial.h"
+#include "tlc_driver.h"
 
+extern uint8_t led_buf[11][7][3];
 void ui_update();
 
-uint8_t ui_screen = UI_SCREEN_GAME;
-uint8_t click_signal = SW_SIGNAL_NONE;
+// OS and Task constructs:
+char screen_anim_task_stack[768];
+Task_Struct screen_anim_task; // Main UI task
 
-Clock_Handle sw_clock;
+Clock_Handle screen_anim_clock_h;  // Ticks when we need a new screen
+void screen_anim_tick_swi(UArg a0);
+
+Clock_Handle screen_blink_clock_h; // Ticks when we're blinking
+void screen_blink_tick_swi(UArg a0);
+
+Clock_Handle sw_debounce_clock; // Ticks to debounce the switches
+void sw_clock_swi(UArg a0);
+
+Semaphore_Handle anim_sem; // Posted when we need a new screen
+Semaphore_Handle flash_sem; // Protects the flash.
+
+static PIN_State sw_pin_state;
+PIN_Handle sw_pin_h;
+
+volatile uint8_t screen_blink_status = 0;
+
+uint16_t screen_frame_index = 0;
+screen_anim_t screen_anim_storage;
+screen_anim_t *screen_anim = &screen_anim_storage;
+
+uint8_t ui_screen = UI_SCREEN_BOOT;
+
+uint8_t sw_signal = SW_SIGNAL_NONE;
 uint8_t sw_l_clicked = 0;
 uint8_t sw_r_clicked = 0;
 uint8_t sw_c_clicked = 0;
 
-uint_fast32_t timeout_ticks = 0;
-
-static PIN_State sw_pin_state;
-PIN_Handle sw_pin_h;
+uint_fast32_t screen_timeout_ticks = 0;
 
 PIN_Config sw_pin_table[] = {
     // Rocker switch:
@@ -40,28 +67,38 @@ PIN_Config sw_pin_table[] = {
     PIN_TERMINATE
 };
 
-void sw_clock_f(UArg a0) {
+const uint8_t rainbow_colors[6][3] = {{255,0,0}, {255,30,0}, {255,255,0}, {0,255,0}, {0,0,255}, {98,0,255}};
+const screen_frame_t power_bmp = {{{{0, 0, 0}, {0, 0, 0}, {0, 0, 0}, {255, 255, 255}, {0, 0, 0}, {0, 0, 0}, {0, 0, 0}}, {{0, 0, 0}, {255, 255, 255}, {0, 0, 0}, {255, 255, 255}, {0, 0, 0}, {255, 255, 255}, {0, 0, 0}}, {{255, 255, 255}, {0, 0, 0}, {0, 0, 0}, {255, 255, 255}, {0, 0, 0}, {0, 0, 0}, {255, 255, 255}}, {{255, 255, 255}, {0, 0, 0}, {0, 0, 0}, {255, 255, 255}, {0, 0, 0}, {0, 0, 0}, {255, 255, 255}}, {{255, 255, 255}, {0, 0, 0}, {0, 0, 0}, {255, 255, 255}, {0, 0, 0}, {0, 0, 0}, {255, 255, 255}}, {{0, 0, 0}, {255, 255, 255}, {0, 0, 0}, {0, 0, 0}, {0, 0, 0}, {255, 255, 255}, {0, 0, 0}}, {{0, 0, 0}, {0, 0, 0}, {255, 255, 255}, {255, 255, 255}, {255, 255, 255}, {0, 0, 0}, {0, 0, 0}}}};
+const screen_frame_t tile_placeholder = {{{{0, 0, 0}, {0, 0, 0}, {0, 0, 0}, {0, 0, 0}, {0, 0, 0}, {0, 0, 0}, {0, 0, 0}}, {{0, 0, 0}, {255, 255, 255}, {255, 255, 255}, {255, 255, 255}, {255, 255, 255}, {255, 255, 255}, {0, 0, 0}}, {{0, 0, 0}, {0, 0, 0}, {0, 0, 0}, {255, 255, 255}, {0, 0, 0}, {0, 0, 0}, {0, 0, 0}}, {{0, 0, 0}, {0, 0, 0}, {0, 0, 0}, {255, 255, 255}, {0, 0, 0}, {0, 0, 0}, {0, 0, 0}}, {{0, 0, 0}, {0, 0, 0}, {0, 0, 0}, {255, 255, 255}, {0, 0, 0}, {0, 0, 0}, {0, 0, 0}}, {{0, 0, 0}, {0, 0, 0}, {0, 0, 0}, {255, 255, 255}, {0, 0, 0}, {0, 0, 0}, {0, 0, 0}}, {{0, 0, 0}, {0, 0, 0}, {0, 0, 0}, {0, 0, 0}, {0, 0, 0}, {0, 0, 0}, {0, 0, 0}}}};
+const screen_frame_t needflash_icon = {{{{0, 0, 0}, {0, 0, 0}, {0, 0, 0}, {255, 255, 255}, {0, 0, 0}, {0, 0, 0}, {0, 0, 0}}, {{0, 0, 0}, {255, 255, 255}, {0, 0, 0}, {255, 255, 255}, {0, 0, 0}, {255, 255, 255}, {0, 0, 0}}, {{0, 0, 0}, {0, 0, 0}, {255, 255, 255}, {0, 0, 0}, {255, 255, 255}, {0, 0, 0}, {0, 0, 0}}, {{255, 255, 255}, {0, 0, 0}, {0, 0, 0}, {255, 255, 255}, {0, 0, 0}, {0, 0, 0}, {255, 255, 255}}, {{255, 255, 255}, {0, 0, 0}, {0, 0, 0}, {0, 0, 0}, {0, 0, 0}, {0, 0, 0}, {255, 255, 255}}, {{255, 255, 255}, {0, 0, 0}, {0, 0, 0}, {0, 0, 0}, {0, 0, 0}, {0, 0, 0}, {255, 255, 255}}, {{255, 255, 255}, {255, 255, 255}, {255, 255, 255}, {255, 255, 255}, {255, 255, 255}, {255, 255, 255}, {255, 255, 255}}}, 0};
+
+void screen_anim_tick_swi(UArg a0) {
+    Semaphore_post(anim_sem);
+}
+void screen_blink_tick_swi(UArg a0) {
+    led_blank_set(screen_blink_status);
+    screen_blink_status = !screen_blink_status;
+}
+
+void sw_clock_swi(UArg a0) {
     static uint8_t sw_l_last = 1;
     static uint8_t sw_r_last = 1;
     static uint8_t sw_c_last = 1;
-
-    if (uart_proto_state[0] || uart_proto_state[1] || uart_proto_state[2] || uart_proto_state[3])
-        return; // No UI during mating.
 
     uint8_t sw_l_curr = PIN_getInputValue(SW_L);
     uint8_t sw_r_curr = PIN_getInputValue(SW_R);
     uint8_t sw_c_curr = PIN_getInputValue(SW_CLICK);
 
-    click_signal = SW_SIGNAL_NONE;
+    sw_signal = SW_SIGNAL_NONE;
 
     if (!sw_l_curr && !sw_l_last && !sw_l_clicked) {
         // left clicked
         sw_l_clicked = 1;
-        click_signal = SW_SIGNAL_L;
+        sw_signal = SW_SIGNAL_L;
         // do stuff
     } else if (sw_l_curr && sw_l_last && sw_l_clicked) {
         sw_l_clicked = 0;
-        click_signal = SW_SIGNAL_OPEN;
+        sw_signal = SW_SIGNAL_OPEN;
         // unclicked.
     }
     sw_l_last = sw_l_curr;
@@ -69,11 +106,11 @@ void sw_clock_f(UArg a0) {
     if (!sw_r_curr && !sw_r_last && !sw_r_clicked) {
         // right clicked
         sw_r_clicked = 1;
-        click_signal = SW_SIGNAL_R;
+        sw_signal = SW_SIGNAL_R;
         // do stuff
     } else if (sw_r_curr && sw_r_last && sw_r_clicked) {
         sw_r_clicked = 0;
-        click_signal = SW_SIGNAL_OPEN;
+        sw_signal = SW_SIGNAL_OPEN;
         // unclicked.
     }
     sw_r_last = sw_r_curr;
@@ -81,28 +118,32 @@ void sw_clock_f(UArg a0) {
     if (!sw_c_curr && !sw_c_last && !sw_c_clicked) {
         // click clicked
         sw_c_clicked = 1;
-        click_signal = SW_SIGNAL_C;
+        sw_signal = SW_SIGNAL_C;
         // do stuff
     } else if (sw_c_curr && sw_c_last && sw_c_clicked) {
         sw_c_clicked = 0;
-        click_signal = SW_SIGNAL_OPEN;
+        sw_signal = SW_SIGNAL_OPEN;
         // unclicked.
     }
     sw_c_last = sw_c_curr;
 
-    if (click_signal != SW_SIGNAL_NONE) {
+    if (serial_in_progress())
+        return; // No UI during mating, but keep debouncing.
+
+    if (sw_signal != SW_SIGNAL_NONE) {
         // User interaction of some kind.
-        timeout_ticks = 0;
-        ui_click(click_signal);
+        screen_timeout_ticks = 0;
+        ui_click(sw_signal);
     } else if (ui_screen != UI_SCREEN_SLEEPING) {
-        timeout_ticks++;
-        if (((ui_screen & UI_SCREEN_SEL_MASK) && timeout_ticks > UI_TIMEOUT_MATCH_SEL) || (timeout_ticks > UI_TIMEOUT_MATCH_MAIN)) {
+        screen_timeout_ticks++;
+        if (((ui_screen & UI_SCREEN_SEL_MASK) && screen_timeout_ticks > UI_TIMEOUT_MATCH_SEL) || (screen_timeout_ticks > UI_TIMEOUT_MATCH_MAIN)) {
             ui_timeout();
-            timeout_ticks = 0;
+            screen_timeout_ticks = 0;
         }
     }
 }
 
+// TODO: This should really be called from a _task_ context:
 void ui_click(uint8_t sw_signal)
 {
     // Disregard if it's a release.
@@ -110,6 +151,11 @@ void ui_click(uint8_t sw_signal)
         return; // We don't care
 
     switch(ui_screen) {
+    case UI_SCREEN_BOOT:
+        return; // Should be unreachable.
+    case UI_SCREEN_HUNGRY_FOR_DATA:
+        // TODO: toggle between white and not.
+        break;
     case UI_SCREEN_GAME_SEL: // Icon select
         if (sw_signal & SW_SIGNAL_DIR_MASK) {
             // left or right
@@ -164,7 +210,7 @@ void ui_timeout() {
     ui_update();
 }
 
-void ui_update() {
+void ui_update() { // TODO: This should go away.
     if (ui_screen == UI_SCREEN_SLEEPING) {
         // Shut it down. Shut everything down.
     } else if (ui_screen == UI_SCREEN_SLEEP || (ui_screen & UI_SCREEN_SEL_MASK)) {
@@ -184,5 +230,187 @@ void ui_init() {
     Clock_Params_init(&clockParams);
     clockParams.period = UI_CLOCK_TICKS;
     clockParams.startFlag = TRUE;
-    sw_clock = Clock_create(sw_clock_f, 2, &clockParams, &eb);
+    sw_debounce_clock = Clock_create(sw_clock_swi, 2, &clockParams, &eb);
 }
+
+void screen_update_now() {
+    Clock_stop(screen_anim_clock_h);
+    Semaphore_post(anim_sem);
+}
+
+void screen_blink_on() {
+    screen_blink_status = (screen_blink_status? 0: ui_screen != UI_SCREEN_SLEEP);
+    Clock_start(screen_blink_clock_h);
+}
+
+void screen_blink_off() {
+    // Don't bother sending new `fun` data if blink_status is 0. Of course,
+    // blink_status==0 implies the lights are lit, but since we invert
+    // blink_status _after_ we set the bit in the `fun` buffer, actually
+    // blink_status==0 means we're in the off part of a cycle.
+    // also, lol, look a 3-deep stack of `blink_status` in this comment.
+    if (!screen_blink_status)
+        led_blank_set(0);
+    Clock_stop(screen_blink_clock_h);
+}
+
+inline void screen_put_buffer(screen_frame_t *frame) {
+    memcpy(led_buf, frame, 7*7*3);
+}
+
+inline void screen_put_buffer_from_flash(uint32_t frame_id) {
+    Semaphore_pend(flash_sem, BIOS_WAIT_FOREVER);
+    ExtFlash_open();
+    ExtFlash_read_skipodd(FLASH_SCREEN_FRAMES_STARTPT
+                          + frame_id*sizeof(screen_frame_t),
+                          7*7*3, (uint8_t *) led_buf);
+    ExtFlash_close();
+    Semaphore_post(flash_sem);
+}
+
+void set_screen_animation(size_t base, uint32_t index) {
+    // Stop animating.
+    Clock_stop(screen_anim_clock_h);
+    Semaphore_pend(flash_sem, BIOS_WAIT_FOREVER);
+    ExtFlash_open();
+    // Load up the animation from base and index.
+    ExtFlash_read_skipodd(base + index*sizeof(screen_anim_t),
+                          sizeof(screen_anim_t),
+                          (uint8_t *) screen_anim);
+    screen_frame_index = 0;
+    ExtFlash_close();
+    // Kick the clock back off to change frames basically immediately:
+    Clock_setTimeout(screen_anim_clock_h,
+                     2);
+    Clock_start(screen_anim_clock_h);
+    Semaphore_post(flash_sem);
+}
+
+void set_screen_tile(uint32_t index) {
+    set_screen_animation(FLASH_TILE_ANIM_LOC, index);
+}
+
+void set_screen_game(uint32_t index) {
+    set_screen_animation(FLASH_GAME_ANIM_LOC, index);
+}
+
+void set_screen_solid_local(const screen_frame_t *frame) {
+    Clock_stop(screen_anim_clock_h); // TODO: Protect clock? // Is there preemption?
+    screen_frame_index = 0;
+    screen_anim->anim_len = 0;
+    screen_anim->anim_frame_delay_ms = 0;
+    // Don't start the clock. Just let it ride.
+    screen_put_buffer((screen_frame_t *)frame);
+}
+
+void do_animation_loop_body() {
+    screen_put_buffer_from_flash(screen_anim->anim_start_frame
+                                 + screen_frame_index);
+    screen_frame_index++;
+    Clock_setTimeout(screen_anim_clock_h,
+                     screen_anim->anim_frame_delay_ms * 100);
+    Clock_start(screen_anim_clock_h);
+}
+
+void do_animation_loop() {
+    while (screen_frame_index < screen_anim->anim_len) {
+        do_animation_loop_body();
+        Semaphore_pend(anim_sem, BIOS_WAIT_FOREVER);
+    }
+}
+
+inline void bootup_sequence() {
+    ui_screen = UI_SCREEN_BOOT;
+    // Load the starting animation.
+    set_screen_animation(FLASH_BOOT_ANIM_LOC, 0);
+
+    if (screen_anim->anim_start_frame == 0xffffffff) { // sentinel for unprog
+        ui_screen = UI_SCREEN_HUNGRY_FOR_DATA;
+        // TODO: Move this out into the main loop body.
+        // In this case, we never start the badge. Just spin.
+        set_screen_solid_local(&needflash_icon);
+        screen_blink_on();
+        while (1)
+            Task_yield();
+    }
+
+    // Badge is programmed. Do the starting animation.
+    do_animation_loop();
+}
+
+void screen_anim_task_fn(UArg a0, UArg a1) {
+
+    // Bootup animation time!
+    bootup_sequence(); // Only returns if we're programmed.
+
+    // Now that we've showed off our screen, time to start the badge.
+    start_badge();
+
+    // TODO: Use our *current* game icon:
+    //       Probably should happen in start_badge.
+    set_screen_game(0);
+
+    while (1) {
+        // Handle user input:
+
+        // Handle animations:
+        if (Semaphore_pend(anim_sem, BIOS_WAIT_FOREVER)) {
+            switch(ui_screen) {
+            case UI_SCREEN_BOOT:
+                // Unreachable (lol)
+                break;
+            case UI_SCREEN_HUNGRY_FOR_DATA:
+                // Solid, no need to bother.
+                break;
+            case UI_SCREEN_GAME:
+                // TODO: Do arms?
+            case UI_SCREEN_GAME_SEL: // same, but blinking. and no arms.
+                do_animation_loop_body();
+                if (screen_frame_index == screen_anim->anim_len) {
+                    // TODO: looping heeeeere.
+                    screen_frame_index = 0;
+                }
+                continue;
+
+            case UI_SCREEN_TILE:
+            case UI_SCREEN_TILE_SEL:
+                screen_put_buffer(&tile_placeholder);
+                break;
+            case UI_SCREEN_SLEEP:
+                screen_put_buffer(&power_bmp);
+                break;
+            case UI_SCREEN_SLEEPING:
+                memset(led_buf, 0, sizeof led_buf);
+            }
+        }
+    }
+}
+
+void screen_init() {
+    Semaphore_Params params;
+    Semaphore_Params_init(&params);
+    anim_sem = Semaphore_create(0, &params, NULL);
+
+    Semaphore_Params_init(&params);
+    flash_sem = Semaphore_create(1, &params, NULL);
+
+    Task_Params taskParams;
+    Task_Params_init(&taskParams);
+    taskParams.stack = screen_anim_task_stack;
+    taskParams.stackSize = sizeof(screen_anim_task_stack);
+    taskParams.priority = 1;
+    Task_construct(&screen_anim_task, screen_anim_task_fn, &taskParams, NULL);
+
+    Clock_Params clockParams;
+    Clock_Params_init(&clockParams);
+    clockParams.period = 0; // One-shot clock.
+    clockParams.startFlag = TRUE;
+    screen_anim_clock_h = Clock_create(screen_anim_tick_swi, 100, &clockParams, NULL); // Wait 100 ticks (1ms) before firing for the first time.
+
+    Clock_Params blink_clock_params;
+    Clock_Params_init(&blink_clock_params);
+    blink_clock_params.period = 50000; // 500 ms recurring
+    blink_clock_params.startFlag = FALSE; // Don't auto-start (only when we blink-on)
+    screen_blink_clock_h = Clock_create(screen_blink_tick_swi, 0, &blink_clock_params, NULL);
+}
+

@@ -38,7 +38,6 @@ bleUserCfg_t user0Cfg = BLE_USER_CFG; // BLE user defined configuration
 // QC14 Drivers
 #include "ExtFlash.h"
 #include "tlc_driver.h"
-#include "screen.h"
 #include "ui.h"
 #include "serial.h"
 #include "qc14.h"
@@ -85,20 +84,20 @@ void qc14conf_save() {
 
     my_conf.crc = crc16((uint8_t*) &my_conf, sizeof(qc14_badge_conf_t)-2);
 
-    Semaphore_pend(anim_flash_sem, BIOS_WAIT_FOREVER);
+    Semaphore_pend(flash_sem, BIOS_WAIT_FOREVER);
     ExtFlash_open();
     ExtFlash_erase(FLASH_CONF_LOC, sizeof(qc14_badge_conf_t));
     ExtFlash_write_skipodd(FLASH_CONF_LOC,
                           sizeof(qc14_badge_conf_t),
                           (uint8_t *) &my_conf);
     ExtFlash_close();
-    Semaphore_post(anim_flash_sem);
+    Semaphore_post(flash_sem);
 }
 
 void qc14conf_init() {
     uint8_t need_to_save_conf = 0;
 
-    Semaphore_pend(anim_flash_sem, BIOS_WAIT_FOREVER);
+    Semaphore_pend(flash_sem, BIOS_WAIT_FOREVER);
     ExtFlash_open();
     // Load up the animation from base and index.
     ExtFlash_read_skipodd(FLASH_CONF_LOC,
@@ -137,7 +136,7 @@ void qc14conf_init() {
     }
 
     ExtFlash_close();
-    Semaphore_post(anim_flash_sem);
+    Semaphore_post(flash_sem);
 
     if (need_to_save_conf) {
         qc14conf_save();
