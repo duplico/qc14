@@ -1,5 +1,6 @@
 // Standard library includes
 #include <stdio.h>
+#include <string.h>
 
 // TI runtime
 
@@ -72,8 +73,81 @@ void init_badge_peripherals() {
     screen_init();
 }
 
+void qc14conf_save() {
+    // TODO:
+    //  Save primary
+    //  Read back
+    //  Check CRC
+    //  Save backup
+    //  Read back
+    //  Check CRC.
+    //  Retry forever???
+
+    my_conf.crc = crc16((uint8_t*) &my_conf, sizeof(qc14_badge_conf_t)-2);
+
+    Semaphore_pend(anim_flash_sem, BIOS_WAIT_FOREVER);
+    ExtFlash_open();
+    ExtFlash_erase(FLASH_CONF_LOC, sizeof(qc14_badge_conf_t));
+    ExtFlash_write_skipodd(FLASH_CONF_LOC,
+                          sizeof(qc14_badge_conf_t),
+                          (uint8_t *) &my_conf);
+    ExtFlash_close();
+    Semaphore_post(anim_flash_sem);
+}
+
+void qc14conf_init() {
+    uint8_t need_to_save_conf = 0;
+
+    Semaphore_pend(anim_flash_sem, BIOS_WAIT_FOREVER);
+    ExtFlash_open();
+    // Load up the animation from base and index.
+    ExtFlash_read_skipodd(FLASH_CONF_LOC,
+                          sizeof(qc14_badge_conf_t),
+                          (uint8_t *) &my_conf);
+
+    if (crc16((uint8_t*) &my_conf, sizeof(qc14_badge_conf_t)-2) != my_conf.crc) {
+        // Invalid CRC. Check backup:
+        ExtFlash_read_skipodd(FLASH_CONF_BACKUP_LOC,
+                              sizeof(qc14_badge_conf_t),
+                              (uint8_t *) &my_conf);
+        if (crc16((uint8_t*) &my_conf,
+                  sizeof(qc14_badge_conf_t)-2) != my_conf.crc) {
+            // Backup also invalid:
+
+            // Check ID locations:
+            uint16_t badge_id1 = 0;
+            uint16_t badge_id2 = 0;
+            ExtFlash_read_skipodd(FLASH_ID_LOC, 2, (uint8_t *) &badge_id1); // TODO: broken
+            ExtFlash_read_skipodd(FLASH_ID_LOC2, 2, (uint8_t *) &badge_id2);
+
+            if (badge_id1 != badge_id2 || badge_id1 == 0xffff) {
+                // TODO:
+                // PROBLEM.
+            }
+
+            // Zero it out and start from scratch:
+            memset((uint8_t *) &my_conf, 0x00, sizeof(qc14_badge_conf_t));
+
+            my_conf.badge_id = badge_id1;
+            // TODO: SET ICON
+            // TODO: SET TILE
+            // CRC is set from save().
+            need_to_save_conf = 1;
+        }
+    }
+
+    ExtFlash_close();
+    Semaphore_post(anim_flash_sem);
+
+    if (need_to_save_conf) {
+        qc14conf_save();
+    }
+
+}
+
 // Called only once, from the screen.
 void start_badge() {
+    qc14conf_init();
     ui_init();
     serial_init();
     init_ble();
