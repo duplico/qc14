@@ -24,6 +24,7 @@
 #define SW_SIGNAL_R 0b10
 #define SW_SIGNAL_DIR_MASK 0b11
 #define SW_SIGNAL_C 0b100
+#define SW_SIGNAL_TIMEOUT 0b10000
 
 // Serial timeout configuration
 #define RTS_TIMEOUT_MS 50
