@@ -103,6 +103,23 @@ void set_screen_animation(size_t base, uint32_t index) {
     Semaphore_post(anim_flash_sem);
 }
 
+void set_screen_tile(uint32_t index) {
+    set_screen_animation(FLASH_TILE_ANIM_LOC, index);
+}
+
+void set_screen_game(uint32_t index) {
+    set_screen_animation(FLASH_GAME_ANIM_LOC, index);
+}
+
+void set_screen_solid_local(screen_frame_t *frame) {
+    Clock_stop(screen_anim_clock_h); // TODO: Protect clock? // Is there preemption?
+    frame_index = 0;
+    current_anim->anim_len = 0;
+    current_anim->anim_frame_delay_ms = 0;
+    // Don't start the clock. Just let it ride.
+    screen_put_buffer(frame);
+}
+
 void do_animation_loop() {
     while (frame_index < current_anim->anim_len) {
         screen_put_buffer_from_flash(current_anim->anim_start_frame
@@ -115,16 +132,13 @@ void do_animation_loop() {
     }
 }
 
-void screen_anim_task_fn(UArg a0, UArg a1) {
-
-    // Bootup animation time!
+inline void bootup_sequence() {
     // Load the starting animation.
-
     set_screen_animation(FLASH_BOOT_ANIM_LOC, 0);
 
     if (current_anim->anim_start_frame == 0xffffffff) { // sentinel for unprog
         // In this case, we never start the badge. Just spin.
-        screen_put_buffer(&needflash_icon);
+        set_screen_solid_local(&needflash_icon);
         screen_blink_on();
         while (1)
             Task_yield();
@@ -132,22 +146,19 @@ void screen_anim_task_fn(UArg a0, UArg a1) {
 
     // Badge is programmed. Do the starting animation.
     do_animation_loop();
+}
 
-    Semaphore_pend(anim_flash_sem, BIOS_WAIT_FOREVER);
-    ExtFlash_open();
-    ExtFlash_read_skipodd(FLASH_GAME_ANIM_LOC, // TODO: pick the right one
-                          sizeof(screen_anim_t),
-                          (uint8_t *) current_anim);
-    ExtFlash_close();
-    Semaphore_post(anim_flash_sem);
+void screen_anim_task_fn(UArg a0, UArg a1) {
 
-    frame_index = 0;
-    Clock_setTimeout(screen_anim_clock_h,
-                     current_anim->anim_frame_delay_ms * 100);
-    Clock_start(screen_anim_clock_h);
+    // Bootup animation time!
+    bootup_sequence(); // Only returns if we're programmed.
 
     // Now that we've showed off our screen, time to start the badge.
     start_badge();
+
+    // TODO: Use our *current* game icon:
+    //       Probably should happen in start_badge.
+    set_screen_game(0);
 
     while (1) {
         Semaphore_pend(anim_sem, BIOS_WAIT_FOREVER);

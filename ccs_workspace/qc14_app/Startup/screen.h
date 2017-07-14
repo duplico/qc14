@@ -8,6 +8,8 @@
 #ifndef STARTUP_SCREEN_H_
 #define STARTUP_SCREEN_H_
 
+#include <ti/sysbios/knl/Semaphore.h>
+
 typedef struct {
     uint8_t red;
     uint8_t green;
@@ -42,6 +44,8 @@ typedef struct {
     screen_anim_t animation;
     mate_spec_t arms[4];
 } game_icon_t;
+
+extern Semaphore_Handle anim_flash_sem; // TODO: rename
 
 void screen_init();
 void screen_blink_on();
