@@ -107,6 +107,10 @@ void rx_done(UArg uart_id) {
 
 }
 
+uint8_t serial_in_progress() {
+    return uart_proto_state[0] || uart_proto_state[1] || uart_proto_state[2] || uart_proto_state[3];
+}
+
 void disconnected(UArg uart_id) {
     arm_proto_state=SERIAL_PHY_STATE_DIS;
     PINCC26XX_setOutputValue(arm_gpio_tx, 0);

@@ -18,6 +18,7 @@
 #define SERIAL_MSG_TYPE_CONF 4
 
 void serial_init();
+uint8_t serial_in_progress();
 
 typedef struct {
     uint16_t badge_id;
