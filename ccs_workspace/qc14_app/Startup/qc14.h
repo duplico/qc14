@@ -41,13 +41,13 @@
 extern uint8_t uart_proto_state[4];
 
 #define FLASH_SCREEN_FRAMES_STARTPT 0x010000
-#define FLASH_BOOT_ANIM_LOC 0x00f000
-#define FLASH_ID_LOC 0x03f9
-#define FLASH_ID_LOC2 0xfffa
-#define FLASH_CONF_LOC 0x0100
-#define FLASH_CONF_BACKUP_LOC 0x0412
-#define FLASH_TILE_ANIM_LOC 0x0400
-#define FLASH_GAME_ANIM_LOC 0x2000
+#define FLASH_BOOT_ANIM_LOC 0x003000
+#define FLASH_ID_LOC 0x001000
+#define FLASH_ID_LOC2 0x0f4000
+#define FLASH_CONF_LOC 0x002000
+#define FLASH_CONF_BACKUP_LOC 0x003000
+#define FLASH_TILE_ANIM_LOC 0x004000
+#define FLASH_GAME_ANIM_LOC 0x00a000
 
 unsigned short crc16(volatile unsigned char *sbuf,unsigned char len);
 

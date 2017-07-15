@@ -12,6 +12,7 @@
 
 #define UI_SCREEN_BOOT 0xf0
 #define UI_SCREEN_HUNGRY_FOR_DATA 0xe0
+#define UI_SCREEN_HUNGRY_FOR_DATA_W 0xd0
 #define UI_SCREEN_GAME 0x00
 #define UI_SCREEN_GAME_SEL (UI_SCREEN_GAME | UI_SCREEN_SEL_MASK)
 #define UI_SCREEN_TILE 0x01
@@ -27,7 +28,7 @@
 void ui_click(uint8_t sw_signal);
 void ui_init();
 void ui_timeout();
-
+void arm_color(UArg uart_id, uint8_t r, uint8_t g, uint8_t b);
 extern uint8_t ui_screen;
 
 #include <ti/sysbios/knl/Semaphore.h>
