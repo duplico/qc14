@@ -137,7 +137,7 @@ void sw_clock_swi(UArg a0) {
         // User interaction of some kind.
         screen_timeout_ticks = 0;
         Semaphore_post(sw_sem);
-    } else if (ui_screen != UI_SCREEN_SLEEPING) {
+    } else if (ui_screen != UI_SCREEN_SLEEPING && ui_screen != UI_SCREEN_HUNGRY_FOR_DATA) {
         screen_timeout_ticks++;
         if (((ui_screen & UI_SCREEN_SEL_MASK) && screen_timeout_ticks > UI_TIMEOUT_MATCH_SEL) || (screen_timeout_ticks > UI_TIMEOUT_MATCH_MAIN)) {
             // Timeout.
@@ -205,6 +205,8 @@ void set_screen_game(uint32_t index) {
 }
 
 void set_screen_solid_local(const screen_frame_t *frame) {
+    // Pre-empt the animation semaphore:
+    Semaphore_pend(anim_sem, BIOS_NO_WAIT);
     Clock_stop(screen_anim_clock_h); // TODO: Protect clock? // Is there preemption?
     screen_frame_index = 0;
     screen_anim->anim_len = 0;
@@ -317,15 +319,17 @@ void do_animation_loop_body() {
     screen_put_buffer_from_flash(screen_anim->anim_start_frame
                                  + screen_frame_index);
     screen_frame_index++;
-    Clock_setTimeout(screen_anim_clock_h,
-                     screen_anim->anim_frame_delay_ms * 100);
-    Clock_start(screen_anim_clock_h);
+    if (screen_frame_index < screen_anim->anim_len) {
+        Clock_setTimeout(screen_anim_clock_h,
+                         screen_anim->anim_frame_delay_ms * 100);
+        Clock_start(screen_anim_clock_h);
+    }
 }
 
 void do_animation_loop() {
     while (screen_frame_index < screen_anim->anim_len) {
-        do_animation_loop_body();
         Semaphore_pend(anim_sem, BIOS_WAIT_FOREVER);
+        do_animation_loop_body();
     }
 }
 
@@ -375,6 +379,9 @@ void screen_anim_task_fn(UArg a0, UArg a1) {
                     // Currently this is unreachable.
                 } else {
                     screen_frame_index = 0;
+                    Clock_setTimeout(screen_anim_clock_h,
+                                     screen_anim->anim_frame_delay_ms * 100);
+                    Clock_start(screen_anim_clock_h);
                 }
             }
         }
@@ -417,7 +424,7 @@ void screen_init() {
     Clock_Params clockParams;
     Clock_Params_init(&clockParams);
     clockParams.period = 0; // One-shot clock.
-    clockParams.startFlag = TRUE;
+    clockParams.startFlag = FALSE;
     screen_anim_clock_h = Clock_create(screen_anim_tick_swi, 100, &clockParams, NULL); // Wait 100 ticks (1ms) before firing for the first time.
 
     Clock_Params blink_clock_params;

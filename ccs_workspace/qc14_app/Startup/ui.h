@@ -10,7 +10,6 @@
 
 #define UI_SCREEN_SEL_MASK 0x10
 
-
 #define UI_SCREEN_BOOT 0xf0
 #define UI_SCREEN_HUNGRY_FOR_DATA 0xe0
 #define UI_SCREEN_GAME 0x00
@@ -30,7 +29,6 @@ void ui_init();
 void ui_timeout();
 
 extern uint8_t ui_screen;
-
 
 #include <ti/sysbios/knl/Semaphore.h>
 
