@@ -74,7 +74,6 @@ const screen_frame_t tile_placeholder = {{{{0, 0, 0}, {0, 0, 0}, {0, 0, 0}, {0, 
 const screen_frame_t needflash_icon = {{{{0, 0, 0}, {0, 0, 0}, {0, 0, 0}, {255, 255, 255}, {0, 0, 0}, {0, 0, 0}, {0, 0, 0}}, {{0, 0, 0}, {255, 255, 255}, {0, 0, 0}, {255, 255, 255}, {0, 0, 0}, {255, 255, 255}, {0, 0, 0}}, {{0, 0, 0}, {0, 0, 0}, {255, 255, 255}, {0, 0, 0}, {255, 255, 255}, {0, 0, 0}, {0, 0, 0}}, {{255, 255, 255}, {0, 0, 0}, {0, 0, 0}, {255, 255, 255}, {0, 0, 0}, {0, 0, 0}, {255, 255, 255}}, {{255, 255, 255}, {0, 0, 0}, {0, 0, 0}, {0, 0, 0}, {0, 0, 0}, {0, 0, 0}, {255, 255, 255}}, {{255, 255, 255}, {0, 0, 0}, {0, 0, 0}, {0, 0, 0}, {0, 0, 0}, {0, 0, 0}, {255, 255, 255}}, {{255, 255, 255}, {255, 255, 255}, {255, 255, 255}, {255, 255, 255}, {255, 255, 255}, {255, 255, 255}, {255, 255, 255}}}, 0};
 const screen_frame_t all_off = {0};
 
-
 void screen_anim_tick_swi(UArg a0) {
     Semaphore_post(anim_sem);
 }
@@ -241,18 +240,36 @@ void ui_click(uint8_t sw_signal)
         ui_screen = UI_SCREEN_HUNGRY_FOR_DATA;
         break;
     case UI_SCREEN_GAME_SEL: // Icon select
-        if (sw_signal & SW_SIGNAL_DIR_MASK) {
+        // TODO: This should really be a switch.
+        if (sw_signal == SW_SIGNAL_R) {
             // left or right
-        } else {
+            my_conf.current_icon++;
+            if (my_conf.current_icon == 40)
+                my_conf.current_icon = 0;
+        } else if (sw_signal == SW_SIGNAL_L ) {
+            if (my_conf.current_icon == 0)
+                my_conf.current_icon = 40;
+            my_conf.current_icon--;
+        } else if (sw_signal == SW_SIGNAL_C) {
             // click.
+            // TODO: assign and save???
             ui_screen = UI_SCREEN_GAME;
         }
         break;
     case UI_SCREEN_TILE_SEL: // Tile select
-        if (sw_signal & SW_SIGNAL_DIR_MASK) {
+        // TODO: This should really be a switch.
+        if (sw_signal == SW_SIGNAL_R) {
             // left or right
-        } else {
+            my_conf.current_tile++;
+            if (my_conf.current_tile == 40)
+                my_conf.current_tile = 0;
+        } else if (sw_signal == SW_SIGNAL_L ) {
+            if (my_conf.current_tile == 0)
+                my_conf.current_tile = 40;
+            my_conf.current_tile--;
+        } else if (sw_signal == SW_SIGNAL_C) {
             // click.
+            // TODO: assign and save???
             ui_screen = UI_SCREEN_TILE;
         }
         break;
@@ -316,7 +333,6 @@ void ui_update() {
         break;
     case UI_SCREEN_HUNGRY_FOR_DATA_W:
         memset(led_buf, 0xff, 7*7*3);
-//        memset(led_buf[7], 0xff, 4*7*3);
         for (uint8_t i=0; i<4; i++)
             arm_color(i, 0xff, 0xff, 0xff);
         break;
@@ -330,7 +346,7 @@ void ui_update() {
         screen_blink_on();
         // fall through
     case UI_SCREEN_TILE:
-        set_screen_tile(0); // TODO
+        set_screen_tile(my_conf.current_tile);
         break;
     }
 }
