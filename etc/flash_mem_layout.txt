@@ -1,0 +1,13 @@
+0x000000 - reserved
+0x001000 - first ID in here
+0x002000 - main conf in here
+0x003000 - boot anim here
+0x004000 - tiles live in here
+0x00a000 - icons live in here
+0x010000 - frames live here
+
+0x0f0000 - backup conf here
+
+0x0f4000 - second ID copy here
+0x100000 - end of memory (workaround)
+0x200000 - end of memory (real)

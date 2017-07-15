@@ -112,17 +112,10 @@ uint8_t serial_in_progress() {
 }
 
 void disconnected(UArg uart_id) {
+    arm_color(uart_id, 0,0,0);
     arm_proto_state=SERIAL_PHY_STATE_DIS;
     PINCC26XX_setOutputValue(arm_gpio_tx, 0);
     Task_sleep(RTS_TIMEOUT*1.2);
-}
-
-void arm_color(UArg uart_id, uint8_t r, uint8_t g, uint8_t b) {
-    for (uint8_t i=0; i<6; i++) {
-        led_buf[7+uart_id][i][0] = r;
-        led_buf[7+uart_id][i][1] = g;
-        led_buf[7+uart_id][i][2] = b;
-    }
 }
 
 uint8_t wait_with_timeout(UArg uart_id, uint8_t match_val, uint32_t timeout_ms, uint32_t settle_reads) {
@@ -165,7 +158,6 @@ void serial_arm_task(UArg uart_id, UArg arg1) {
             PINCC26XX_setOutputValue(arm_gpio_tx, 1);
 
             timeout_ms = PLUG_TIMEOUT_MS;
-            arm_color(uart_id, 0,0,0);
 
             while (timeout_ms) {
                 // This is the only place we can get connected,
@@ -175,10 +167,8 @@ void serial_arm_task(UArg uart_id, UArg arg1) {
 
                 if (PINCC26XX_getInputValue(arm_gpio_rx)) {
                     timeout_ms--;
-                    arm_color(uart_id, 5,5,5);
                 } else {
                     timeout_ms = PLUG_TIMEOUT_MS;
-                    arm_color(uart_id, 0,0,0);
                 }
                 Task_sleep(100); // 1 ms.
             }

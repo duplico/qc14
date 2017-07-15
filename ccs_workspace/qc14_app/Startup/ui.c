@@ -215,9 +215,18 @@ void set_screen_solid_local(const screen_frame_t *frame) {
     screen_put_buffer((screen_frame_t *)frame);
 }
 
+void arm_color(UArg uart_id, uint8_t r, uint8_t g, uint8_t b) {
+    for (uint8_t i=0; i<6; i++) {
+        led_buf[7+uart_id][i][0] = r;
+        led_buf[7+uart_id][i][1] = g;
+        led_buf[7+uart_id][i][2] = b;
+    }
+}
+
 // NB: This should really be called from a _task_ context:
 void ui_click(uint8_t sw_signal)
 {
+
     // Disregard if it's a release.
     if (sw_signal == SW_SIGNAL_OPEN)
         return; // We don't care
@@ -226,7 +235,10 @@ void ui_click(uint8_t sw_signal)
     case UI_SCREEN_BOOT:
         return; // Should be unreachable.
     case UI_SCREEN_HUNGRY_FOR_DATA:
-        // TODO: toggle between white and not.
+        ui_screen = UI_SCREEN_HUNGRY_FOR_DATA_W;
+        break;
+    case UI_SCREEN_HUNGRY_FOR_DATA_W:
+        ui_screen = UI_SCREEN_HUNGRY_FOR_DATA;
         break;
     case UI_SCREEN_GAME_SEL: // Icon select
         if (sw_signal & SW_SIGNAL_DIR_MASK) {
@@ -299,6 +311,14 @@ void ui_update() {
     case UI_SCREEN_HUNGRY_FOR_DATA:
         screen_blink_on();
         set_screen_solid_local(&needflash_icon);
+        for (uint8_t i=0; i<4; i++)
+            arm_color(i, 0x00, 0x00, 0x00);
+        break;
+    case UI_SCREEN_HUNGRY_FOR_DATA_W:
+        memset(led_buf, 0xff, 7*7*3);
+//        memset(led_buf[7], 0xff, 4*7*3);
+        for (uint8_t i=0; i<4; i++)
+            arm_color(i, 0xff, 0xff, 0xff);
         break;
     case UI_SCREEN_GAME_SEL:
         screen_blink_on();
@@ -310,7 +330,7 @@ void ui_update() {
         screen_blink_on();
         // fall through
     case UI_SCREEN_TILE:
-        set_screen_tile(my_conf.current_tile);
+        set_screen_tile(0); // TODO
         break;
     }
 }
