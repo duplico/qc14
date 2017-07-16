@@ -23,7 +23,7 @@
 #include "tlc_driver.h"
 
 extern uint8_t led_buf[11][7][3];
-void ui_update();
+void ui_update(uint8_t ui_next);
 
 // OS and Task constructs:
 char screen_anim_task_stack[768];
@@ -159,8 +159,9 @@ void sw_clock_swi(UArg a0) {
     }
 }
 
-void screen_blink_on() {
-    screen_blink_status = (screen_blink_status? 0: ui_screen != UI_SCREEN_SLEEP);
+void screen_blink_on(uint8_t start_off) {
+    if (start_off)
+        screen_blink_status = start_off;
     Clock_start(screen_blink_clock_h);
 }
 
@@ -237,6 +238,7 @@ void arm_color(UArg uart_id, uint8_t r, uint8_t g, uint8_t b) {
 // NB: This should really be called from a _task_ context:
 void ui_click(uint8_t sw_signal)
 {
+    uint8_t ui_next = ui_screen;
 
     // Disregard if it's a release.
     if (sw_signal == SW_SIGNAL_OPEN)
@@ -246,10 +248,10 @@ void ui_click(uint8_t sw_signal)
     case UI_SCREEN_BOOT:
         return; // Should be unreachable.
     case UI_SCREEN_HUNGRY_FOR_DATA:
-        ui_screen = UI_SCREEN_HUNGRY_FOR_DATA_W;
+        ui_next = UI_SCREEN_HUNGRY_FOR_DATA_W;
         break;
     case UI_SCREEN_HUNGRY_FOR_DATA_W:
-        ui_screen = UI_SCREEN_HUNGRY_FOR_DATA;
+        ui_next = UI_SCREEN_HUNGRY_FOR_DATA;
         break;
     case UI_SCREEN_GAME_SEL: // Icon select
         // TODO: This should really be a switch.
@@ -265,7 +267,7 @@ void ui_click(uint8_t sw_signal)
         } else if (sw_signal == SW_SIGNAL_C) {
             // click.
             // TODO: assign and save???
-            ui_screen = UI_SCREEN_GAME;
+            ui_next = UI_SCREEN_GAME;
         }
         break;
     case UI_SCREEN_TILE_SEL: // Tile select
@@ -282,63 +284,64 @@ void ui_click(uint8_t sw_signal)
         } else if (sw_signal == SW_SIGNAL_C) {
             // click.
             // TODO: assign and save???
-            ui_screen = UI_SCREEN_TILE;
+            ui_next = UI_SCREEN_TILE;
         }
         break;
     case UI_SCREEN_SLEEPING: // We're asleep.
         // Doesn't matter what we click. Time to wake up and go to UI_SCREEN_SLEEP:
-        ui_screen = UI_SCREEN_SLEEP;
+        ui_next = UI_SCREEN_SLEEP;
         break;
     default: // We are in one of the switchable versions:
         switch(sw_signal) {
         case SW_SIGNAL_L:
-            ui_screen = (ui_screen + 2) % 3; // Go left.
+            ui_next = (ui_screen + 2) % 3; // Go left.
             break;
         case SW_SIGNAL_R:
-            ui_screen = (ui_screen + 1) % 3; // Go right.
+            ui_next = (ui_screen + 1) % 3; // Go right.
             break;
         default: // click
-            ui_screen = ui_screen | UI_SCREEN_SEL_MASK;
+            ui_next = ui_screen | UI_SCREEN_SEL_MASK;
         }
     }
 
-    ui_update();
+    ui_update(ui_next);
 }
 
 void ui_timeout() {
+    uint8_t ui_next = ui_screen;
     // Are we in a SEL mode? If so, timeout back to the non-SEL version.
     // This can't be called while we're sleeping, because we don't do timeouts
     // from inside the switch clock SWI when sleeping.
-    if (ui_screen & UI_SCREEN_SEL_MASK) {
-        ui_screen &= ~UI_SCREEN_SEL_MASK;
-    } else if (ui_screen == UI_SCREEN_GAME) {
+    if (ui_next & UI_SCREEN_SEL_MASK) {
+        ui_next &= ~UI_SCREEN_SEL_MASK;
+    } else if (ui_next == UI_SCREEN_GAME) {
         // We're already in the GAME mode.
         return; // Nothing to do.
     } else {
         // We're in the wrong mode. Time to timeout to game.
-        ui_screen = UI_SCREEN_GAME;
+        ui_next = UI_SCREEN_GAME;
     }
 
     // Update the stuff to display the correct things:
-    ui_update();
+    ui_update(ui_next);
 }
 
-void ui_update() {
+void ui_update(uint8_t ui_next) {
     screen_blink_off();
-    switch(ui_screen) { // Destination screen:
+    switch(ui_next) { // Destination screen:
     case UI_SCREEN_SLEEPING:
         // Shut it down. Shut everything down.
         set_screen_solid_local(&all_off);
         break;
     case UI_SCREEN_SLEEP:
-        screen_blink_on();
+        screen_blink_on(0);
         set_screen_solid_local(&power_bmp);
         break;
     case UI_SCREEN_BOOT:
         set_screen_animation(FLASH_BOOT_ANIM_LOC, 0);
         break;
     case UI_SCREEN_HUNGRY_FOR_DATA:
-        screen_blink_on();
+        screen_blink_on(0);
         set_screen_solid_local(&needflash_icon);
         for (uint8_t i=0; i<4; i++)
             arm_color(i, 0x00, 0x00, 0x00);
@@ -349,18 +352,19 @@ void ui_update() {
             arm_color(i, 0xff, 0xff, 0xff);
         break;
     case UI_SCREEN_GAME_SEL:
-        screen_blink_on();
+        screen_blink_on(ui_screen != ui_next);
         // Fall through:
     case UI_SCREEN_GAME:
         set_screen_game(my_conf.current_icon);
         break;
     case UI_SCREEN_TILE_SEL:
-        screen_blink_on();
+        screen_blink_on(ui_screen != ui_next);
         // fall through
     case UI_SCREEN_TILE:
         set_screen_tile(my_conf.current_tile);
         break;
     }
+    ui_screen = ui_next;
 }
 
 void do_animation_loop_body() {
@@ -405,7 +409,7 @@ void screen_anim_task_fn(UArg a0, UArg a1) {
 
     // Now that we've showed off our screen, time to start the badge.
     start_badge();
-    ui_update();
+    ui_update(ui_screen);
 
     while (1) {
         // Handle user input:
