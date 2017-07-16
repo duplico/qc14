@@ -6,8 +6,6 @@
 0x00a000 - icons live in here
 0x010000 - frames live here
 
-0x0f0000 - backup conf here
-
-0x0f4000 - second ID copy here
-0x100000 - end of memory (workaround)
+0x1f0000 - backup conf here
+0x1f4000 - second ID copy here
 0x200000 - end of memory (real)

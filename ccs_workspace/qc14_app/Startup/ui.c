@@ -44,6 +44,7 @@ void csecs_swi(UArg a0);
 Semaphore_Handle anim_sem; // Posted when we need a new screen
 Semaphore_Handle flash_sem; // Protects the flash.
 Semaphore_Handle sw_sem; // Posted when the switch is clicked.
+Semaphore_Handle save_sem; // Posted when we need to save.
 
 static PIN_State sw_pin_state;
 PIN_Handle sw_pin_h;
@@ -90,7 +91,7 @@ void csecs_swi(UArg a0) {
     my_conf.csecs_of_queercon++;
 
     if (!(my_conf.csecs_of_queercon % 8192)) {
-        qc14conf_save();
+        Semaphore_post(save_sem);
     }
 }
 
@@ -183,9 +184,9 @@ inline void screen_put_buffer(screen_frame_t *frame) {
 inline void screen_put_buffer_from_flash(uint32_t frame_id) {
     Semaphore_pend(flash_sem, BIOS_WAIT_FOREVER);
     ExtFlash_open();
-    ExtFlash_read_skipodd(FLASH_SCREEN_FRAMES_STARTPT
-                          + frame_id*sizeof(screen_frame_t),
-                          7*7*3, (uint8_t *) led_buf);
+    ExtFlash_read(FLASH_SCREEN_FRAMES_STARTPT
+                  + frame_id*sizeof(screen_frame_t),
+                  7*7*3, (uint8_t *) led_buf);
     ExtFlash_close();
     Semaphore_post(flash_sem);
 }
@@ -196,9 +197,9 @@ void set_screen_animation(size_t base, uint32_t index) {
     Semaphore_pend(flash_sem, BIOS_WAIT_FOREVER);
     ExtFlash_open();
     // Load up the animation from base and index.
-    ExtFlash_read_skipodd(base + index*sizeof(screen_anim_t),
-                          sizeof(screen_anim_t),
-                          (uint8_t *) screen_anim);
+    ExtFlash_read(base + index*sizeof(screen_anim_t),
+                  sizeof(screen_anim_t),
+                  (uint8_t *) screen_anim);
     screen_frame_index = 0;
     ExtFlash_close();
     // Kick the clock back off to change frames basically immediately:
@@ -444,6 +445,10 @@ void screen_anim_task_fn(UArg a0, UArg a1) {
             }
         }
 
+        // Save if necessary.
+        if (Semaphore_pend(save_sem, BIOS_NO_WAIT))
+            qc14conf_save();
+
         Task_yield();
     }
 }
@@ -471,6 +476,9 @@ void screen_init() {
 
     Semaphore_Params_init(&params);
     sw_sem = Semaphore_create(0, &params, NULL);
+
+    Semaphore_Params_init(&params);
+    save_sem = Semaphore_create(0, &params, NULL);
 
     Task_Params taskParams;
     Task_Params_init(&taskParams);

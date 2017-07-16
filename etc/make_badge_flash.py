@@ -109,13 +109,24 @@ def anim_struct_bytes(anim_start_frame, anim_len, anim_frame_delay_ms):
 def main():
     parser = argparse.ArgumentParser("Create the flash data for a queercon 14 badge.")
         
+    # 0x000000 - reserved
+    # 0x001000 - first ID in here
+    # 0x002000 - main conf in here
+    # 0x003000 - boot anim here
+    # 0x004000 - tiles live in here
+    # 0x00a000 - icons live in here
+    # 0x010000 - frames live here
+    # 0x1f0000 - backup conf here
+    # 0x1f4000 - second ID copy here
+    # 0x200000 - end of memory (real)
+        
     parser.add_argument('--workaround', action='store_true', help="Work around the issue where we cannot use odd numbered pages. Note that this must be paired with using the `skipodd` versions of the flash functions on the badge.")
     parser.add_argument('--boot-addr', type=int, default=0x003000, help="Address of the boot animation struct")
     parser.add_argument('--tile-addr', type=int, default=0x004000, help="Address of the tile animation buffer")
     parser.add_argument('--game-addr', type=int, default=0x00a000, help="Address of the game animation struct")
     parser.add_argument('--frame-addr', type=int, default=0x010000, help='Starting offset for animation frames')
     parser.add_argument('--id-addr', type=int, default=0x001000, help="Address of the badge ID.")
-    parser.add_argument('--id-addr2', type=int, default=0x0f4000, help="Address of the badge ID.")
+    parser.add_argument('--id-addr2', type=int, default=0x1f4000, help="Address of the badge ID.")
     
     parser.add_argument('-o', '--hexpath', action='store', type=str, default='a.bin', help='Output file path')
     parser.add_argument('-d', '--frame-delay', type=int, default=30, help="Default frame delay for animations")
