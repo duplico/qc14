@@ -74,11 +74,16 @@ void init_badge_peripherals() {
 
 void qc14conf_save() {
     qc14_badge_conf_t readback_conf;
-    uint8_t curr_time_set_flag = my_conf.time_is_set;
-    my_conf.time_is_set = 0;
+    qc14_badge_conf_t save_conf;
+
+    // We're making a copy here, because my_conf can actually change
+    //  due to the time thing.
+    memcpy(&save_conf, &my_conf, sizeof(qc14_badge_conf_t));
+
+    save_conf.time_is_set = 0;
 
     // Compute the CRC to save.
-    my_conf.crc = crc16((uint8_t*) &my_conf, sizeof(qc14_badge_conf_t)-2);
+    save_conf.crc = crc16((uint8_t*) &save_conf, sizeof(qc14_badge_conf_t)-2);
 
     // Wait until the flash chip is available to access.
     Semaphore_pend(flash_sem, BIOS_WAIT_FOREVER);
@@ -88,30 +93,28 @@ void qc14conf_save() {
     //  keep trying.
     do {
         ExtFlash_erase(FLASH_CONF_LOC, sizeof(qc14_badge_conf_t));
-        ExtFlash_write_skipodd(FLASH_CONF_LOC,
-                              sizeof(qc14_badge_conf_t),
-                              (uint8_t *) &my_conf);
-        ExtFlash_read_skipodd(FLASH_CONF_LOC,
-                              sizeof(qc14_badge_conf_t),
-                              (uint8_t *) &readback_conf);
-    } while (memcmp(&my_conf, &readback_conf, sizeof(qc14_badge_conf_t)));
+        ExtFlash_write(FLASH_CONF_LOC,
+                       sizeof(qc14_badge_conf_t),
+                       (uint8_t *) &save_conf);
+        ExtFlash_read(FLASH_CONF_LOC,
+                      sizeof(qc14_badge_conf_t),
+                      (uint8_t *) &readback_conf);
+    } while (memcmp(&save_conf, &readback_conf, sizeof(qc14_badge_conf_t)));
 
     // Now write the backup conf to flash, then read it back. If it didn't
     //  work, keep trying.
     do {
         ExtFlash_erase(FLASH_CONF_BACKUP_LOC, sizeof(qc14_badge_conf_t));
-        ExtFlash_write_skipodd(FLASH_CONF_BACKUP_LOC,
+        ExtFlash_write(FLASH_CONF_BACKUP_LOC,
                                sizeof(qc14_badge_conf_t),
-                               (uint8_t *) &my_conf);
-        ExtFlash_read_skipodd(FLASH_CONF_BACKUP_LOC,
+                               (uint8_t *) &save_conf);
+        ExtFlash_read(FLASH_CONF_BACKUP_LOC,
                               sizeof(qc14_badge_conf_t),
                               (uint8_t *) &readback_conf);
-    } while (memcmp(&my_conf, &readback_conf, sizeof(qc14_badge_conf_t)));
+    } while (memcmp(&save_conf, &readback_conf, sizeof(qc14_badge_conf_t)));
 
     ExtFlash_close();
     Semaphore_post(flash_sem);
-
-    my_conf.time_is_set = curr_time_set_flag;
 }
 
 uint8_t game_starting_icon() {
@@ -131,7 +134,7 @@ void game_set_icon(uint8_t icon_id) {
     uint8_t bit_number = icon_id % 8;
     my_conf.icons_been[byte_number] |= (1 << bit_number);
     my_conf.current_icon = icon_id;
-    qc14conf_save();
+    Semaphore_post(save_sem);
 }
 
 uint8_t has_badge_mated(uint16_t badge_id) {
@@ -147,14 +150,14 @@ void set_badge_mated(uint16_t badge_id) {
     uint8_t byte_number = badge_id / 8;
     uint8_t bit_number = badge_id % 8;
     my_conf.badges_mated[byte_number] |= (1 << bit_number);
-    qc14conf_save();
+    Semaphore_post(save_sem);
 }
 
 void qc14conf_init() {
     Semaphore_pend(flash_sem, BIOS_WAIT_FOREVER);
     ExtFlash_open();
     // Load up the animation from base and index.
-    ExtFlash_read_skipodd(FLASH_CONF_LOC,
+    ExtFlash_read(FLASH_CONF_LOC,
                           sizeof(qc14_badge_conf_t),
                           (uint8_t *) &my_conf);
     ExtFlash_close();
@@ -165,7 +168,7 @@ void qc14conf_init() {
 
         Semaphore_pend(flash_sem, BIOS_WAIT_FOREVER);
         ExtFlash_open();
-        ExtFlash_read_skipodd(FLASH_CONF_BACKUP_LOC,
+        ExtFlash_read(FLASH_CONF_BACKUP_LOC,
                               sizeof(qc14_badge_conf_t),
                               (uint8_t *) &my_conf);
         ExtFlash_close();
@@ -180,8 +183,8 @@ void qc14conf_init() {
             uint16_t badge_id2 = 0;
             Semaphore_pend(flash_sem, BIOS_WAIT_FOREVER);
             ExtFlash_open();
-            ExtFlash_read_skipodd(FLASH_ID_LOC, 2, (uint8_t *) &badge_id1);
-            ExtFlash_read_skipodd(FLASH_ID_LOC2, 2, (uint8_t *) &badge_id2);
+            ExtFlash_read(FLASH_ID_LOC, 2, (uint8_t *) &badge_id1);
+            ExtFlash_read(FLASH_ID_LOC2, 2, (uint8_t *) &badge_id2);
             ExtFlash_close();
             Semaphore_post(flash_sem);
 
@@ -196,7 +199,8 @@ void qc14conf_init() {
             my_conf.badge_id = badge_id1;
             game_set_icon(game_starting_icon());
             set_badge_mated(my_conf.badge_id);
-            // The two function calls above will set the CRC and write to flash.
+            // The two function calls above will set the CRC and signal a
+            //  write to the flash.
         }
     }
 

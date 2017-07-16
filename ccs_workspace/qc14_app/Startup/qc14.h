@@ -40,14 +40,15 @@
 // UART Protocol states:
 extern uint8_t uart_proto_state[4];
 
+#define FLASH_LOC_RESERVED          0x000000
+#define FLASH_ID_LOC                0x001000
+#define FLASH_CONF_LOC              0x002000
+#define FLASH_BOOT_ANIM_LOC         0x003000
+#define FLASH_TILE_ANIM_LOC         0x004000
+#define FLASH_GAME_ANIM_LOC         0x00a000
 #define FLASH_SCREEN_FRAMES_STARTPT 0x010000
-#define FLASH_BOOT_ANIM_LOC 0x003000
-#define FLASH_ID_LOC 0x001000
-#define FLASH_ID_LOC2 0x0f4000
-#define FLASH_CONF_LOC 0x002000
-#define FLASH_CONF_BACKUP_LOC 0x003000
-#define FLASH_TILE_ANIM_LOC 0x004000
-#define FLASH_GAME_ANIM_LOC 0x00a000
+#define FLASH_CONF_BACKUP_LOC       0x1f0000
+#define FLASH_ID_LOC2               0x1f4000
 
 #define BADGES_MATED_BYTES 36
 

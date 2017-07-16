@@ -75,4 +75,6 @@ void screen_blink_on(uint8_t start_off);
 void screen_blink_off();
 void screen_update_now();
 
+extern Semaphore_Handle save_sem;
+
 #endif /* STARTUP_UI_H_ */
