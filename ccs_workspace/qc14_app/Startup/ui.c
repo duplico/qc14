@@ -161,8 +161,7 @@ void sw_clock_swi(UArg a0) {
 }
 
 void screen_blink_on(uint8_t start_off) {
-    if (start_off)
-        screen_blink_status = start_off;
+    screen_blink_status = start_off;
     Clock_start(screen_blink_clock_h);
 }
 
