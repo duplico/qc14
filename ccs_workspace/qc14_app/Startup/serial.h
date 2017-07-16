@@ -18,6 +18,7 @@
 #define SERIAL_MSG_TYPE_GAME 2
 #define SERIAL_MSG_TYPE_TILE 3
 #define SERIAL_MSG_TYPE_CONF 4
+#define SERIAL_MSG_TYPE_MAX 4
 
 void serial_init();
 uint8_t serial_in_progress();
@@ -25,7 +26,7 @@ uint8_t serial_in_progress();
 typedef struct {
     uint16_t badge_id;
     uint8_t msg_type;
-    uint64_t current_time;
+    uint32_t current_time;
     uint16_t current_time_authority;
     uint8_t payload[50];
     uint16_t crc;
