@@ -38,6 +38,9 @@ void screen_blink_tick_swi(UArg a0);
 Clock_Handle sw_debounce_clock; // Ticks to debounce the switches
 void sw_clock_swi(UArg a0);
 
+Clock_Handle csecs_clock_h; // Ticks to set the centisecond clock
+void csecs_swi(UArg a0);
+
 Semaphore_Handle anim_sem; // Posted when we need a new screen
 Semaphore_Handle flash_sem; // Protects the flash.
 Semaphore_Handle sw_sem; // Posted when the switch is clicked.
@@ -80,6 +83,15 @@ void screen_anim_tick_swi(UArg a0) {
 void screen_blink_tick_swi(UArg a0) {
     led_blank_set(screen_blink_status);
     screen_blink_status = !screen_blink_status;
+}
+
+void csecs_swi(UArg a0) {
+    // It's been another centisecond of queercon.
+    my_conf.csecs_of_queercon++;
+
+    if (!(my_conf.csecs_of_queercon % 8192)) {
+        qc14conf_save();
+    }
 }
 
 void sw_clock_swi(UArg a0) {
@@ -468,5 +480,11 @@ void screen_init() {
     blink_clock_params.period = 50000; // 500 ms recurring
     blink_clock_params.startFlag = FALSE; // Don't auto-start (only when we blink-on)
     screen_blink_clock_h = Clock_create(screen_blink_tick_swi, 0, &blink_clock_params, NULL);
+
+    Clock_Params csecs_clock_params;
+    Clock_Params_init(&csecs_clock_params);
+    csecs_clock_params.period = 1000; // 10 ms recurring ( 1 centisecond)
+    csecs_clock_params.startFlag = TRUE; // Don't auto-start (only when we blink-on)
+    csecs_clock_h = Clock_create(csecs_swi, 1000, &csecs_clock_params, NULL);
 }
 
