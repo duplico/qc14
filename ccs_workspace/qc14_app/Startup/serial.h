@@ -8,6 +8,8 @@
 #ifndef STARTUP_SERIAL_H_
 #define STARTUP_SERIAL_H_
 
+#include "qc14.h"
+
 #define SERIAL_PHY_STATE_DIS 0
 #define SERIAL_PHY_STATE_CON 1
 

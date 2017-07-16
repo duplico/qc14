@@ -94,6 +94,23 @@ void qc14conf_save() {
     Semaphore_post(flash_sem);
 }
 
+uint8_t game_starting_icon() {
+    return my_conf.badge_id % 4; // TODO: Set to the real one.
+}
+
+uint8_t game_been_icon(uint8_t icon_id) {
+    uint8_t byte_number = icon_id / 8;
+    uint8_t bit_number = icon_id % 8;
+    return my_conf.icons_been[byte_number] & (1 << bit_number);
+}
+
+void game_set_icon(uint8_t icon_id) {
+    uint8_t byte_number = icon_id / 8;
+    uint8_t bit_number = icon_id % 8;
+    my_conf.icons_been[byte_number] |= (1 << bit_number);
+    my_conf.current_icon = icon_id;
+}
+
 void qc14conf_init() {
     uint8_t need_to_save_conf = 0;
 
@@ -116,20 +133,20 @@ void qc14conf_init() {
             // Check ID locations:
             uint16_t badge_id1 = 0;
             uint16_t badge_id2 = 0;
-            ExtFlash_read_skipodd(FLASH_ID_LOC, 2, (uint8_t *) &badge_id1); // TODO: broken
+            ExtFlash_read_skipodd(FLASH_ID_LOC, 2, (uint8_t *) &badge_id1);
             ExtFlash_read_skipodd(FLASH_ID_LOC2, 2, (uint8_t *) &badge_id2);
 
             if (badge_id1 != badge_id2 || badge_id1 == 0xffff) {
-                // TODO:
-                // PROBLEM.
+                // PROBLEM. We'll have to make one up.
+                badge_id1 = 285; // 285 is the backup number.
             }
 
             // Zero it out and start from scratch:
             memset((uint8_t *) &my_conf, 0x00, sizeof(qc14_badge_conf_t));
 
             my_conf.badge_id = badge_id1;
-            // TODO: SET ICON
-            // TODO: SET TILE
+            game_set_icon(game_starting_icon());
+            // 0 is a fine starting tile.
             // CRC is set from save().
             need_to_save_conf = 1;
         }
