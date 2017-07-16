@@ -75,5 +75,6 @@ typedef struct {
 extern qc14_badge_conf_t my_conf;
 
 void start_badge();
+void qc14conf_save();
 
 #endif /* STARTUP_QC14_H_ */
