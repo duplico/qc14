@@ -286,7 +286,8 @@ void led_brightness_task_fn(UArg a0, UArg a1)
                 else
                     led_global_brightness_level--;
 
-                tlc_msg_fun_base[18] = BRIGHTNESS_STEPS[led_global_brightness_level][1];
+                tlc_msg_fun_base[18] = (0b10000000 & tlc_msg_fun_base[18]) |
+                        (0b01111111 & BRIGHTNESS_STEPS[led_global_brightness_level][1];
                 tlc_update_fun = 1;
             }
         }
