@@ -115,7 +115,7 @@ void qc14conf_save() {
 }
 
 uint8_t game_starting_icon() {
-    return my_conf.badge_id % 4; // TODO: Set to the real one.
+    return my_conf.badge_id % 4;
 }
 
 uint8_t game_been_icon(uint8_t icon_id) {

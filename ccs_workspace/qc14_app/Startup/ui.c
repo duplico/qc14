@@ -219,7 +219,10 @@ void set_screen_game(uint32_t index) {
 void set_screen_solid_local(const screen_frame_t *frame) {
     // Pre-empt the animation semaphore:
     Semaphore_pend(anim_sem, BIOS_NO_WAIT);
-    Clock_stop(screen_anim_clock_h); // TODO: Protect clock? // Is there preemption?
+    // Pre-emption is off, so there is no need to protect this clock
+    //  with a semaphore, and this is going to be called from a Task
+    //  context.
+    Clock_stop(screen_anim_clock_h);
     screen_frame_index = 0;
     screen_anim->anim_len = 0;
     screen_anim->anim_frame_delay_ms = 0;
@@ -254,37 +257,42 @@ void ui_click(uint8_t sw_signal)
         ui_next = UI_SCREEN_HUNGRY_FOR_DATA;
         break;
     case UI_SCREEN_GAME_SEL: // Icon select
-        // TODO: This should really be a switch.
-        if (sw_signal == SW_SIGNAL_R) {
+        switch(sw_signal) {
+        case SW_SIGNAL_R:
             // left or right
             my_conf.current_icon++;
             if (my_conf.current_icon == 40)
                 my_conf.current_icon = 0;
-        } else if (sw_signal == SW_SIGNAL_L ) {
+            break;
+        case SW_SIGNAL_L:
             if (my_conf.current_icon == 0)
                 my_conf.current_icon = 40;
             my_conf.current_icon--;
-        } else if (sw_signal == SW_SIGNAL_C) {
+            break;
+        case SW_SIGNAL_C:
             // click.
             // TODO: assign and save???
             ui_next = UI_SCREEN_GAME;
         }
         break;
     case UI_SCREEN_TILE_SEL: // Tile select
-        // TODO: This should really be a switch.
-        if (sw_signal == SW_SIGNAL_R) {
+        switch(sw_signal) {
+        case SW_SIGNAL_R:
             // left or right
             my_conf.current_tile++;
             if (my_conf.current_tile == 40)
                 my_conf.current_tile = 0;
-        } else if (sw_signal == SW_SIGNAL_L ) {
+            break;
+        case SW_SIGNAL_L:
             if (my_conf.current_tile == 0)
                 my_conf.current_tile = 40;
             my_conf.current_tile--;
-        } else if (sw_signal == SW_SIGNAL_C) {
+            break;
+        case SW_SIGNAL_C:
             // click.
             // TODO: assign and save???
             ui_next = UI_SCREEN_TILE;
+            break;
         }
         break;
     case UI_SCREEN_SLEEPING: // We're asleep.
@@ -396,7 +404,6 @@ inline void bootup_sequence() {
     } else {
         // Badge has flash data. Do the intro animation, then
         //  switch to game mode.
-        // TODO: Select based on time???
         do_animation_loop();
         ui_screen = UI_SCREEN_GAME;
     }
@@ -427,7 +434,6 @@ void screen_anim_task_fn(UArg a0, UArg a1) {
 
             if (screen_frame_index == screen_anim->anim_len) {
                 if (ui_screen == UI_SCREEN_BOOT) {
-                    // TODO: do we care?
                     // Currently this is unreachable.
                 } else {
                     screen_frame_index = 0;
@@ -438,7 +444,7 @@ void screen_anim_task_fn(UArg a0, UArg a1) {
             }
         }
 
-        Task_yield(); // TODO: Sleep?
+        Task_yield();
     }
 }
 
