@@ -71,7 +71,7 @@ typedef struct {
 extern Semaphore_Handle flash_sem; // TODO: rename
 
 void screen_init();
-void screen_blink_on();
+void screen_blink_on(uint8_t start_off);
 void screen_blink_off();
 void screen_update_now();
 
