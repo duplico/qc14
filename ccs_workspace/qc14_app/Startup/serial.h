@@ -31,7 +31,7 @@ typedef struct {
 
 typedef struct {
     char handle[9];
-    uint8_t badges_mated[36];
+    uint8_t badges_mated[BADGES_MATED_BYTES];
     uint8_t current_mode;
     uint8_t current_icon_or_tile_id;
     uint8_t pad[3];
