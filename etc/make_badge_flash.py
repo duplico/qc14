@@ -56,8 +56,8 @@ def image_list_from_directory(dirpath):
     assert os.path.isdir(dirpath)
     images = []
     for filename in (os.path.join(dirpath, d) for d in os.listdir(dirpath)):
-        if filename.endswith('.bmp'):
-            images.append(Image.open(filename))
+        if filename.endswith('.bmp') or filename.endswith('.png'):
+            images.append(Image.open(filename).convert('RGB'))
         elif filename.endswith('.gif'):
             im = Image.open(filename)
             for i, frame in enumerate(iter_frames(im)):
