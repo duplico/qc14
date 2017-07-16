@@ -51,6 +51,7 @@ extern uint8_t uart_proto_state[4];
 
 #define BADGES_MATED_BYTES 36
 
+#define BADGES_IN_SYSTEM 286
 #define BADGE_ID_DUPLICO 5
 #define BADGE_UBER_CUTOFF 14
 #define BADGE_HANDLER_COUNT 4
@@ -76,5 +77,6 @@ extern qc14_badge_conf_t my_conf;
 
 void start_badge();
 void qc14conf_save();
+void set_badge_mated(uint16_t badge_id);
 
 #endif /* STARTUP_QC14_H_ */

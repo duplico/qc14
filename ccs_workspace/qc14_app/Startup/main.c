@@ -44,7 +44,7 @@ bleUserCfg_t user0Cfg = BLE_USER_CFG; // BLE user defined configuration
 
 qc14_badge_conf_t my_conf;
 
-unsigned short crc16(volatile unsigned char *sbuf,unsigned char len){
+unsigned short crc16(volatile unsigned char *sbuf,unsigned char len) {
     unsigned short crc=0xB8F6;
 
     while(len){

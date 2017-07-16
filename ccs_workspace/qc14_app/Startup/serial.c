@@ -103,8 +103,32 @@ inline void send_serial_handshake(UArg uart_id) {
     arm_nts = SERIAL_MSG_TYPE_HANDSHAKE;
 }
 
-void rx_done(UArg uart_id) {
+void setup_tx_buf_no_payload(UArg uart_id) {
+    arm_tx_buf.badge_id = my_conf.badge_id;
+    arm_tx_buf.current_time = my_conf.csecs_of_queercon;
+    arm_tx_buf.current_time_authority = my_conf.time_is_set;
+}
 
+uint8_t rx_valid(UArg uart_id) {
+    if (arm_rx_buf.badge_id > BADGES_IN_SYSTEM)
+        return 0;
+    if (arm_rx_buf.msg_type > SERIAL_MSG_TYPE_MAX)
+        return 0;
+    if (arm_rx_buf.badge_id == my_conf.badge_id)
+        return 0; // TODO: Do a thing.
+    if (arm_rx_buf.crc != crc16((uint8_t *) &arm_rx_buf,
+                                sizeof(serial_message_t) - 2))
+        return 0;
+    return 1;
+}
+
+void rx_done(UArg uart_id) {
+    set_badge_mated(arm_rx_buf.badge_id);
+    if (!my_conf.time_is_set ||
+            arm_rx_buf.current_time > my_conf.csecs_of_queercon) {
+        my_conf.csecs_of_queercon = arm_rx_buf.current_time;
+        my_conf.time_is_set = arm_rx_buf.current_time_authority;
+    }
 }
 
 uint8_t serial_in_progress() {
@@ -243,6 +267,9 @@ void serial_arm_task(UArg uart_id, UArg arg1) {
                         // Switch to UART mode and send.
                         PIN_close(arm_gpio_pin_handle);
                         uart_h = UART_open(uart_id, &uart_p);
+
+                        setup_tx_buf_no_payload(uart_id);
+
                         results_flag = UART_write(uart_h, &arm_tx_buf,
                                                   sizeof(serial_message_t));
 
