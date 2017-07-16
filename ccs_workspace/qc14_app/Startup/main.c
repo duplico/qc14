@@ -74,6 +74,8 @@ void init_badge_peripherals() {
 
 void qc14conf_save() {
     qc14_badge_conf_t readback_conf;
+    uint8_t curr_time_set_flag = my_conf.time_is_set;
+    my_conf.time_is_set = 0;
 
     // Compute the CRC to save.
     my_conf.crc = crc16((uint8_t*) &my_conf, sizeof(qc14_badge_conf_t)-2);
@@ -108,6 +110,8 @@ void qc14conf_save() {
 
     ExtFlash_close();
     Semaphore_post(flash_sem);
+
+    my_conf.time_is_set = curr_time_set_flag;
 }
 
 uint8_t game_starting_icon() {
@@ -195,6 +199,15 @@ void qc14conf_init() {
             // The two function calls above will set the CRC and write to flash.
         }
     }
+
+    // Config is loaded or created.
+    if (my_conf.badge_id == BADGE_ID_DUPLICO &&
+            my_conf.csecs_of_queercon < 180000) {
+        // If it's MEEEEEE
+        //  and I've had less than 30 minutes of uptime:
+        my_conf.time_is_set = 1;
+    }
+
 }
 
 // Called only once, from the screen.

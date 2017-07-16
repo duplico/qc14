@@ -51,17 +51,24 @@ extern uint8_t uart_proto_state[4];
 
 #define BADGES_MATED_BYTES 36
 
+#define BADGE_ID_DUPLICO 5
+#define BADGE_UBER_CUTOFF 14
+#define BADGE_HANDLER_COUNT 4
+#define BADGE_SPONSOR_COUNT 10
+
 unsigned short crc16(volatile unsigned char *sbuf,unsigned char len);
 
 typedef struct {
     uint16_t badge_id;
     uint8_t badges_mated[BADGES_MATED_BYTES];
     uint8_t icons_been[6];
-    char handle[9];
+    char handle[10];
     uint8_t current_icon;
     uint8_t icons_unlocked;
     uint8_t current_tile;
+    uint8_t time_is_set;
     uint16_t avail_tiles;
+    uint32_t csecs_of_queercon;
     uint16_t crc;
 } qc14_badge_conf_t;
 
