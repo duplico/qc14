@@ -170,8 +170,22 @@ void serial_arm_task(UArg uart_id, UArg arg1) {
                 } else {
                     timeout_ms = PLUG_TIMEOUT_MS;
                 }
+                // We're only allowed to get connected if we're in the tile or
+                //  game mode.
+                // So if we're in those modes we'll go ahead and do the normal
+                //  sleeping thing. Otherwise start the whole business over.
+
                 Task_sleep(100); // 1 ms.
+
+                if (ui_screen == UI_SCREEN_GAME ||
+                        ui_screen == UI_SCREEN_TILE) {
+                    // we're OK, go back up to the while.
+                } else {
+                    // not OK to continue, restart the timeout.
+                    timeout_ms = PLUG_TIMEOUT_MS;
+                }
             }
+
             // we are now connected, can fall through:
             arm_proto_state = SERIAL_PHY_STATE_CON;
             arm_color(uart_id, 255,255,255);
