@@ -115,7 +115,7 @@ uint8_t rx_valid(UArg uart_id) {
     if (arm_rx_buf.msg_type > SERIAL_MSG_TYPE_MAX)
         return 0;
     if (arm_rx_buf.badge_id == my_conf.badge_id)
-        return 0; // TODO: Do a thing.
+        return 0;
     if (arm_rx_buf.crc != crc16((uint8_t *) &arm_rx_buf,
                                 sizeof(serial_message_t) - 2))
         return 0;

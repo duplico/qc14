@@ -68,7 +68,7 @@ typedef struct {
     mate_spec_t arms[4];
 } game_icon_t;
 
-extern Semaphore_Handle flash_sem; // TODO: rename
+extern Semaphore_Handle flash_sem;
 
 void screen_init();
 void screen_blink_on(uint8_t start_off);
