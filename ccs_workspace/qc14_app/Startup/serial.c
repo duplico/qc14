@@ -99,7 +99,7 @@ inline void send_serial_handshake(UArg uart_id) {
     serial_handshake_t* handshake_payload = (serial_handshake_t*) payload;
     handshake_payload->current_mode = ui_screen;
     handshake_payload->current_icon_or_tile_id = (ui_screen? my_conf.current_tile : my_conf.current_icon);
-    memcpy(handshake_payload->badges_mated, my_conf.badges_mated, 36);
+    memcpy(handshake_payload->badges_mated, my_conf.badges_mated, BADGES_MATED_BYTES);
     arm_nts = SERIAL_MSG_TYPE_HANDSHAKE;
 }
 

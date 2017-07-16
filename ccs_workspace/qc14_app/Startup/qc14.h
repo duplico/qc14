@@ -49,11 +49,13 @@ extern uint8_t uart_proto_state[4];
 #define FLASH_TILE_ANIM_LOC 0x004000
 #define FLASH_GAME_ANIM_LOC 0x00a000
 
+#define BADGES_MATED_BYTES 36
+
 unsigned short crc16(volatile unsigned char *sbuf,unsigned char len);
 
 typedef struct {
     uint16_t badge_id;
-    uint8_t badges_mated[36];
+    uint8_t badges_mated[BADGES_MATED_BYTES];
     uint8_t icons_been[6];
     char handle[9];
     uint8_t current_icon;
