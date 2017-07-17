@@ -830,7 +830,7 @@ PACKED_STRUCT rfOpCmd
 
 // Radio Haredware/Firmware Register Overrides
 // Note: List must be terminated by 16 bits of zero.
-PACKED_TYPEDEF_UNION
+typedef union
 {
   hwOverride_t hwRegOverride;
   fwOverride_t fwRegOverride;
