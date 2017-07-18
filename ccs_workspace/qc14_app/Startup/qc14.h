@@ -52,11 +52,27 @@ extern uint8_t uart_proto_state[4];
 
 #define BADGES_MATED_BYTES 36
 
+#define ICON_COFFEE_ID 42
+#define ICON_COUNT 44
+#define TILE_COUNT 12
+
+// 285 badges, plus #285 (the fallback ID)
+// I am #5 because reasons.
+// There are 14 ubers and 11 handlers, with 7 overlapping. So:
+// 0..4   not me (qty 5)
+// 5      me     (qty 1)
+// 6      not me (qty 1)
+// 7..13  uber handlers (qty 7)
+// 14..17 handlers (qty 4)
+// 18..27 sponsors (qty 10)
+
 #define BADGES_IN_SYSTEM 286
 #define BADGE_ID_DUPLICO 5
 #define BADGE_UBER_CUTOFF 14
-#define BADGE_HANDLER_COUNT 4
-#define BADGE_SPONSOR_COUNT 10
+#define BADGE_HANDLER_START 4
+#define BADGE_HANDLER_CUTOFF 18
+#define BADGE_SPONSOR_START 18
+#define BADGE_SPONSOR_CUTOFF 28
 
 unsigned short crc16(volatile unsigned char *sbuf,unsigned char len);
 
@@ -79,5 +95,11 @@ extern qc14_badge_conf_t my_conf;
 void start_badge();
 void qc14conf_save();
 void set_badge_mated(uint16_t badge_id);
+uint8_t game_been_icon(uint8_t icon_id);
+void game_set_icon(uint8_t icon_id);
+uint8_t game_starting_icon();
+uint8_t is_uber(uint16_t id);
+uint8_t is_handler(uint16_t id);
+uint8_t is_sponsor(uint16_t id);
 
 #endif /* STARTUP_QC14_H_ */
