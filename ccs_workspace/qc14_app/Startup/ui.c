@@ -182,11 +182,12 @@ inline void screen_put_buffer(screen_frame_t *frame) {
 
 inline void screen_put_buffer_from_flash(uint32_t frame_id) {
     Semaphore_pend(flash_sem, BIOS_WAIT_FOREVER);
-    ExtFlash_open();
-    ExtFlash_read(FLASH_SCREEN_FRAMES_STARTPT
-                  + frame_id*sizeof(screen_frame_t),
-                  7*7*3, (uint8_t *) led_buf);
-    ExtFlash_close();
+    if (ExtFlash_open()) {
+        ExtFlash_read(FLASH_SCREEN_FRAMES_STARTPT
+                      + frame_id*sizeof(screen_frame_t),
+                      7*7*3, (uint8_t *) led_buf);
+        ExtFlash_close();
+    }
     Semaphore_post(flash_sem);
 }
 
@@ -194,7 +195,7 @@ void set_screen_animation(size_t base, uint32_t index) {
     // Stop animating.
     Clock_stop(screen_anim_clock_h);
     Semaphore_pend(flash_sem, BIOS_WAIT_FOREVER);
-    ExtFlash_open();
+    while (!ExtFlash_open());
     // Load up the animation from base and index.
     ExtFlash_read(base + index*sizeof(screen_anim_t),
                   sizeof(screen_anim_t),
