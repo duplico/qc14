@@ -517,7 +517,7 @@ void screen_anim_task_fn(UArg a0, UArg a1) {
 
     // Now that we've showed off our screen, time to start the badge.
     start_badge();
-    ui_update(ui_screen);
+    ui_timeout(); // Pick the destination based on what time we think it is.
 
     while (1) {
         // Handle user input:
