@@ -45,6 +45,9 @@ Semaphore_Handle anim_sem; // Posted when we need a new screen
 Semaphore_Handle flash_sem; // Protects the flash.
 Semaphore_Handle sw_sem; // Posted when the switch is clicked.
 Semaphore_Handle save_sem; // Posted when we need to save.
+Semaphore_Handle unlock_sem;
+Semaphore_Handle pool_sem;
+Semaphore_Handle club_sem;
 
 static PIN_State sw_pin_state;
 PIN_Handle sw_pin_h;
@@ -92,6 +95,14 @@ void screen_blink_tick_swi(UArg a0) {
 void csecs_swi(UArg a0) {
     // It's been another centisecond of queercon.
     my_conf.csecs_of_queercon++;
+
+    if (my_conf.csecs_of_queercon == POOL_TILE_TIME) {
+        Semaphore_post(pool_sem);
+    } else if (my_conf.csecs_of_queercon == CLUB_TILE_TIME) {
+        Semaphore_post(club_sem);
+    } else if (my_conf.csecs_of_queercon == UNLOCK_TIME) {
+        Semaphore_post(unlock_sem);
+    }
 
     if (!(my_conf.csecs_of_queercon % 8192)) {
         Semaphore_post(save_sem);
@@ -313,7 +324,7 @@ void sel_prev_tile() {
     } while (!tile_available(sel_id));
 }
 
-// NB: This should really be called from a _task_ context:
+// NB: This must be called from a Task context:
 void ui_click(uint8_t sw_signal)
 {
     uint8_t ui_next = ui_screen;
@@ -504,6 +515,30 @@ void screen_anim_task_fn(UArg a0, UArg a1) {
             }
         }
 
+        if (Semaphore_pend(club_sem, BIOS_NO_WAIT)) {
+            // time for the club tile
+            // TODO: Unlock tile
+            my_conf.current_tile = 1; // TODO!!!
+            if (ui_screen != UI_SCREEN_SLEEPING && !serial_in_progress()) {
+                ui_update(UI_SCREEN_TILE);
+            }
+        }
+
+        if (Semaphore_pend(pool_sem, BIOS_NO_WAIT)) {
+            // time for the pool tile
+            // TODO: Unlock tile
+            my_conf.current_tile = 2; // TODO!!!
+            if (ui_screen != UI_SCREEN_SLEEPING && !serial_in_progress()) {
+                ui_update(UI_SCREEN_TILE);
+            }
+        }
+
+        if (Semaphore_pend(unlock_sem, BIOS_NO_WAIT)) {
+            // Time to unlock icons.
+            my_conf.icons_unlocked = 1;
+            Semaphore_post(save_sem);
+        }
+
         // Handle animations:
         if (Semaphore_pend(anim_sem, BIOS_NO_WAIT)) {
             do_animation_loop_body();
@@ -554,6 +589,13 @@ void screen_init() {
 
     Semaphore_Params_init(&params);
     save_sem = Semaphore_create(0, &params, NULL);
+
+    Semaphore_Params_init(&params);
+    unlock_sem = Semaphore_create(0, &params, NULL);
+    Semaphore_Params_init(&params);
+    pool_sem = Semaphore_create(0, &params, NULL);
+    Semaphore_Params_init(&params);
+    club_sem = Semaphore_create(0, &params, NULL);
 
     Task_Params taskParams;
     Task_Params_init(&taskParams);

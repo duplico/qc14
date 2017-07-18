@@ -78,6 +78,18 @@ extern uint8_t uart_proto_state[4];
 #define BADGE_SPONSOR_START 18
 #define BADGE_SPONSOR_CUTOFF 28
 
+#define CSECS_PER_HOUR      360000
+#define START_TIME_GEORGE  6480000
+#define START_TIME_UBER    7200000
+#define START_TIME_OTHERS 15840000
+#define POOL_TIME         24480000
+#define POOL_TILE_TIME    25560000
+#define POOL_OVER_TIME    27000000
+#define CLUB_TIME         33120000
+#define CLUB_TILE_TIME    33840000
+#define CLUB_OVER_TIME    35640000
+#define UNLOCK_TIME       41760000
+
 unsigned short crc16(volatile unsigned char *sbuf,unsigned char len);
 
 typedef struct {
@@ -90,13 +102,14 @@ typedef struct {
     uint8_t current_tile;
     uint8_t time_is_set;
     uint16_t avail_tiles;
-    uint32_t csecs_of_queercon;
+    uint32_t csecs_of_queercon; // really, since Wednesday midnight.
     uint16_t crc;
 } qc14_badge_conf_t;
 
 extern qc14_badge_conf_t my_conf;
 
 void start_badge();
+void set_clock(uint32_t csecs);
 void qc14conf_save();
 void set_badge_mated(uint16_t badge_id);
 uint8_t game_been_icon(uint8_t icon_id);

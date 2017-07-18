@@ -167,6 +167,18 @@ void set_badge_mated(uint16_t badge_id) {
     Semaphore_post(save_sem);
 }
 
+void set_clock(uint32_t csecs) {
+    my_conf.csecs_of_queercon = csecs;
+    if (my_conf.csecs_of_queercon >= POOL_TILE_TIME) {
+        // TODO: Unlock pool tile
+    } else if (my_conf.csecs_of_queercon >= CLUB_TILE_TIME) {
+        // TODO: Unlock club tile
+    } else if (my_conf.csecs_of_queercon >= UNLOCK_TIME) {
+        my_conf.icons_unlocked = 1;
+        Semaphore_post(save_sem);
+    }
+}
+
 void qc14conf_init() {
     Semaphore_pend(flash_sem, BIOS_WAIT_FOREVER);
     while (!ExtFlash_open());
@@ -214,19 +226,28 @@ void qc14conf_init() {
             my_conf.avail_tiles = 0x000f;
             game_set_icon(game_starting_icon());
             set_badge_mated(my_conf.badge_id);
+            if (my_conf.badge_id == BADGE_ID_DUPLICO)
+                my_conf.csecs_of_queercon = START_TIME_GEORGE;
+            else if (is_uber(my_conf.badge_id))
+                my_conf.csecs_of_queercon = START_TIME_UBER;
+            else
+                my_conf.csecs_of_queercon = START_TIME_OTHERS;
+
             // The two function calls above will set the CRC and signal a
             //  write to the flash.
         }
     }
 
     // Config is loaded or created.
+    set_clock(my_conf.csecs_of_queercon); // Make SURE we get the unlocks done.
+
     if (my_conf.badge_id == BADGE_ID_DUPLICO &&
-            my_conf.csecs_of_queercon < 180000) {
+            my_conf.csecs_of_queercon < START_TIME_GEORGE + 3*CSECS_PER_HOUR) {
         // If it's MEEEEEE
-        //  and I've had less than 30 minutes of uptime:
+        //  and I've had less than 3 hours of uptime:
+        //  (enough time to have infected others with the time virus)
         my_conf.time_is_set = 1;
     }
-
 }
 
 // Called only once, from the screen.
