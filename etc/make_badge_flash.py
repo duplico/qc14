@@ -114,10 +114,10 @@ def main():
     # 0x002000 - main conf in here
     # 0x003000 - boot anim here
     # 0x004000 - tiles live in here
+    # 0x008000 - backup conf here
+    # 0x009000 - second ID copy here
     # 0x00a000 - icons live in here
     # 0x010000 - frames live here
-    # 0x1f0000 - backup conf here
-    # 0x1f4000 - second ID copy here
     # 0x200000 - end of memory (real)
         
     parser.add_argument('--workaround', action='store_true', help="Work around the issue where we cannot use odd numbered pages. Note that this must be paired with using the `skipodd` versions of the flash functions on the badge.")
@@ -126,7 +126,7 @@ def main():
     parser.add_argument('--game-addr', type=int, default=0x00a000, help="Address of the game animation struct")
     parser.add_argument('--frame-addr', type=int, default=0x010000, help='Starting offset for animation frames')
     parser.add_argument('--id-addr', type=int, default=0x001000, help="Address of the badge ID.")
-    parser.add_argument('--id-addr2', type=int, default=0x1f4000, help="Address of the badge ID.")
+    parser.add_argument('--id-addr2', type=int, default=0x009000, help="Address of the badge ID.")
     
     parser.add_argument('-o', '--hexpath', action='store', type=str, default='a.bin', help='Output file path')
     parser.add_argument('-d', '--frame-delay', type=int, default=30, help="Default frame delay for animations")

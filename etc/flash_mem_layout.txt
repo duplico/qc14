@@ -3,9 +3,9 @@
 0x002000 - main conf in here
 0x003000 - boot anim here
 0x004000 - tiles live in here
+0x008000 - backup conf here
+0x009000 - second ID copy here
 0x00a000 - icons live in here
 0x010000 - frames live here
 
-0x1f0000 - backup conf here
-0x1f4000 - second ID copy here
 0x200000 - end of memory (real)
