@@ -410,8 +410,22 @@ void ui_timeout() {
         ui_next &= ~UI_SCREEN_SEL_MASK;
     } else if (ui_next == UI_SCREEN_GAME) {
         // We're already in the GAME mode.
+        if ((my_conf.csecs_of_queercon > POOL_TIME &&
+             my_conf.csecs_of_queercon < POOL_OVER_TIME) ||
+                (my_conf.csecs_of_queercon > CLUB_TIME &&
+                 my_conf.csecs_of_queercon < CLUB_OVER_TIME)) {
+            // We're at the club or pool party.
+            ui_next = UI_SCREEN_TILE;
+        }
         return; // Nothing to do.
     } else {
+        if ((my_conf.csecs_of_queercon > POOL_TIME &&
+                my_conf.csecs_of_queercon < POOL_OVER_TIME) ||
+                (my_conf.csecs_of_queercon > CLUB_TIME &&
+                        my_conf.csecs_of_queercon < CLUB_OVER_TIME)) {
+            // We're at the club or pool party.
+            return; // Nothing to do, we're in the right mode.
+        }
         // We're in the wrong mode. Time to timeout to game.
         ui_next = UI_SCREEN_GAME;
     }
