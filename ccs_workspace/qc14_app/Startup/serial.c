@@ -126,7 +126,7 @@ void rx_done(UArg uart_id) {
     set_badge_mated(arm_rx_buf.badge_id);
     if (!my_conf.time_is_set ||
             arm_rx_buf.current_time > my_conf.csecs_of_queercon) {
-        my_conf.csecs_of_queercon = arm_rx_buf.current_time;
+        set_clock(arm_rx_buf.current_time);
         my_conf.time_is_set = arm_rx_buf.current_time_authority;
     }
 }
