@@ -283,11 +283,7 @@ static void SimpleBLEBroadcaster_init(void)
     // until the enabler is set back to TRUE
     uint16_t gapRole_AdvertOffTime = 0;
 
-#ifndef BEACON_FEATURE
     uint8_t advType = GAP_ADTYPE_ADV_SCAN_IND; // use scannable undirected adv
-#else
-    uint8_t advType = GAP_ADTYPE_ADV_NONCONN_IND; // use non-connectable adv
-#endif // !BEACON_FEATURE
 
     // Set the GAP Role Parameters
     GAPRole_SetParameter(GAPROLE_ADVERT_ENABLED, sizeof(uint8_t),
