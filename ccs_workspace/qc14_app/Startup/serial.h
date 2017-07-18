@@ -28,6 +28,7 @@ typedef struct {
     uint8_t msg_type;
     uint32_t current_time;
     uint16_t current_time_authority;
+    uint8_t arm_id;
     uint8_t payload[50];
     uint16_t crc;
 } serial_message_t;
