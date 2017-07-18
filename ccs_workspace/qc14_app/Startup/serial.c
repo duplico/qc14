@@ -107,6 +107,7 @@ void setup_tx_buf_no_payload(UArg uart_id) {
     arm_tx_buf.badge_id = my_conf.badge_id;
     arm_tx_buf.current_time = my_conf.csecs_of_queercon;
     arm_tx_buf.current_time_authority = my_conf.time_is_set;
+    arm_tx_buf.arm_id = uart_id;
 }
 
 uint8_t rx_valid(UArg uart_id) {
