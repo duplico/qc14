@@ -55,6 +55,9 @@ uint16_t screen_frame_index = 0;
 screen_anim_t screen_anim_storage;
 screen_anim_t *screen_anim = &screen_anim_storage;
 
+game_icon_t game_curr_icon;
+uint8_t sel_id = 0;
+
 uint8_t ui_screen = UI_SCREEN_BOOT;
 
 uint8_t sw_signal = SW_SIGNAL_NONE;
@@ -214,7 +217,28 @@ void set_screen_tile(uint32_t index) {
 }
 
 void set_screen_game(uint32_t index) {
-    set_screen_animation(FLASH_GAME_ANIM_LOC, index);
+    // Load the icon:
+    // Stop animating.
+    Clock_stop(screen_anim_clock_h);
+    Semaphore_pend(flash_sem, BIOS_WAIT_FOREVER);
+    while (!ExtFlash_open());
+    // Load up the animation from base and index.
+    ExtFlash_read(FLASH_GAME_ANIM_LOC + index*sizeof(game_icon_t),
+                  sizeof(game_icon_t),
+                  (uint8_t *) &game_curr_icon);
+    screen_frame_index = 0;
+    ExtFlash_close();
+
+    memcpy(screen_anim, &game_curr_icon.animation, sizeof(screen_anim_t));
+
+    // Kick the clock back off to change frames basically immediately:
+    Clock_setTimeout(screen_anim_clock_h,
+                     2);
+    Clock_start(screen_anim_clock_h);
+    Semaphore_post(flash_sem);
+
+    // TODO: Set arms.
+
 }
 
 void set_screen_solid_local(const screen_frame_t *frame) {
@@ -239,6 +263,56 @@ void arm_color(UArg uart_id, uint8_t r, uint8_t g, uint8_t b) {
     }
 }
 
+// TODO: Read icon count?
+
+uint8_t icon_available(uint8_t icon_id) {
+    if (my_conf.icons_unlocked) {
+        return game_been_icon(icon_id);
+    }
+
+    if (icon_id == game_starting_icon())
+        return 1; // Can always go back to the start.
+
+    if (icon_id == ICON_COFFEE_ID &&
+            (is_handler(my_conf.badge_id) || is_sponsor(my_conf.badge_id)))
+        return 1; // Handlers and sponsors can be covfefe.
+
+    if (icon_id == my_conf.current_icon)
+        return 1; // Can always select your current icon.
+
+    return 0;
+}
+
+uint8_t tile_available(uint16_t tile_id) {
+    return (0x0001 << tile_id) & my_conf.avail_tiles ? 1 : 0;
+}
+
+// lol @ the efficiency of these:
+void sel_next_icon() {
+    do {
+        sel_id = (sel_id + 1) % ICON_COUNT;
+    } while (!icon_available(sel_id));
+}
+
+void sel_prev_icon() {
+    do {
+        sel_id = (sel_id + ICON_COUNT - 1) % ICON_COUNT;
+    } while (!icon_available(sel_id));
+}
+
+// lol @ the efficiency of these:
+void sel_next_tile() {
+    do {
+        sel_id = (sel_id + 1) % ICON_COUNT;
+    } while (!tile_available(sel_id));
+}
+
+void sel_prev_tile() {
+    do {
+        sel_id = (sel_id + ICON_COUNT - 1) % ICON_COUNT;
+    } while (!tile_available(sel_id));
+}
+
 // NB: This should really be called from a _task_ context:
 void ui_click(uint8_t sw_signal)
 {
@@ -260,19 +334,16 @@ void ui_click(uint8_t sw_signal)
     case UI_SCREEN_GAME_SEL: // Icon select
         switch(sw_signal) {
         case SW_SIGNAL_R:
-            // left or right
-            my_conf.current_icon++;
-            if (my_conf.current_icon == 40)
-                my_conf.current_icon = 0;
+            sel_next_icon();
             break;
         case SW_SIGNAL_L:
-            if (my_conf.current_icon == 0)
-                my_conf.current_icon = 40;
-            my_conf.current_icon--;
+            sel_prev_icon();
             break;
         case SW_SIGNAL_C:
             // click.
-            // TODO: assign and save???
+            // The video updating is handled in the ui_update function,
+            // but I have to handle the actual assignment and saving here.
+            game_set_icon(sel_id);
             ui_next = UI_SCREEN_GAME;
         }
         break;
@@ -280,18 +351,19 @@ void ui_click(uint8_t sw_signal)
         switch(sw_signal) {
         case SW_SIGNAL_R:
             // left or right
-            my_conf.current_tile++;
-            if (my_conf.current_tile == 40)
-                my_conf.current_tile = 0;
+            sel_next_tile();
             break;
         case SW_SIGNAL_L:
-            if (my_conf.current_tile == 0)
-                my_conf.current_tile = 40;
-            my_conf.current_tile--;
+            sel_prev_tile();
             break;
         case SW_SIGNAL_C:
             // click.
-            // TODO: assign and save???
+            // The video updating is handled in the ui_update function,
+            // but I have to handle the actual assignment here.
+            my_conf.current_tile = sel_id;
+            // We don't care too terribly much about saving this, so we'll
+            //  just let it get saved at our next auto-save or whenever
+            //  something else changes.
             ui_next = UI_SCREEN_TILE;
             break;
         }
@@ -309,6 +381,8 @@ void ui_click(uint8_t sw_signal)
             ui_next = (ui_screen + 1) % 3; // Go right.
             break;
         default: // click
+            sel_id = ((ui_screen == UI_SCREEN_GAME) ?
+                        my_conf.current_icon : my_conf.current_tile);
             ui_next = ui_screen | UI_SCREEN_SEL_MASK;
         }
     }
@@ -362,13 +436,15 @@ void ui_update(uint8_t ui_next) {
         break;
     case UI_SCREEN_GAME_SEL:
         screen_blink_on(ui_screen != ui_next);
-        // Fall through:
+        set_screen_game(sel_id);
+        break;
     case UI_SCREEN_GAME:
         set_screen_game(my_conf.current_icon);
         break;
     case UI_SCREEN_TILE_SEL:
         screen_blink_on(ui_screen != ui_next);
-        // fall through
+        set_screen_tile(sel_id);
+        break;
     case UI_SCREEN_TILE:
         set_screen_tile(my_conf.current_tile);
         break;
@@ -411,7 +487,6 @@ inline void bootup_sequence() {
 }
 
 void screen_anim_task_fn(UArg a0, UArg a1) {
-
     // Bootup animation time!
     bootup_sequence(); // Only returns if we're programmed.
 

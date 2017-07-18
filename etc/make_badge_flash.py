@@ -106,7 +106,7 @@ def anim_struct_bytes(anim_start_frame, anim_len, anim_frame_delay_ms):
         anim_len,
         anim_frame_delay_ms
     )))
-            
+    
 def icon_struct_bytes(id, animation_bytes, connections):        
     # We're returning a packed game_icon_t from this.
     
@@ -242,7 +242,7 @@ def main():
     for dirname in os.listdir('_badge_graphics/game'):
         dpath = os.path.join('_badge_graphics/game', dirname)
         if not os.path.isdir(dpath): continue
-        # Each of these corresponds to a tile.
+        # Each of these corresponds to an icon.
         imgs = image_list_from_directory(dpath)
         game_animations += icon_struct_bytes(
             icon_id, 

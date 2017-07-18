@@ -121,6 +121,20 @@ uint8_t game_starting_icon() {
     return my_conf.badge_id % 4;
 }
 
+uint8_t is_uber(uint16_t id) {
+    return my_conf.badge_id < BADGE_UBER_CUTOFF;
+}
+
+uint8_t is_handler(uint16_t id) {
+    return my_conf.badge_id >= BADGE_HANDLER_START &&
+            my_conf.badge_id < BADGE_HANDLER_CUTOFF;
+}
+
+uint8_t is_sponsor(uint16_t id) {
+    return my_conf.badge_id >= BADGE_SPONSOR_START &&
+            my_conf.badge_id < BADGE_SPONSOR_CUTOFF;
+}
+
 uint8_t game_been_icon(uint8_t icon_id) {
     uint8_t byte_number = icon_id / 8;
     uint8_t bit_number = icon_id % 8;
@@ -128,12 +142,12 @@ uint8_t game_been_icon(uint8_t icon_id) {
 }
 
 void game_set_icon(uint8_t icon_id) {
-    if (game_been_icon(icon_id))
-        return;
-    uint8_t byte_number = icon_id / 8;
-    uint8_t bit_number = icon_id % 8;
-    my_conf.icons_been[byte_number] |= (1 << bit_number);
     my_conf.current_icon = icon_id;
+    if (!game_been_icon(icon_id)) {
+        uint8_t byte_number = icon_id / 8;
+        uint8_t bit_number = icon_id % 8;
+        my_conf.icons_been[byte_number] |= (1 << bit_number);
+    }
     Semaphore_post(save_sem);
 }
 
@@ -197,6 +211,7 @@ void qc14conf_init() {
             memset((uint8_t *) &my_conf, 0x00, sizeof(qc14_badge_conf_t));
 
             my_conf.badge_id = badge_id1;
+            my_conf.avail_tiles = 0x000f;
             game_set_icon(game_starting_icon());
             set_badge_mated(my_conf.badge_id);
             // The two function calls above will set the CRC and signal a
