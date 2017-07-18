@@ -4,8 +4,15 @@ SUFFICIENT_MSG   = 1
 
 icons = [] # ID : list of IconConnections.
 trans = dict(UP=0, RIGHT=1, DOWN=2, LEFT=3)
+trans_rev = ['U', 'R', 'D', 'L']
 icon_ids = dict() # Lookup for NAME : ID
+id_icons = dict()
 LISTEN_FLAG = 254
+
+# TODO: OTHER ARM ID ISN'T THIS. IT'S SUPPOSED TO BE USED WITH
+#  SUFFICIENT_CONN
+
+# TODO: LISTEN_FLAG is never getting set
 
 class IconConnection(object):
     def __init__(self, mate_icon, result_icon, sufficiency, 
@@ -24,7 +31,8 @@ with open('icons.csv') as icon_file:
             break
         record = record_str.strip().split(',')
         icon_ids[record[1]] = int(record[3])-1 #make it 0-origined
-    
+        id_icons[int(record[3])-1] = record[1]
+        
 for i in sorted(icon_ids.keys(), cmp=lambda x,y: cmp(icon_ids[x], icon_ids[y])):
     icons.append([None, None, None, None])
         
@@ -53,9 +61,12 @@ with open('icons_adjacency.csv') as adjacency_file:
             mate_con = icons[icon_ids[record[2]]][adj.other_arm_id]
             if mate_con:
                 # Validate the other side.
-                adj.result_icon = mate_con.result_icon
+                if adj.result_icon == 255: # TODO
+                    adj.result_icon = mate_con.result_icon
+                else:
+                    print "Please manually check result of %s" % id_icons[this_icon]
+                    adj.result_icon = LISTEN_FLAG
                 assert mate_con.mate_icon == this_icon
-                assert mate_con.result_icon == adj.result_icon
                 assert mate_con.other_arm_id == this_dir
                 assert mate_con.sufficiency == SUFFICIENT_CONN
                 
@@ -123,10 +134,24 @@ with open('icons_adjacency.csv') as adjacency_file:
             
 # TODO: Confirm what queercon down game looks like.
 # TODO: Add colors
-            
-for icon in icons:
+                        
+for icon_id in range(len(icons)):
+    icon = icons[icon_id]
+    print id_icons[icon_id]
+    arm_id = 0
     for connection in icon:
+        arm_id += 1
         if not connection:
             continue
+        print '\t' + trans_rev[arm_id-1],
         if connection.result_icon == LISTEN_FLAG:
-            print icon
+            print 'LISTEN FLAG'
+        print id_icons[connection.mate_icon], 
+        if connection.sufficiency == SUFFICIENT_ALONE:
+            print '=', 
+        elif connection.sufficiency == SUFFICIENT_CONN:
+            print 'CAN CONNECT TO MAKE',
+        elif connection.sufficiency == SUFFICIENT_MSG:
+            print 'OTHER BADGE CONNECTS TO MAKE',
+            
+        print id_icons[connection.result_icon]
