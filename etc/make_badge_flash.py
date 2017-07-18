@@ -4,8 +4,9 @@ import os, os.path
 
 import struct
 from intelhex import IntelHex
-
 from PIL import Image
+
+import make_game
 
 # CONSIDERATION: Maybe let's normalize everything - try to keep everything that's not OFF, the same intensity????
 
@@ -106,6 +107,47 @@ def anim_struct_bytes(anim_start_frame, anim_len, anim_frame_delay_ms):
         anim_frame_delay_ms
     )))
             
+def icon_struct_bytes(id, animation_bytes, connections):        
+    # We're returning a packed game_icon_t from this.
+    
+    # typedef struct {
+        # uint16_t id;
+        # screen_anim_t animation;
+        # mate_spec_t arms[4];
+    # } game_icon_t;
+    icon_pack_string = '<H'
+    # then animation_bytes
+    # then four of these:
+    
+    # typedef struct {
+        # uint16_t mate_icon_id;
+        # uint16_t result_icon_id;
+        # uint16_t arm_anim_id;
+        # uint8_t sufficient_flag;
+        # uint8_t other_arm_id;
+    # } mate_spec_t;
+    connection_pack_string = '<HHHBB'
+    
+    bytelist = map(ord, list(struct.pack(
+        icon_pack_string,
+        id
+    )))
+    
+    bytelist += animation_bytes
+    
+    for connection in connections:
+        bytelist += map(ord, list(struct.pack(
+            connection_pack_string,
+            connection.mate_icon if connection else 0,
+            connection.result_icon if connection else 0,
+            connection.arm_anim_id if connection else 0,
+            connection.sufficiency if connection else 0,
+            connection.other_arm_id if connection else 0
+        )))
+        
+    return bytelist
+    
+            
 def main():
     parser = argparse.ArgumentParser("Create the flash data for a queercon 14 badge.")
         
@@ -191,9 +233,10 @@ def main():
             # screen_anim_t animation;
             # mate_spec_t arms[4];
         # } game_icon_t;
-    # TODO: For now I'm just going to do them as animations.
-    #  Since they embed animations this means I can just add the before
-    #  and after content later, once this is definitely working.
+    
+    icon_connections = make_game.get_icons()
+    
+    icon_id = 0
     
     assert os.path.isdir('_badge_graphics/game') # TODO: Demeter
     for dirname in os.listdir('_badge_graphics/game'):
@@ -201,12 +244,17 @@ def main():
         if not os.path.isdir(dpath): continue
         # Each of these corresponds to a tile.
         imgs = image_list_from_directory(dpath)
-        game_animations += anim_struct_bytes(
-            len(all_frames), # starting index
-            len(imgs), # length
-            get_frame_delay(dpath, args.frame_delay) # delay # TODO: Demeter
+        game_animations += icon_struct_bytes(
+            icon_id, 
+            anim_struct_bytes(
+                len(all_frames), # starting index
+                len(imgs), # length
+                get_frame_delay(dpath, args.frame_delay) # delay # TODO: Demeter
+            ), 
+            icon_connections[icon_id]
         )
         all_frames += imgs
+        icon_id += 1
     
     put_bytes_at(flash, args.game_addr, game_animations, args.workaround)
         
