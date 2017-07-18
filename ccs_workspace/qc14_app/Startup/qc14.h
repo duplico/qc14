@@ -52,6 +52,10 @@ extern uint8_t uart_proto_state[4];
 
 #define BADGES_MATED_BYTES 36
 
+#define ICON_EARTH 16
+#define ICON_AIR 17
+#define ICON_FIRE 18
+#define ICON_WATER 19
 #define ICON_COFFEE_ID 42
 #define ICON_COUNT 44
 #define TILE_COUNT 12

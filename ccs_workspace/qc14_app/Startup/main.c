@@ -118,7 +118,7 @@ void qc14conf_save() {
 }
 
 uint8_t game_starting_icon() {
-    return my_conf.badge_id % 4;
+    return 16 + (my_conf.badge_id % 4);
 }
 
 uint8_t is_uber(uint16_t id) {
