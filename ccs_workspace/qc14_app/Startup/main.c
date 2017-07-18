@@ -87,7 +87,7 @@ void qc14conf_save() {
 
     // Wait until the flash chip is available to access.
     Semaphore_pend(flash_sem, BIOS_WAIT_FOREVER);
-    ExtFlash_open();
+    while (!ExtFlash_open());
 
     // Write the main conf to flash, then read it back. If it didn't work,
     //  keep trying.
@@ -155,7 +155,7 @@ void set_badge_mated(uint16_t badge_id) {
 
 void qc14conf_init() {
     Semaphore_pend(flash_sem, BIOS_WAIT_FOREVER);
-    ExtFlash_open();
+    while (!ExtFlash_open());
     // Load up the animation from base and index.
     ExtFlash_read(FLASH_CONF_LOC,
                           sizeof(qc14_badge_conf_t),
@@ -167,7 +167,7 @@ void qc14conf_init() {
         // Invalid CRC. Check backup:
 
         Semaphore_pend(flash_sem, BIOS_WAIT_FOREVER);
-        ExtFlash_open();
+        while (!ExtFlash_open());
         ExtFlash_read(FLASH_CONF_BACKUP_LOC,
                               sizeof(qc14_badge_conf_t),
                               (uint8_t *) &my_conf);
@@ -182,7 +182,7 @@ void qc14conf_init() {
             uint16_t badge_id1 = 0;
             uint16_t badge_id2 = 0;
             Semaphore_pend(flash_sem, BIOS_WAIT_FOREVER);
-            ExtFlash_open();
+            while (!ExtFlash_open());
             ExtFlash_read(FLASH_ID_LOC, 2, (uint8_t *) &badge_id1);
             ExtFlash_read(FLASH_ID_LOC2, 2, (uint8_t *) &badge_id2);
             ExtFlash_close();
