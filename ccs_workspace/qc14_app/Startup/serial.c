@@ -98,6 +98,8 @@ void setup_tx_buf_no_payload(UArg uart_id) {
     arm_tx_buf.current_time = my_conf.csecs_of_queercon;
     arm_tx_buf.current_time_authority = my_conf.time_is_set;
     arm_tx_buf.arm_id = uart_id;
+    arm_tx_buf.crc = crc16((uint8_t *) &arm_rx_buf,
+                           sizeof(serial_message_t) - 2);
 }
 
 inline void send_serial_handshake(UArg uart_id, uint8_t ack) {
@@ -125,6 +127,26 @@ uint8_t rx_valid(UArg uart_id) {
     return 1;
 }
 
+void connection_opened(UArg uart_id) {
+    arm_icontile_state = ICONTILE_STATE_OPEN;
+    arm_color(uart_id, 255,255,255);
+    if (ui_screen == UI_SCREEN_GAME &&
+            ((serial_handshake_t*) &arm_rx_buf.payload)->current_mode == UI_SCREEN_GAME) {
+        // We're doing game things!
+    } else if (ui_screen == UI_SCREEN_TILE &&
+            ((serial_handshake_t*) &arm_rx_buf.payload)->current_mode == UI_SCREEN_TILE) {
+        // We're doing color tile things!
+    } else {
+        // We're not uesful to each other.
+        for (uint8_t i=255; i>0; i--) {
+            arm_color(uart_id, i, 0, 0);
+            Task_sleep(500); // 500 * 10 us = 50 ms
+        }
+        arm_color(uart_id, 0, 0, 0);
+    }
+
+}
+
 void rx_done(UArg uart_id) {
     set_badge_mated(arm_rx_buf.badge_id);
     // We take our clock setting from this person if:
@@ -148,8 +170,7 @@ void rx_done(UArg uart_id) {
     case ICONTILE_STATE_SENTHS:
         // Should be an acknowledgment.
         if (((serial_handshake_t*) &arm_rx_buf.payload)->ack) {
-            arm_icontile_state = ICONTILE_STATE_OPEN;
-            arm_color(uart_id, 255,255,255);
+            connection_opened(uart_id);
         } else { // not an ack, they didn't get our message:
             arm_icontile_state = ICONTILE_STATE_GOTHS;
             send_serial_handshake(uart_id, 1);
@@ -171,8 +192,8 @@ void tx_done(UArg uart_id) {
         break;
     case ICONTILE_STATE_GOTHS:
         // we've replied.
-        arm_icontile_state = ICONTILE_STATE_OPEN; // This one is getting reached
-        arm_color(uart_id, 255,255,255);
+        connection_opened(uart_id);
+        break;
     }
 }
 
@@ -309,7 +330,9 @@ void serial_arm_task(UArg uart_id, UArg arg1) {
                 arm_gpio_pin_handle = PIN_open(&arm_gpio_pin_state,
                                                arm_gpio_init_table);
 
-                if (results_flag == UART_ERROR || results_flag<sizeof(serial_message_t)) {
+                if (results_flag == UART_ERROR ||
+                        results_flag<sizeof(serial_message_t) ||
+                        !rx_valid(uart_id)) {
                     // Error. We are now disconnected.
                     disconnected(uart_id);
 
@@ -402,6 +425,7 @@ void serial_arm_task(UArg uart_id, UArg arg1) {
                             arm_color(uart_id, 10,10,10);
                             // Give the other side a bit to stabilize:
                             tx_done(uart_id);
+                            Task_sleep(5000); // 50000 us = 50 ms
                         }
                     } else {
                         // They never went high. Means they've disconnected.
