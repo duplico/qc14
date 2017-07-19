@@ -20,3 +20,4 @@ ccs_workspace/qc14_app/TOOLS/src/sysbios/m3_TaskSupport_asm.obj
 ccs_workspace/qc14_app/TOOLS/src/sysbios/m3_IntrinsicsSupport_asm.obj
 etc/.qctmp.bmp
 .DS_Store
+etc/make_game.pyc

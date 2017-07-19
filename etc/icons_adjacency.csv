@@ -6,7 +6,7 @@ COFFEE,down,BEAST,,,,,HUMAN,,,COMPANION CUBE,STONE,RIVER,FIRE,EARTH
 WATER,left,BEAST,,,,,FISH,,,SEATTLE,ICE,GAY,LIFE,AIR
 WATER,right,FIRE,,,,,ALCOHOL,,,DARKSTORMY,STORM,HACKER,LIGHTNING,TREE
 WATER,up,AIR,,,,,RAIN,,,,PARTY,WOMAN,CITY,BEAST
-WATER,down,SUN,,,,,CLOUD,,,,HEART,STICKMAN,CIRCUIT,RAIN
+WATER,down,,,,,,,,,,HEART,STICKMAN,CIRCUIT,RAIN
 WATER,freezer,XXXX,,,,,ICE,,,,QUEERCON,OTTER,SUN,HUMAN
 FIRE,left,water,,,,,alcohol,,,,LAS VEGAS,,COCKTAIL,GAME
 FIRE,right,,,,,,,,,,SAN FRANCISCO,,FISH,
@@ -75,7 +75,7 @@ PARTY,up,,,,,,,,,,,,,
 PARTY,down,COMPUTER,,,,,GAME,,,,,,,
 SUN,left,,,,,,,,,,,,,
 SUN,right,earth,,,,,PARTIAL,,,,,,,
-SUN,up,water,,,,,cloud,,,,,,,
+SUN,up,,,,,,,,,,,,,
 SUN,down,HOUSE,,,,,LIGHTBULB,,,,,,,
 COCKTAIL,left,GAY,,,,,PARTY,,,,,,,
 COCKTAIL,right,city,,,,,Las Vegas,,,,,,,
