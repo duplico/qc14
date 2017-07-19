@@ -59,6 +59,7 @@ screen_anim_t screen_anim_storage;
 screen_anim_t *screen_anim = &screen_anim_storage;
 
 game_icon_t game_curr_icon;
+tile_t curr_tile;
 uint8_t sel_id = 0;
 
 uint8_t ui_screen = UI_SCREEN_BOOT;
@@ -224,7 +225,30 @@ void set_screen_animation(size_t base, uint32_t index) {
 }
 
 void set_screen_tile(uint32_t index) {
-    set_screen_animation(FLASH_TILE_ANIM_LOC, index);
+    // Load the icon:
+    // Stop animating.
+    Clock_stop(screen_anim_clock_h);
+    Semaphore_pend(flash_sem, BIOS_WAIT_FOREVER);
+    while (!ExtFlash_open());
+    // Load up the animation from base and index.
+    ExtFlash_read(FLASH_TILE_ANIM_LOC + index*sizeof(tile_t),
+                  sizeof(tile_t),
+                  (uint8_t *) &curr_tile);
+    ExtFlash_close();
+
+    memcpy(screen_anim, &curr_tile.animation, sizeof(screen_anim_t));
+
+    screen_frame_index = (10*my_conf.csecs_of_queercon / screen_anim->anim_frame_delay_ms) % screen_anim->anim_len;
+
+    uint32_t timeout = screen_anim->anim_frame_delay_ms - ((10*my_conf.csecs_of_queercon) % screen_anim->anim_frame_delay_ms);
+    // Kick the clock back off to change frames basically immediately:
+    Clock_setTimeout(screen_anim_clock_h,
+                     timeout * 100);
+    Clock_start(screen_anim_clock_h);
+    Semaphore_post(flash_sem);
+
+    // TODO: Set arms.
+
 }
 
 void set_screen_game(uint32_t index) {
@@ -237,14 +261,16 @@ void set_screen_game(uint32_t index) {
     ExtFlash_read(FLASH_GAME_ANIM_LOC + index*sizeof(game_icon_t),
                   sizeof(game_icon_t),
                   (uint8_t *) &game_curr_icon);
-    screen_frame_index = 0;
     ExtFlash_close();
 
     memcpy(screen_anim, &game_curr_icon.animation, sizeof(screen_anim_t));
 
+    screen_frame_index = (10*my_conf.csecs_of_queercon / screen_anim->anim_frame_delay_ms) % screen_anim->anim_len;
+
+    uint32_t timeout = screen_anim->anim_frame_delay_ms - ((10*my_conf.csecs_of_queercon) % screen_anim->anim_frame_delay_ms);
     // Kick the clock back off to change frames basically immediately:
     Clock_setTimeout(screen_anim_clock_h,
-                     2);
+                     timeout * 100);
     Clock_start(screen_anim_clock_h);
     Semaphore_post(flash_sem);
 
@@ -274,11 +300,7 @@ void arm_color(UArg uart_id, uint8_t r, uint8_t g, uint8_t b) {
     }
 }
 
-// TODO: Read icon count?
-
 uint8_t icon_available(uint8_t icon_id) {
-    return 1; // TODO.
-
     if (my_conf.icons_unlocked) {
         return game_been_icon(icon_id);
     }
@@ -386,7 +408,6 @@ void ui_click(uint8_t sw_signal)
         ui_next = UI_SCREEN_SLEEP;
         ui_timeout();
         return;
-        break;
     default: // We are in one of the switchable versions:
         switch(sw_signal) {
         case SW_SIGNAL_L:

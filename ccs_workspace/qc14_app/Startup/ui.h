@@ -68,6 +68,10 @@ typedef struct {
     mate_spec_t arms[4];
 } game_icon_t;
 
+typedef struct {
+    screen_anim_t animation;
+} tile_t;
+
 extern Semaphore_Handle flash_sem;
 
 void screen_init();
