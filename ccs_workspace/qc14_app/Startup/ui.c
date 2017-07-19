@@ -431,29 +431,22 @@ void ui_timeout() {
     // Are we in a SEL mode? If so, timeout back to the non-SEL version.
     // This can't be called while we're sleeping, because we don't do timeouts
     // from inside the switch clock SWI when sleeping.
-    if (ui_next & UI_SCREEN_SEL_MASK) {
+    if (ui_next == UI_SCREEN_HUNGRY_FOR_DATA) {
+        // We don't time out from this.
+        return;
+    } else if (ui_next == UI_SCREEN_HUNGRY_FOR_DATA_W) {
+        ui_next = UI_SCREEN_HUNGRY_FOR_DATA;
+    } else if (ui_next & UI_SCREEN_SEL_MASK) {
         ui_next &= ~UI_SCREEN_SEL_MASK;
-    } else if (ui_next == UI_SCREEN_GAME) {
-        // We're already in the GAME mode.
-        if ((my_conf.csecs_of_queercon > POOL_TIME &&
-             my_conf.csecs_of_queercon < POOL_OVER_TIME) ||
-                (my_conf.csecs_of_queercon > CLUB_TIME &&
-                 my_conf.csecs_of_queercon < CLUB_OVER_TIME)) {
-            // We're at the club or pool party.
-            ui_next = UI_SCREEN_TILE;
-        }
-        // Otherwise, we're already in the right mode.
-    } else {
-        if ((my_conf.csecs_of_queercon > POOL_TIME &&
-                my_conf.csecs_of_queercon < POOL_OVER_TIME) ||
-                (my_conf.csecs_of_queercon > CLUB_TIME &&
-                        my_conf.csecs_of_queercon < CLUB_OVER_TIME)) {
-            // We're at the club or pool party.
-        }
-        // We're in the wrong mode. Time to timeout to game.
+    } else if (((my_conf.csecs_of_queercon > POOL_TIME &&
+            my_conf.csecs_of_queercon < POOL_OVER_TIME) ||
+            (my_conf.csecs_of_queercon > CLUB_TIME &&
+                    my_conf.csecs_of_queercon < CLUB_OVER_TIME))) {
+        // We're at a party - timeout to tile.
+        ui_next = UI_SCREEN_TILE;
+    } else { // Not at a party, not hungry for data. Timeout is game.
         ui_next = UI_SCREEN_GAME;
     }
-
     // Update the stuff to display the correct things:
     if (ui_next != ui_screen)
         ui_update(ui_next);
@@ -527,7 +520,7 @@ inline void bootup_sequence() {
 
     if (screen_anim->anim_start_frame == 0xffffffff) { // sentinel for unprog
         // Badge is not programmed. We're going to flash our hunger.
-        ui_screen = UI_SCREEN_HUNGRY_FOR_DATA;
+        ui_screen = UI_SCREEN_HUNGRY_FOR_DATA_W;
     } else {
         // Badge has flash data. Do the intro animation, then
         //  switch to game mode.
