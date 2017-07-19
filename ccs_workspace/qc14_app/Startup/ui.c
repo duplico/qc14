@@ -301,6 +301,7 @@ void arm_color(UArg uart_id, uint8_t r, uint8_t g, uint8_t b) {
 }
 
 uint8_t icon_available(uint8_t icon_id) {
+    return 1; // TODO
     if (my_conf.icons_unlocked) {
         return game_been_icon(icon_id);
     }
