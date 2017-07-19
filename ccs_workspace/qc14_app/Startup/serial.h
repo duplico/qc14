@@ -14,9 +14,10 @@
 #define SERIAL_PHY_STATE_CON 1
 
 #define ICONTILE_STATE_DIS 0
-#define ICONTILE_STATE_SENTHS 1
-#define ICONTILE_STATE_GOTHS 2
-#define ICONTILE_STATE_OPEN 3
+#define ICONTILE_STATE_HS1 1
+#define ICONTILE_STATE_HS2 2
+#define ICONTILE_STATE_HS3 3
+#define ICONTILE_STATE_OPEN 4
 
 #define SERIAL_MSG_TYPE_NOMSG 0
 #define SERIAL_MSG_TYPE_HANDSHAKE 1
@@ -24,6 +25,7 @@
 #define SERIAL_MSG_TYPE_TILE 3
 #define SERIAL_MSG_TYPE_CONF 4
 #define SERIAL_MSG_TYPE_MAX 4
+#define SERIAL_MSG_FLAG_ACK 0b10000000
 
 void serial_init();
 uint8_t serial_in_progress();
@@ -34,6 +36,7 @@ typedef struct {
     uint32_t current_time;
     uint16_t current_time_authority;
     uint8_t arm_id;
+    uint8_t ack;
     uint8_t payload[50];
     uint16_t crc;
 } serial_message_t;
