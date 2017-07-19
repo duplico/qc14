@@ -316,7 +316,7 @@ void serial_arm_task(UArg uart_id, UArg arg1) {
                     // Output low to signal RTS.
                     PINCC26XX_setOutputValue(arm_gpio_tx, 0);
                     // Wait to get a low input (means CTS):
-                    arm_color(uart_id, 0,0,50);
+                    arm_color(uart_id, 0,50,0);
                     while (PINCC26XX_getInputValue(arm_gpio_rx)) {
                         Task_yield(); // it will always eventually go low
                     }
@@ -326,7 +326,7 @@ void serial_arm_task(UArg uart_id, UArg arg1) {
                     // Set output high and wait with timeout for high input.
                     PINCC26XX_setOutputValue(arm_gpio_tx, 1);
                     if (wait_with_timeout(uart_id, 1, RTS_TIMEOUT_MS, SERIAL_SETTLE_TIME_MS)) {
-                        arm_color(uart_id, 0,0,255);
+                        arm_color(uart_id, 100,0,0);
                         // They went high. Means they've accepted.
                         // The HIGH signal came from the other side's UART,
                         //  so it should be all built and such.
