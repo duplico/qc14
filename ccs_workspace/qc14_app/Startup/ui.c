@@ -277,6 +277,8 @@ void arm_color(UArg uart_id, uint8_t r, uint8_t g, uint8_t b) {
 // TODO: Read icon count?
 
 uint8_t icon_available(uint8_t icon_id) {
+    return 1; // TODO.
+
     if (my_conf.icons_unlocked) {
         return game_been_icon(icon_id);
     }
@@ -419,21 +421,21 @@ void ui_timeout() {
             // We're at the club or pool party.
             ui_next = UI_SCREEN_TILE;
         }
-        return; // Nothing to do.
+        // Otherwise, we're already in the right mode.
     } else {
         if ((my_conf.csecs_of_queercon > POOL_TIME &&
                 my_conf.csecs_of_queercon < POOL_OVER_TIME) ||
                 (my_conf.csecs_of_queercon > CLUB_TIME &&
                         my_conf.csecs_of_queercon < CLUB_OVER_TIME)) {
             // We're at the club or pool party.
-            return; // Nothing to do, we're in the right mode.
         }
         // We're in the wrong mode. Time to timeout to game.
         ui_next = UI_SCREEN_GAME;
     }
 
     // Update the stuff to display the correct things:
-    ui_update(ui_next);
+    if (ui_next != ui_screen)
+        ui_update(ui_next);
 }
 
 void ui_update(uint8_t ui_next) {
@@ -509,7 +511,6 @@ inline void bootup_sequence() {
         // Badge has flash data. Do the intro animation, then
         //  switch to game mode.
         do_animation_loop();
-        ui_screen = UI_SCREEN_GAME;
     }
 }
 
