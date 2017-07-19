@@ -144,7 +144,6 @@ def icon_struct_bytes(id, animation_bytes, connections):
             connection.sufficiency if connection else 0,
             connection.other_arm_id if connection else 0
         )))
-    print id, bytelist
     return bytelist
     
             
