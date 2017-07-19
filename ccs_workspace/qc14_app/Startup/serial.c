@@ -40,7 +40,6 @@
 // in 10s of us:
 #define RTS_TIMEOUT (RTS_TIMEOUT_MS*100)
 #define PLUG_TIMEOUT (PLUG_TIMEOUT_MS*100)
-#define IDLE_BACKOFF (IDLE_BACKOFF_MS*100)
 
 serial_message_t uart_tx_buf[4] = {0};
 // NB: This must be protected by the semaphore:
@@ -56,6 +55,7 @@ char uart_arm_task_stacks[4][320];
 uint32_t uart_timeout[4] = {0, 0, 0, 0};
 uint8_t uart_proto_state[4] = {0, 0, 0, 0};
 uint8_t uart_nts_flag[4] = {0, 0, 0, 0};
+uint8_t icontile_state[] = {0, 0, 0, 0};
 
 PIN_Config arm_gpio_init_tables[4][3] = {
     {
@@ -91,6 +91,7 @@ uint64_t arm_gpio_rxs[4] = {P1_RX, P2_RX, P3_RX, P4_RX};
 #define arm_gpio_pin_handle arm_gpio_pin_handles[uart_id]
 #define arm_gpio_tx arm_gpio_txs[uart_id]
 #define arm_gpio_rx arm_gpio_rxs[uart_id]
+#define arm_icontile_state icontile_state[uart_id]
 
 void setup_tx_buf_no_payload(UArg uart_id) {
     arm_tx_buf.badge_id = my_conf.badge_id;
@@ -99,12 +100,13 @@ void setup_tx_buf_no_payload(UArg uart_id) {
     arm_tx_buf.arm_id = uart_id;
 }
 
-inline void send_serial_handshake(UArg uart_id) {
+inline void send_serial_handshake(UArg uart_id, uint8_t ack) {
     arm_tx_buf.msg_type = SERIAL_MSG_TYPE_HANDSHAKE;
     uint8_t* payload = arm_tx_buf.payload;
     serial_handshake_t* handshake_payload = (serial_handshake_t*) payload;
     handshake_payload->current_mode = ui_screen;
     handshake_payload->current_icon_or_tile_id = (ui_screen? my_conf.current_tile : my_conf.current_icon);
+    handshake_payload->ack = ack;
     memcpy(handshake_payload->badges_mated, my_conf.badges_mated, BADGES_MATED_BYTES);
     arm_nts = SERIAL_MSG_TYPE_HANDSHAKE;
 }
@@ -114,8 +116,9 @@ uint8_t rx_valid(UArg uart_id) {
         return 0;
     if (arm_rx_buf.msg_type > SERIAL_MSG_TYPE_MAX)
         return 0;
-    if (arm_rx_buf.badge_id == my_conf.badge_id)
-        return 0;
+    // TODO:
+//    if (arm_rx_buf.badge_id == my_conf.badge_id)
+//        return 0;
     if (arm_rx_buf.crc != crc16((uint8_t *) &arm_rx_buf,
                                 sizeof(serial_message_t) - 2))
         return 0;
@@ -136,6 +139,41 @@ void rx_done(UArg uart_id) {
         set_clock(arm_rx_buf.current_time);
         my_conf.time_is_set = arm_rx_buf.current_time_authority;
     }
+
+    switch(arm_icontile_state) {
+    case ICONTILE_STATE_DIS:
+        arm_icontile_state = ICONTILE_STATE_GOTHS;
+        ((serial_handshake_t*) &arm_tx_buf.payload)->ack = 1;
+        break;
+    case ICONTILE_STATE_SENTHS:
+        // Should be an acknowledgment.
+        if (((serial_handshake_t*) &arm_rx_buf.payload)->ack) {
+            arm_icontile_state = ICONTILE_STATE_OPEN;
+            arm_color(uart_id, 255,255,255);
+        } else { // not an ack, they didn't get our message:
+            arm_icontile_state = ICONTILE_STATE_GOTHS;
+            send_serial_handshake(uart_id, 1);
+        }
+        break;
+    case ICONTILE_STATE_GOTHS:
+        // TODO: wat?
+        break;
+    }
+}
+
+void tx_done(UArg uart_id) {
+    switch(arm_icontile_state) {
+    case ICONTILE_STATE_DIS:
+        arm_icontile_state = ICONTILE_STATE_SENTHS;
+        break;
+    case ICONTILE_STATE_SENTHS:
+        // TODO: wat?
+        break;
+    case ICONTILE_STATE_GOTHS:
+        // we've replied.
+        arm_icontile_state = ICONTILE_STATE_OPEN; // This one is getting reached
+        arm_color(uart_id, 255,255,255);
+    }
 }
 
 uint8_t serial_in_progress() {
@@ -147,6 +185,7 @@ void disconnected(UArg uart_id) {
     arm_proto_state=SERIAL_PHY_STATE_DIS;
     PINCC26XX_setOutputValue(arm_gpio_tx, 0);
     Task_sleep(RTS_TIMEOUT*1.2);
+    arm_icontile_state = ICONTILE_STATE_DIS;
 }
 
 uint8_t wait_with_timeout(UArg uart_id, uint8_t match_val, uint32_t timeout_ms, uint32_t settle_reads) {
@@ -219,10 +258,10 @@ void serial_arm_task(UArg uart_id, UArg arg1) {
 
             // we are now connected, can fall through:
             arm_proto_state = SERIAL_PHY_STATE_CON;
-            arm_color(uart_id, 255,255,255);
+            arm_color(uart_id, 10,10,10);
 
             // Prep a handshake:
-            send_serial_handshake(uart_id);
+            send_serial_handshake(uart_id, 0);
         }
 
         if (arm_proto_state==SERIAL_PHY_STATE_CON) { // We are connected.
@@ -279,13 +318,15 @@ void serial_arm_task(UArg uart_id, UArg arg1) {
                     // o->status;
 
                 } else { // success:
+                    // Good, back to connected.
+                    arm_color(uart_id, 10,10,10);
+
                     // Process message.
                     rx_done(uart_id);
 
-                    // Good, back to connected.
-                    arm_color(uart_id, 255,255,255);
+                    // TODO:
                     // Give the other side a bit to stabilize:
-                    Task_sleep(5000); // 50000 us = 50 ms
+//                    Task_sleep(5000); // 50000 us = 50 ms
                 }
                 // This must be here to protect the buffer in rx_done:
                 Semaphore_post(uart_mutex);
@@ -317,8 +358,9 @@ void serial_arm_task(UArg uart_id, UArg arg1) {
                     PINCC26XX_setOutputValue(arm_gpio_tx, 0);
                     // Wait to get a low input (means CTS):
                     arm_color(uart_id, 0,50,0);
-                    while (PINCC26XX_getInputValue(arm_gpio_rx)) {
-                        Task_yield(); // it will always eventually go low
+                    if (!wait_with_timeout(uart_id, 0, RTS_TIMEOUT_MS, SERIAL_SETTLE_TIME_MS)) {
+                        Semaphore_post(uart_mutex);
+                        disconnected(uart_id);
                     }
                     arm_color(uart_id, 255,255,0);
 
@@ -357,9 +399,9 @@ void serial_arm_task(UArg uart_id, UArg arg1) {
                             disconnected(uart_id);
                         } else { // success:
                             // Good, back to connected.
-                            arm_color(uart_id, 255,255,255);
+                            arm_color(uart_id, 10,10,10);
                             // Give the other side a bit to stabilize:
-                            Task_sleep(5000); // 50000 us = 50 ms
+                            tx_done(uart_id);
                         }
                     } else {
                         // They never went high. Means they've disconnected.

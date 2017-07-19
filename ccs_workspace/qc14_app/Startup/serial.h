@@ -13,6 +13,11 @@
 #define SERIAL_PHY_STATE_DIS 0
 #define SERIAL_PHY_STATE_CON 1
 
+#define ICONTILE_STATE_DIS 0
+#define ICONTILE_STATE_SENTHS 1
+#define ICONTILE_STATE_GOTHS 2
+#define ICONTILE_STATE_OPEN 3
+
 #define SERIAL_MSG_TYPE_NOMSG 0
 #define SERIAL_MSG_TYPE_HANDSHAKE 1
 #define SERIAL_MSG_TYPE_GAME 2
@@ -38,7 +43,8 @@ typedef struct {
     uint8_t badges_mated[BADGES_MATED_BYTES];
     uint8_t current_mode;
     uint8_t current_icon_or_tile_id;
-    uint8_t pad[3];
+    uint8_t ack;
+    uint8_t pad[2];
 } serial_handshake_t; // Initialization handshake
 
 typedef struct {
