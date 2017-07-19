@@ -124,8 +124,15 @@ uint8_t rx_valid(UArg uart_id) {
 
 void rx_done(UArg uart_id) {
     set_badge_mated(arm_rx_buf.badge_id);
-    if (!my_conf.time_is_set ||
-            arm_rx_buf.current_time > my_conf.csecs_of_queercon) {
+    // We take our clock setting from this person if:
+    //  1. They are authoritative and we are not, OR
+    //  2. Neither of us are authoritative and they are more than 10 csecs
+    //     (500 ms) ahead of us.
+    //     This is to avoid any accidental positive feedback loops on time.
+
+    if (!my_conf.time_is_set &&
+            (arm_rx_buf.current_time_authority ||
+             arm_rx_buf.current_time > my_conf.csecs_of_queercon+50)) {
         set_clock(arm_rx_buf.current_time);
         my_conf.time_is_set = arm_rx_buf.current_time_authority;
     }
