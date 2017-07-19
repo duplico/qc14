@@ -170,7 +170,7 @@ static uint8 scanRspData[] =
 
 // GAP - Advertisement data (max size = 31 bytes, though this is
 // best kept short to conserve power while advertisting)
-static uint8 advertData[] =
+uint8 advertData[] =
 {
   // Flags; this sets the device to use limited discoverable
   // mode (advertises for 30 seconds at a time) instead of general
@@ -186,24 +186,21 @@ static uint8 advertData[] =
   0x19, // 19 #badgelife
 
   // Queercon data: ID, current icon, etc
-  15, // length of this data including the data type byte
+  14, // length of this data including the data type byte
   GAP_ADTYPE_MANUFACTURER_SPECIFIC, // manufacturer specific adv data type // 0xff
   0xD3, // Company ID - Fixed (queercon)
   0x04, // Company ID - Fixed (queercon)
   0x00, // Badge ID MSB
   0x00, // Badge ID LSB
   0x00, // Current icon ID
-  0x00, // RESERVED
+  0x00, // icon 40..47
   0x00, // icon 32..39
   0x00, // icon 24..31
   0x00, // icon 16..23
   0x00, // icon  8..15
   0x00, // icon  0.. 7
   0x00, // CHECK
-
-  9,
-  GAP_ADTYPE_LOCAL_NAME_SHORT, // 0x08
-  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, // CHECK
 };
 
 /*********************************************************************
