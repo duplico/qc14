@@ -9,6 +9,7 @@
 #define STARTUP_QC14_H_
 
 #include "board.h"
+#include <icall.h>
 
 #define LED_MP_RATE_MIN 16777215
 #define LED_MP_RATE_BEST 48000
@@ -106,6 +107,8 @@ typedef struct {
 } qc14_badge_conf_t;
 
 extern qc14_badge_conf_t my_conf;
+extern ICall_Semaphore ble_sem;
+extern volatile uint8_t update_ble;
 
 void start_badge();
 void set_clock(uint32_t csecs);
