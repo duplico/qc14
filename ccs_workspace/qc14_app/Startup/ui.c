@@ -306,7 +306,7 @@ uint8_t icon_available(uint8_t icon_id) {
         return game_been_icon(icon_id);
     }
 
-    if (icon_id == game_starting_icon())
+    if (icon_id == game_starting_icon(my_conf.badge_id))
         return 1; // Can always go back to the start.
 
     if (icon_id == ICON_COFFEE_ID &&
@@ -614,19 +614,25 @@ void screen_init() {
     anim_sem = Semaphore_create(0, &params, NULL);
 
     Semaphore_Params_init(&params);
+    params.mode = Semaphore_Mode_BINARY;
     flash_sem = Semaphore_create(1, &params, NULL);
 
     Semaphore_Params_init(&params);
+    params.mode = Semaphore_Mode_BINARY;
     sw_sem = Semaphore_create(0, &params, NULL);
 
     Semaphore_Params_init(&params);
+    params.mode = Semaphore_Mode_BINARY;
     save_sem = Semaphore_create(0, &params, NULL);
 
     Semaphore_Params_init(&params);
+    params.mode = Semaphore_Mode_BINARY;
     unlock_sem = Semaphore_create(0, &params, NULL);
     Semaphore_Params_init(&params);
+    params.mode = Semaphore_Mode_BINARY;
     pool_sem = Semaphore_create(0, &params, NULL);
     Semaphore_Params_init(&params);
+    params.mode = Semaphore_Mode_BINARY;
     club_sem = Semaphore_create(0, &params, NULL);
 
     Task_Params taskParams;
@@ -651,7 +657,7 @@ void screen_init() {
     Clock_Params csecs_clock_params;
     Clock_Params_init(&csecs_clock_params);
     csecs_clock_params.period = 1000; // 10 ms recurring ( 1 centisecond)
-    csecs_clock_params.startFlag = TRUE; // Don't auto-start (only when we blink-on)
+    csecs_clock_params.startFlag = FALSE; // Auto-start off.
     csecs_clock_h = Clock_create(csecs_swi, 1000, &csecs_clock_params, NULL);
 }
 

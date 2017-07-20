@@ -89,7 +89,7 @@ void qc14conf_save() {
     save_conf.time_is_set = 0;
 
     // Compute the CRC to save.
-    save_conf.crc = crc16((uint8_t*) &save_conf, sizeof(qc14_badge_conf_t)-2);
+    save_conf.crc = crc16((uint8_t*) &save_conf, sizeof(qc14_badge_conf_t)-4);
 
     // Wait until the flash chip is available to access.
     Semaphore_pend(flash_sem, BIOS_WAIT_FOREVER);
@@ -125,8 +125,8 @@ void qc14conf_save() {
     ICall_signal(ble_sem);
 }
 
-uint8_t game_starting_icon() {
-    return 16 + (my_conf.badge_id % 4);
+uint8_t game_starting_icon(uint16_t badge_id) {
+    return 16 + (badge_id % 4);
 }
 
 uint8_t is_uber(uint16_t id) {
@@ -200,25 +200,30 @@ void qc14conf_init() {
     Semaphore_pend(flash_sem, BIOS_WAIT_FOREVER);
     while (!ExtFlash_open());
     // Load up the animation from base and index.
+
+    qc14_badge_conf_t load_conf;
+
     ExtFlash_read(FLASH_CONF_LOC,
                           sizeof(qc14_badge_conf_t),
-                          (uint8_t *) &my_conf);
+                          (uint8_t *) &load_conf);
     ExtFlash_close();
     Semaphore_post(flash_sem);
 
-    if (crc16((uint8_t*) &my_conf, sizeof(qc14_badge_conf_t)-2) != my_conf.crc) {
+    volatile uint16_t load_crc = crc16((uint8_t*) &load_conf, sizeof(qc14_badge_conf_t)-4);
+
+    if (load_crc != load_conf.crc) {
         // Invalid CRC. Check backup:
 
         Semaphore_pend(flash_sem, BIOS_WAIT_FOREVER);
         while (!ExtFlash_open());
         ExtFlash_read(FLASH_CONF_BACKUP_LOC,
                               sizeof(qc14_badge_conf_t),
-                              (uint8_t *) &my_conf);
+                              (uint8_t *) &load_conf);
         ExtFlash_close();
         Semaphore_post(flash_sem);
 
-        if (crc16((uint8_t*) &my_conf,
-                  sizeof(qc14_badge_conf_t)-2) != my_conf.crc) {
+        if (crc16((uint8_t*) &load_conf,
+                  sizeof(qc14_badge_conf_t)-2) != load_conf.crc) {
             // Backup also invalid:
 
             // Check ID locations:
@@ -237,23 +242,25 @@ void qc14conf_init() {
             }
 
             // Zero it out and start from scratch:
-            memset((uint8_t *) &my_conf, 0x00, sizeof(qc14_badge_conf_t));
+            memset((uint8_t *) &load_conf, 0x00, sizeof(qc14_badge_conf_t));
 
-            my_conf.badge_id = badge_id1;
-            my_conf.avail_tiles = 0x000f;
-            game_set_icon(game_starting_icon());
-            set_badge_mated(my_conf.badge_id);
-            if (my_conf.badge_id == BADGE_ID_DUPLICO)
-                my_conf.csecs_of_queercon = START_TIME_GEORGE;
-            else if (is_uber(my_conf.badge_id))
-                my_conf.csecs_of_queercon = START_TIME_UBER;
+            load_conf.badge_id = badge_id1;
+            load_conf.avail_tiles = 0x000f;
+            game_set_icon(game_starting_icon(load_conf.badge_id));
+            set_badge_mated(load_conf.badge_id);
+            if (load_conf.badge_id == BADGE_ID_DUPLICO)
+                load_conf.csecs_of_queercon = START_TIME_GEORGE;
+            else if (is_uber(load_conf.badge_id))
+                load_conf.csecs_of_queercon = START_TIME_UBER;
             else
-                my_conf.csecs_of_queercon = START_TIME_OTHERS;
+                load_conf.csecs_of_queercon = START_TIME_OTHERS;
 
             // The two function calls above will set the CRC and signal a
             //  write to the flash.
         }
     }
+
+    memcpy(&my_conf, &load_conf, sizeof(qc14_badge_conf_t));
 
     // Config is loaded or created.
     set_clock(my_conf.csecs_of_queercon); // Make SURE we get the unlocks done.
@@ -279,6 +286,7 @@ void start_badge() {
     ui_init();
     serial_init();
     init_ble();
+    Clock_start(csecs_clock_h);
 }
 
 int main()

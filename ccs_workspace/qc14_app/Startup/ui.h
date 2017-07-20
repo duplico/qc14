@@ -25,6 +25,7 @@
 #define UI_TIMEOUT_MATCH_SEL (1000 * UI_SEL_TIMEOUT_SEC / UI_CLOCK_MS)
 #define UI_TIMEOUT_MATCH_MAIN (1000 * UI_MAIN_TIMEOUT_SEC / UI_CLOCK_MS)
 
+Clock_Handle csecs_clock_h;
 void ui_click(uint8_t sw_signal);
 void ui_init();
 void ui_timeout();
