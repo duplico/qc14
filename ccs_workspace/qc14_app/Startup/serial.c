@@ -58,6 +58,7 @@ char uart_arm_task_stacks[4][400];
 uint32_t uart_timeout[4] = {0, 0, 0, 0};
 uint8_t uart_proto_state[4] = {0, 0, 0, 0};
 uint8_t uart_nts_flag[4] = {0, 0, 0, 0};
+uint8_t uart_fop_flag[4] = {0, 0, 0, 0}; // "first open"
 uint8_t icontile_state[] = {0, 0, 0, 0};
 
 PIN_Config arm_gpio_init_tables[4][3] = {
@@ -87,6 +88,7 @@ uint64_t arm_gpio_rxs[4] = {P1_RX, P2_RX, P3_RX, P4_RX};
 
 #define arm_tx_buf uart_tx_buf[uart_id]
 #define arm_nts uart_nts_flag[uart_id]
+#define arm_fop uart_fop_flag[uart_id]
 #define arm_timeout uart_timeout[uart_id]
 #define arm_phy_state uart_proto_state[uart_id]
 #define arm_gpio_init_table arm_gpio_init_tables[uart_id]
@@ -134,6 +136,20 @@ uint8_t rx_valid(UArg uart_id) {
 }
 
 void connection_opened(UArg uart_id) {
+    set_badge_mated(arm_rx_buf.badge_id);
+    // We take our clock setting from this person if:
+    //  1. They are authoritative and we are not, OR
+    //  2. Neither of us are authoritative and they are more than 10 csecs
+    //     (500 ms) ahead of us.
+    //     This is to avoid any accidental positive feedback loops on time.
+
+    if (!my_conf.time_is_set &&
+            (arm_rx_buf.current_time_authority ||
+             arm_rx_buf.current_time > my_conf.csecs_of_queercon+50)) {
+        set_clock(arm_rx_buf.current_time);
+        my_conf.time_is_set = arm_rx_buf.current_time_authority;
+    }
+
     arm_icontile_state = ICONTILE_STATE_OPEN;
     arm_color(uart_id, 255,255,255);
     if (ui_screen == UI_SCREEN_GAME &&
@@ -151,56 +167,6 @@ void connection_opened(UArg uart_id) {
         arm_color(uart_id, 0, 0, 0);
     }
 
-}
-
-void rx_done(UArg uart_id) {
-    set_badge_mated(arm_rx_buf.badge_id);
-    // We take our clock setting from this person if:
-    //  1. They are authoritative and we are not, OR
-    //  2. Neither of us are authoritative and they are more than 10 csecs
-    //     (500 ms) ahead of us.
-    //     This is to avoid any accidental positive feedback loops on time.
-
-    if (!my_conf.time_is_set &&
-            (arm_rx_buf.current_time_authority ||
-             arm_rx_buf.current_time > my_conf.csecs_of_queercon+50)) {
-        set_clock(arm_rx_buf.current_time);
-        my_conf.time_is_set = arm_rx_buf.current_time_authority;
-    }
-
-    switch(arm_icontile_state) {
-    case ICONTILE_STATE_DIS:
-        arm_icontile_state = ICONTILE_STATE_GOTHS;
-        ((serial_handshake_t*) &arm_tx_buf.payload)->ack = 1;
-        break;
-    case ICONTILE_STATE_SENTHS:
-        // Should be an acknowledgment.
-        if (((serial_handshake_t*) &arm_rx_buf.payload)->ack) {
-            connection_opened(uart_id);
-        } else { // not an ack, they didn't get our message:
-            arm_icontile_state = ICONTILE_STATE_GOTHS;
-            send_serial_handshake(uart_id, 1);
-        }
-        break;
-    case ICONTILE_STATE_GOTHS:
-        // TODO: wat?
-        break;
-    }
-}
-
-void tx_done(UArg uart_id) {
-    switch(arm_icontile_state) {
-    case ICONTILE_STATE_DIS:
-        arm_icontile_state = ICONTILE_STATE_SENTHS;
-        break;
-    case ICONTILE_STATE_SENTHS:
-        // TODO: wat?
-        break;
-    case ICONTILE_STATE_GOTHS:
-        // we've replied.
-        connection_opened(uart_id);
-        break;
-    }
 }
 
 uint8_t serial_in_progress() {
@@ -246,8 +212,6 @@ void block_until_plugged(UArg uart_id) {
 
         PINCC26XX_setOutputValue(arm_gpio_tx, 1);
 
-        plugin_timeout_ms = PLUG_TIMEOUT_MS;
-
         while (plugin_timeout_ms) {
             // This is the only place we can get connected,
             // so there's no need to leave this loop. We do,
@@ -277,7 +241,7 @@ void block_until_plugged(UArg uart_id) {
 
         // we are now plugged, can fall through:
         arm_phy_state = SERIAL_PHY_STATE_PLUGGED;
-        arm_nts = 1;
+        arm_fop = 1;
     }
 }
 
@@ -360,9 +324,83 @@ void uart_rx_done(UART_Handle h, void *buf, size_t count) {
     Semaphore_post(rx_done_sem);
 }
 
+void new_plug(UArg uart_id) {
+    switch(arm_icontile_state) {
+    case ICONTILE_STATE_DIS:
+        arm_icontile_state = ICONTILE_STATE_HS0;
+        // Wait for an RX timeout to send.
+        break;
+    default:
+        // TODO: borken
+        break;
+    }
+}
+
+void rx_timeout(UArg uart_id) {
+    switch (arm_icontile_state) {
+    case ICONTILE_STATE_DIS:
+        break;
+    case ICONTILE_STATE_HS0:
+        send_serial_handshake(uart_id, 0);
+        break;
+    case ICONTILE_STATE_HS1:
+        send_serial_handshake(uart_id, 1);
+        break;
+    case ICONTILE_STATE_HS2:
+        arm_icontile_state = ICONTILE_STATE_OPEN_WAIT;
+        // TODO: Reset timeout?
+        break;
+    case ICONTILE_STATE_OPEN_WAIT:
+        connection_opened(uart_id);
+        break;
+    }
+}
+
+void rx_done(UArg uart_id) {
+    switch (arm_icontile_state) {
+    case ICONTILE_STATE_DIS:
+        // TODO: bork bork
+        break;
+    case ICONTILE_STATE_HS0:
+        send_serial_handshake(uart_id, 1); // ack this
+        if (((serial_handshake_t*) &arm_rx_buf.payload)->ack) {
+            arm_icontile_state = ICONTILE_STATE_HS2;
+        } else {
+            arm_icontile_state = ICONTILE_STATE_HS1;
+        }
+        break;
+    case ICONTILE_STATE_HS1:
+        if (((serial_handshake_t*) &arm_rx_buf.payload)->ack) {
+            // They got our ACK. We should be good to go.
+            arm_icontile_state = ICONTILE_STATE_OPEN_WAIT;
+        } else {
+            // They didn't get our ACK and are still sending.
+            // Retry.
+            send_serial_handshake(uart_id, 1); // ack this
+        }
+        break;
+    case ICONTILE_STATE_HS2:
+        // They've acked our handshake. Ack their ack. Lol.
+        send_serial_handshake(uart_id, 1);
+        break;
+    case ICONTILE_STATE_OPEN_WAIT:
+        if (arm_rx_buf.msg_type == SERIAL_MSG_TYPE_HANDSHAKE) {
+            send_serial_handshake(uart_id, 1);
+            break;
+        }
+        // If it's not a handshake, fall through. The other side may be
+        //  all the way open.
+    case ICONTILE_STATE_OPEN:
+        // TODO: Process more interesting messages here.
+        break;
+    }
+}
+
+#define RX_TIMEOUTS_TO_IDLE 20
+
 void serial_arm_task(UArg uart_id, UArg arg1) {
     arm_phy_state=SERIAL_PHY_STATE_DIS;
-    uint8_t rx_timeouts_to_idle = 8;
+    uint8_t rx_timeouts_to_idle = RX_TIMEOUTS_TO_IDLE;
     int results_flag = 0;
 
     // This table holds the correct disconnected values:
@@ -385,8 +423,9 @@ void serial_arm_task(UArg uart_id, UArg arg1) {
             //  can cause us to want to change that. Either we need to send
             //  or we've gotten a RTS (or disconnect) from our peer.
 
-            if (do_phy_handshake_rx(uart_id) || (arm_nts && do_phy_handshake_tx(uart_id))) {
+            if (do_phy_handshake_rx(uart_id) || ((arm_fop || arm_nts) && do_phy_handshake_tx(uart_id))) {
                 // If we got here, then we know it was a signal to connect.
+                //  Or we just plugged in.
                 //  We can assert our side high by switching on our UART.
 
                 PIN_setOutputValue(arm_gpio_pin_handle, arm_gpio_tx, 1);
@@ -395,12 +434,17 @@ void serial_arm_task(UArg uart_id, UArg arg1) {
 
                 // We are active and ready to chat.
                 arm_phy_state = SERIAL_PHY_STATE_ACTIVE;
-                rx_timeouts_to_idle = 8;
+                rx_timeouts_to_idle = RX_TIMEOUTS_TO_IDLE;
 
                 // So let's set up an asynchronous read, and then if we need to,
                 //  make a blocking write.
                 // Reads do not time out in callback mode.
                 results_flag = UART_read(uart_h, rx_bytes, sizeof(serial_message_t)+2);
+
+                if (arm_fop) {
+                    new_plug(uart_id);
+                    arm_fop = 0;
+                }
             }
             break;
         case SERIAL_PHY_STATE_ACTIVE:
@@ -409,21 +453,21 @@ void serial_arm_task(UArg uart_id, UArg arg1) {
             // that we have something to say.
 //
             if (arm_nts) {
-//                setup_tx_buf_no_payload(uart_id);
-//                UART_write(uart_h, tx_bytes, sizeof(serial_message_t)+2);
-//                // Done sending, so we can cancel this flag:
+                setup_tx_buf_no_payload(uart_id);
+                UART_write(uart_h, tx_bytes, sizeof(serial_message_t)+2);
+                // Done sending, so we can cancel this flag:
                 arm_nts = SERIAL_MSG_TYPE_NOMSG;
             }
 
-            if (Semaphore_pend(rx_done_sem, RTS_TIMEOUT)) {
+            if (Semaphore_pend(rx_done_sem, RTS_TIMEOUT*2)) {
                 // We got a message.
                 memcpy(&arm_rx_buf, &rx_bytes[1], sizeof(serial_message_t)); // Work around silliness.
-                if (rx_valid(uart_id)) {
+                if (arm_rx_buf.current_time && rx_valid(uart_id)) { // nobody will ever have 0 time, and sometimes this just gets zeroes.
                     rx_done(uart_id);
                     // Invalidate already received message:
                     arm_rx_buf.crc = 0;
                     arm_rx_buf.badge_id = 2500;
-                    rx_timeouts_to_idle = 8;
+                    rx_timeouts_to_idle = RX_TIMEOUTS_TO_IDLE;
                 }
                 results_flag = UART_read(uart_h, rx_bytes, sizeof(serial_message_t)+2);
                 // TODO: what if we get crap a zillion times?
@@ -439,7 +483,7 @@ void serial_arm_task(UArg uart_id, UArg arg1) {
                     Semaphore_post(uart_mutex);
 
                 } else {
-//                    rx_timeout(uart_id); // We didn't get a message during our timeout window. Maybe we will later.
+                    rx_timeout(uart_id); // We didn't get a message during our timeout window. Maybe we will later.
                 }
             }
             break;
@@ -462,7 +506,7 @@ void serial_init() {
     // Defaults used:
     // blocking reads and writes, no write timeout, 8N1.
     uart_p.baudRate = 115200;
-    uart_p.readTimeout = RTS_TIMEOUT*2;
+    // No read timeout because it's on a callback.
     // No write timeout because there's no flow control.
     uart_p.readMode = UART_MODE_CALLBACK;
     uart_p.readCallback = uart_rx_done;
