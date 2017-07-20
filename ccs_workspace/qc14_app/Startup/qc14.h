@@ -99,6 +99,7 @@ typedef struct {
     uint8_t icons_been[6];
     char handle[10];
     uint8_t current_icon;
+    uint8_t earned_icon;
     uint8_t icons_unlocked;
     uint8_t current_tile;
     uint8_t time_is_set;

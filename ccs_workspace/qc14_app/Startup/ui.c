@@ -309,6 +309,9 @@ uint8_t icon_available(uint8_t icon_id) {
     if (icon_id == game_starting_icon(my_conf.badge_id))
         return 1; // Can always go back to the start.
 
+    if (icon_id == my_conf.earned_icon)
+        return 1; // Can also go back to our last earned icon.
+
     if (icon_id == ICON_COFFEE_ID &&
             (is_handler(my_conf.badge_id) || is_sponsor(my_conf.badge_id)))
         return 1; // Handlers and sponsors can be covfefe.
