@@ -74,6 +74,8 @@
 
 #include "simple_broadcaster.h"
 
+#include "qc14.h"
+
 /*********************************************************************
  * MACROS
  */
@@ -129,7 +131,7 @@ Display_Handle dispHandle = NULL;
 static ICall_EntityID selfEntity;
 
 // Semaphore globally used to post events to the application thread
-static ICall_Semaphore sem;
+//static ICall_Semaphore sem;
 
 // Queue object used for app messages
 static Queue_Struct appMsg;
@@ -261,7 +263,7 @@ static void SimpleBLEBroadcaster_init(void)
   // ******************************************************************
   // Register the current thread as an ICall dispatcher application
   // so that the application can send and receive messages.
-  ICall_registerApp(&selfEntity, &sem);
+  ICall_registerApp(&selfEntity, &ble_sem);
 
 #ifdef USE_RCOSC
   RCOSC_enableCalibration();
@@ -370,6 +372,14 @@ static void SimpleBLEBroadcaster_taskFxn(UArg a0, UArg a1)
           ICall_free(pMsg);
         }
       }
+
+      if (update_ble) {
+          update_ble = 0;
+          GAPRole_SetParameter(GAPROLE_SCAN_RSP_DATA, sizeof (scanRspData),
+                               scanRspData);
+          GAPRole_SetParameter(GAPROLE_ADVERT_DATA, sizeof(advertData), advertData);
+      }
+
     }
   }
 }
@@ -437,7 +447,7 @@ static void SimpleBLEBroadcaster_stateChangeCB(gaprole_States_t newState)
     pMsg->hdr.state = newState;
 
     // Enqueue the message.
-    Util_enqueueMsg(appMsgQueue, sem, (uint8*)pMsg);
+    Util_enqueueMsg(appMsgQueue, ble_sem, (uint8*)pMsg);
   }
 }
 

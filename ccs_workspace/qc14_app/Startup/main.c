@@ -46,6 +46,9 @@ extern uint8 advertData[22];
 
 qc14_badge_conf_t my_conf;
 
+ICall_Semaphore ble_sem;
+volatile uint8_t update_ble = 0;
+
 unsigned short crc16(volatile unsigned char *sbuf,unsigned char len) {
     unsigned short crc=0xB8F6;
 
@@ -74,6 +77,7 @@ void init_badge_peripherals() {
     screen_init();
 }
 
+// Callable from a TASK context:
 void qc14conf_save() {
     qc14_badge_conf_t readback_conf;
     qc14_badge_conf_t save_conf;
@@ -117,6 +121,8 @@ void qc14conf_save() {
 
     ExtFlash_close();
     Semaphore_post(flash_sem);
+    update_ble = 1;
+    ICall_signal(ble_sem);
 }
 
 uint8_t game_starting_icon() {
@@ -159,7 +165,6 @@ void game_set_icon(uint8_t icon_id) {
     }
     memcpy(&advertData[14], my_conf.icons_been, 6);
     set_radio_crc();
-    GAPRole_SetParameter(GAPROLE_ADVERT_DATA, sizeof(advertData), advertData);
     Semaphore_post(save_sem);
 }
 
