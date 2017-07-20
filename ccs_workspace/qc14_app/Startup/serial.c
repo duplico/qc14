@@ -42,8 +42,10 @@
 #define PLUG_TIMEOUT (PLUG_TIMEOUT_MS*100)
 
 serial_message_t uart_tx_buf[4] = {0};
+uint8_t tx_bytes[sizeof(serial_message_t)+2];
 // NB: This must be protected by the semaphore:
 serial_message_t arm_rx_buf;
+uint8_t rx_bytes[sizeof(serial_message_t)+2];
 
 UART_Handle uart_h;
 UART_Params uart_p;
@@ -98,8 +100,9 @@ void setup_tx_buf_no_payload(UArg uart_id) {
     arm_tx_buf.current_time = my_conf.csecs_of_queercon;
     arm_tx_buf.current_time_authority = my_conf.time_is_set;
     arm_tx_buf.arm_id = uart_id;
-    arm_tx_buf.crc = crc16((uint8_t *) &arm_rx_buf,
+    arm_tx_buf.crc = crc16((uint8_t *) &arm_tx_buf,
                            sizeof(serial_message_t) - 2);
+    memcpy(&tx_bytes, (uint8_t *) &arm_tx_buf, sizeof(serial_message_t)); // TODO: Needed?
 }
 
 inline void send_serial_handshake(UArg uart_id, uint8_t ack) {
@@ -109,6 +112,8 @@ inline void send_serial_handshake(UArg uart_id, uint8_t ack) {
     handshake_payload->current_mode = ui_screen;
     handshake_payload->current_icon_or_tile_id = (ui_screen? my_conf.current_tile : my_conf.current_icon);
     handshake_payload->ack = ack;
+    handshake_payload->pad[0] = 0xdc;
+    handshake_payload->pad[0] = 0x19;
     memcpy(handshake_payload->badges_mated, my_conf.badges_mated, BADGES_MATED_BYTES);
     arm_nts = SERIAL_MSG_TYPE_HANDSHAKE;
 }
@@ -121,7 +126,7 @@ uint8_t rx_valid(UArg uart_id) {
     // TODO:
 //    if (arm_rx_buf.badge_id == my_conf.badge_id)
 //        return 0;
-    if (arm_rx_buf.crc != crc16((uint8_t *) &arm_rx_buf,
+    if (arm_rx_buf.crc != crc16((uint8_t *) &arm_rx_buf.badge_id,
                                 sizeof(serial_message_t) - 2))
         return 0;
     return 1;
@@ -322,7 +327,11 @@ void serial_arm_task(UArg uart_id, UArg arg1) {
                 //  A byproduct of this is sending a HIGH.
                 PIN_close(arm_gpio_pin_handle);
                 uart_h = UART_open(uart_id, &uart_p);
-                results_flag = UART_read(uart_h, &arm_rx_buf, sizeof(serial_message_t));
+                // Wait a sec to start the read:
+                Task_sleep(50);
+
+                results_flag = UART_read(uart_h, rx_bytes, sizeof(serial_message_t)+2);
+                memcpy(&arm_rx_buf, &rx_bytes[1], sizeof(serial_message_t)); // Work around silliness.
 
                 // Free up resources.
                 // This must be up here because disconnected() needs gpio access:
@@ -331,7 +340,7 @@ void serial_arm_task(UArg uart_id, UArg arg1) {
                                                arm_gpio_init_table);
 
                 if (results_flag == UART_ERROR ||
-                        results_flag<sizeof(serial_message_t) ||
+                        results_flag<sizeof(serial_message_t)+2 || // TODO: Extend timeout?
                         !rx_valid(uart_id)) {
                     // Error. We are now disconnected.
                     disconnected(uart_id);
@@ -401,8 +410,10 @@ void serial_arm_task(UArg uart_id, UArg arg1) {
 
                         setup_tx_buf_no_payload(uart_id);
 
-                        results_flag = UART_write(uart_h, &arm_tx_buf,
-                                                  sizeof(serial_message_t));
+                        // Wait a bit to start writing.
+                        Task_sleep(100);
+                        results_flag = UART_write(uart_h, tx_bytes,
+                                                  sizeof(serial_message_t)+2);
 
                         // Done sending, so we can cancel this flag:
                         arm_nts = SERIAL_MSG_TYPE_NOMSG;
@@ -414,7 +425,7 @@ void serial_arm_task(UArg uart_id, UArg arg1) {
                         Semaphore_post(uart_mutex);
 
                         // We are now IDLE. On error, we are DISCONNECTED:
-                        if (results_flag == UART_ERROR || results_flag<sizeof(serial_message_t)) {
+                        if (results_flag == UART_ERROR || results_flag<sizeof(serial_message_t)+2) {
                             // something broke.
                             // The debugger can look at these lines to diagnose:
                             // volatile UARTCC26XX_Object *o = (UARTCC26XX_Object *) uart_h->object;
@@ -451,7 +462,7 @@ void serial_init() {
     // Defaults used:
     // blocking reads and writes, no write timeout, 8N1.
     uart_p.baudRate = 115200;
-    uart_p.readTimeout = RTS_TIMEOUT;
+    uart_p.readTimeout = RTS_TIMEOUT*2;
     uart_p.writeTimeout = RTS_TIMEOUT;
     uart_p.readMode = UART_MODE_BLOCKING;
     uart_p.writeMode = UART_MODE_BLOCKING;
