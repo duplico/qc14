@@ -99,6 +99,7 @@ uint64_t arm_gpio_rxs[4] = {P1_RX, P2_RX, P3_RX, P4_RX};
 #define arm_icontile_state icontile_state[uart_id]
 
 void setup_tx_buf_no_payload(UArg uart_id) {
+//    arm_tx_buf.sync_word = SYNC_BYTE;
     arm_tx_buf.badge_id = my_conf.badge_id;
     arm_tx_buf.current_time = my_conf.csecs_of_queercon;
     arm_tx_buf.current_time_authority = my_conf.time_is_set;
@@ -116,7 +117,7 @@ inline void send_serial_handshake(UArg uart_id, uint8_t ack) {
     handshake_payload->current_icon_or_tile_id = (ui_screen? my_conf.current_tile : my_conf.current_icon);
     handshake_payload->ack = ack;
     handshake_payload->pad[0] = 0xdc;
-    handshake_payload->pad[0] = 0x19;
+    handshake_payload->pad[1] = 0x19;
     memcpy(handshake_payload->badges_mated, my_conf.badges_mated, BADGES_MATED_BYTES);
     arm_nts = SERIAL_MSG_TYPE_HANDSHAKE;
 }
@@ -159,7 +160,7 @@ void connection_opened(UArg uart_id) {
             ((serial_handshake_t*) &arm_rx_buf.payload)->current_mode == UI_SCREEN_TILE) {
         // We're doing color tile things!
     } else {
-        // We're not uesful to each other.
+        // We're not useful to each other.
         for (uint8_t i=255; i>0; i--) {
             arm_color(uart_id, i, 0, 0);
             Task_sleep(500); // 500 * 10 us = 50 ms
@@ -249,12 +250,10 @@ uint8_t do_phy_handshake_rx(UArg uart_id) {
     if (wait_with_timeout(uart_id, 0, 500, 1)) { // this blocks for 500 ms
         // Secure our own UART before coming to the assistance of
         //  others.
-        arm_color(uart_id, 255,255,0);
         Semaphore_pend(uart_mutex, BIOS_WAIT_FOREVER);
 
         // Signal we heard it by also sending a low.
         PINCC26XX_setOutputValue(arm_gpio_tx, 0);
-        arm_color(uart_id, 0,0,255);
         // The response to our LOW should be a HIGH. If we got it,
         //  great, it was a request to take this serial port active.
         //  Otherwise it was a disconnect.
@@ -283,14 +282,12 @@ uint8_t do_phy_handshake_tx(UArg uart_id) {
      *      Send. (green or red)
      *      We are now IDLE. On error, we are DISCONNECTED.
      */
-    arm_color(uart_id, 0,0,50);
     if (!Semaphore_pend(uart_mutex, BIOS_NO_WAIT))
         return 0; // didn't get the semaphore, yield. We don't wait here in case the other side signals.
 
     // Output low to signal RTS.
     PINCC26XX_setOutputValue(arm_gpio_tx, 0);
     // Wait to get a low input (means CTS):
-    arm_color(uart_id, 0,50,0);
     if (!wait_with_timeout(uart_id, 0, RTS_TIMEOUT_MS, SERIAL_SETTLE_TIME_MS)) {
         // If they never go low, it means they either missed our message
         //  somehow, or they were unable to get their semaphore in time.
@@ -298,7 +295,6 @@ uint8_t do_phy_handshake_tx(UArg uart_id) {
         Semaphore_post(uart_mutex);
         return 0;
     }
-    arm_color(uart_id, 255,255,0);
 
     // Got low input. They've either accepted, or disconnected.
     // Set output high and wait with timeout for high input.
@@ -324,6 +320,28 @@ void uart_rx_done(UART_Handle h, void *buf, size_t count) {
     Semaphore_post(rx_done_sem);
 }
 
+void arm_disp(UArg uart_id) {
+    switch (arm_icontile_state) {
+    case ICONTILE_STATE_DIS:
+        arm_color(uart_id, 255,0,0);
+        break;
+    case ICONTILE_STATE_HS0:
+        arm_color(uart_id, 255,255,0);
+        break;
+    case ICONTILE_STATE_HS1:
+        arm_color(uart_id, 0,255,0);
+        break;
+    case ICONTILE_STATE_HS2:
+        arm_color(uart_id, 255,0,255);
+        break;
+    case ICONTILE_STATE_OPEN_WAIT:
+        arm_color(uart_id, 0,0,255);
+        break;
+    case ICONTILE_STATE_OPEN:
+        break;
+    }
+}
+
 void new_plug(UArg uart_id) {
     switch(arm_icontile_state) {
     case ICONTILE_STATE_DIS:
@@ -334,6 +352,7 @@ void new_plug(UArg uart_id) {
         // TODO: borken
         break;
     }
+    arm_disp(uart_id);
 }
 
 void rx_timeout(UArg uart_id) {
@@ -354,6 +373,7 @@ void rx_timeout(UArg uart_id) {
         connection_opened(uart_id);
         break;
     }
+    arm_disp(uart_id);
 }
 
 void rx_done(UArg uart_id) {
@@ -381,11 +401,15 @@ void rx_done(UArg uart_id) {
         break;
     case ICONTILE_STATE_HS2:
         // They've acked our handshake. Ack their ack. Lol.
-        send_serial_handshake(uart_id, 1);
+        if (((serial_handshake_t*) &arm_rx_buf.payload)->ack == 1) {
+            send_serial_handshake(uart_id, 2);
+        } else if (!((serial_handshake_t*) &arm_rx_buf.payload)->ack) {
+            send_serial_handshake(uart_id, 2);
+        }
         break;
     case ICONTILE_STATE_OPEN_WAIT:
         if (arm_rx_buf.msg_type == SERIAL_MSG_TYPE_HANDSHAKE) {
-            send_serial_handshake(uart_id, 1);
+            send_serial_handshake(uart_id, 2);
             break;
         }
         // If it's not a handshake, fall through. The other side may be
@@ -394,6 +418,7 @@ void rx_done(UArg uart_id) {
         // TODO: Process more interesting messages here.
         break;
     }
+    arm_disp(uart_id);
 }
 
 #define RX_TIMEOUTS_TO_IDLE 20
@@ -436,10 +461,15 @@ void serial_arm_task(UArg uart_id, UArg arg1) {
                 arm_phy_state = SERIAL_PHY_STATE_ACTIVE;
                 rx_timeouts_to_idle = RX_TIMEOUTS_TO_IDLE;
 
+                // I'm going to pause for a moment here to try to make sure
+                //  that both sides are consistent. Maybe this will help
+                //  with the shifting problem.
+                Task_sleep(100); // TODO
+
                 // So let's set up an asynchronous read, and then if we need to,
                 //  make a blocking write.
                 // Reads do not time out in callback mode.
-                results_flag = UART_read(uart_h, rx_bytes, sizeof(serial_message_t)+2);
+                results_flag = UART_read(uart_h, rx_bytes, sizeof(serial_message_t));
 
                 if (arm_fop) {
                     new_plug(uart_id);
@@ -448,30 +478,42 @@ void serial_arm_task(UArg uart_id, UArg arg1) {
             }
             break;
         case SERIAL_PHY_STATE_ACTIVE:
-            arm_color(uart_id, 255, 255, 255);
             // If we're here, that means the other side signaled to us, or
             // that we have something to say.
 //
             if (arm_nts) {
                 setup_tx_buf_no_payload(uart_id);
-                UART_write(uart_h, tx_bytes, sizeof(serial_message_t)+2);
+                UART_write(uart_h, tx_bytes, sizeof(serial_message_t));
                 // Done sending, so we can cancel this flag:
                 arm_nts = SERIAL_MSG_TYPE_NOMSG;
             }
 
             if (Semaphore_pend(rx_done_sem, RTS_TIMEOUT*2)) {
-                // We got a message.
-                memcpy(&arm_rx_buf, &rx_bytes[1], sizeof(serial_message_t)); // Work around silliness.
-                if (arm_rx_buf.current_time && rx_valid(uart_id)) { // nobody will ever have 0 time, and sometimes this just gets zeroes.
+                // Look at this...
+
+                if (((UARTCC26XX_Object *) uart_h->object)->status == UART_OK)
+                    memcpy(&arm_rx_buf, &rx_bytes, sizeof(serial_message_t));
+                else
+                    __nop();
+
+//                // We got a message.
+//                if (rx_bytes[0] == 0xF0)
+//                    memcpy(&arm_rx_buf, &rx_bytes[1], sizeof(serial_message_t)); // Work around silliness.
+//                else
+//                    memcpy(&arm_rx_buf, &rx_bytes, sizeof(serial_message_t));
+
+                if (((UARTCC26XX_Object *) uart_h->object)->status == UART_OK &&
+                        arm_rx_buf.current_time && rx_valid(uart_id)) { // nobody will ever have 0 time, and sometimes this just gets zeroes.
                     rx_done(uart_id);
                     // Invalidate already received message:
                     arm_rx_buf.crc = 0;
                     arm_rx_buf.badge_id = 2500;
                     rx_timeouts_to_idle = RX_TIMEOUTS_TO_IDLE;
                 }
-                results_flag = UART_read(uart_h, rx_bytes, sizeof(serial_message_t)+2);
+                results_flag = UART_read(uart_h, rx_bytes, sizeof(serial_message_t));
                 // TODO: what if we get crap a zillion times?
             } else {
+                rx_timeout(uart_id); // We didn't get a message during our timeout window. Maybe we will later.
                 rx_timeouts_to_idle--;
                 if (!rx_timeouts_to_idle) {
                     arm_phy_state = SERIAL_PHY_STATE_PLUGGED;
@@ -482,8 +524,6 @@ void serial_arm_task(UArg uart_id, UArg arg1) {
                                                    arm_gpio_init_table);
                     Semaphore_post(uart_mutex);
 
-                } else {
-                    rx_timeout(uart_id); // We didn't get a message during our timeout window. Maybe we will later.
                 }
             }
             break;
@@ -506,6 +546,7 @@ void serial_init() {
     // Defaults used:
     // blocking reads and writes, no write timeout, 8N1.
     uart_p.baudRate = 115200;
+    uart_p.parityType = UART_PAR_EVEN;
     // No read timeout because it's on a callback.
     // No write timeout because there's no flow control.
     uart_p.readMode = UART_MODE_CALLBACK;

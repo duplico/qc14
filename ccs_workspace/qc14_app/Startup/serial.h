@@ -28,10 +28,13 @@
 #define SERIAL_MSG_TYPE_CONF 4
 #define SERIAL_MSG_TYPE_MAX 4
 
+//#define SYNC_BYTE 0x94
+
 void serial_init();
 uint8_t serial_in_progress();
 
 typedef struct {
+//    uint8_t sync_byte;
     uint16_t badge_id;
     uint8_t msg_type;
     uint32_t current_time;
