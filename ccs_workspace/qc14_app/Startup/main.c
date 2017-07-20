@@ -249,7 +249,7 @@ void qc14conf_init() {
             load_conf.badge_id = badge_id1;
             load_conf.avail_tiles = 0x000f;
             load_conf.earned_icon = game_starting_icon(load_conf.badge_id);
-            game_set_icon(game_starting_icon(load_conf.badge_id));
+            load_conf.current_icon = game_starting_icon(load_conf.badge_id);
             set_badge_mated(load_conf.badge_id);
             if (load_conf.badge_id == BADGE_ID_DUPLICO)
                 load_conf.csecs_of_queercon = START_TIME_GEORGE;
