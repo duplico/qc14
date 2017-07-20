@@ -213,7 +213,7 @@ void rx_done(UArg uart_id) {
         } else {
             // They didn't ack ours, but we can ack theirs.
             send_serial_handshake(uart_id, 1);
-            arm_icontile_state = ICONTILE_STATE_HS1;
+            arm_icontile_state = ICONTILE_STATE_HS2;
         }
         break;
     case ICONTILE_STATE_HS2:
@@ -229,8 +229,9 @@ void rx_done(UArg uart_id) {
         break;
     case ICONTILE_STATE_HS3:
         if (((serial_handshake_t*) &arm_rx_buf.payload)->ack) {
-            // OK, just got a spurious ACK. This can happen.
-            //  We're going to ignore it, though.
+            // OK, we got another ACK. This likely means that our peer didn't
+            //  get our ACK. So re-send, and reset the timeout countdown... // TODO
+            send_serial_handshake(uart_id, 1);
         }
         break;
     case ICONTILE_STATE_OPEN:
@@ -284,6 +285,9 @@ void serial_arm_task(UArg uart_id, UArg arg1) {
     uint32_t timeout_ms = PLUG_TIMEOUT_MS;
     int results_flag = 0;
 
+    while (uart_id != 0)
+        Task_sleep(1000);
+
     // This table holds the correct disconnected values:
     arm_gpio_pin_handle = PIN_open(&arm_gpio_pin_state, arm_gpio_init_table);
 
@@ -298,6 +302,7 @@ void serial_arm_task(UArg uart_id, UArg arg1) {
             wait_with_timeout(uart_id, 1, UINT32_MAX, PLUG_INTERVAL);
             // We are physically connected, but not logically.
             // Prep a logical handshake.
+            Task_sleep(300); // 3 ms. - let the other side see the level?
             send_serial_handshake(uart_id, 0);
             arm_icontile_state = ICONTILE_STATE_HS1;
             arm_proto_state = SERIAL_PHY_STATE_CON;
