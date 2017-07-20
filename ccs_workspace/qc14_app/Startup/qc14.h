@@ -104,7 +104,7 @@ typedef struct {
     uint8_t time_is_set;
     uint16_t avail_tiles;
     uint32_t csecs_of_queercon; // really, since Wednesday midnight.
-    uint16_t crc;
+    uint32_t crc; // 32 bits to align with end.
 } qc14_badge_conf_t;
 
 extern qc14_badge_conf_t my_conf;
@@ -117,7 +117,7 @@ void qc14conf_save();
 void set_badge_mated(uint16_t badge_id);
 uint8_t game_been_icon(uint8_t icon_id);
 void game_set_icon(uint8_t icon_id);
-uint8_t game_starting_icon();
+uint8_t game_starting_icon(uint16_t badge_id);
 uint8_t is_uber(uint16_t id);
 uint8_t is_handler(uint16_t id);
 uint8_t is_sponsor(uint16_t id);
