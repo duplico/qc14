@@ -220,6 +220,13 @@ void block_until_plugged(UArg uart_id) {
             // however, need to yield so that other threads
             // (including other arms) can actually function.
 
+            if (ui_screen == UI_SCREEN_SLEEP ||
+                    ui_screen == UI_SCREEN_SLEEPING) {
+                PINCC26XX_setOutputValue(arm_gpio_tx, 0);
+            } else {
+                PINCC26XX_setOutputValue(arm_gpio_tx, 1);
+            }
+
             if (PINCC26XX_getInputValue(arm_gpio_rx)) {
                 plugin_timeout_ms--;
             } else {
