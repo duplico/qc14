@@ -165,9 +165,18 @@ static uint8 scanRspData[] =
   'e',
 
   // Tx power level
-  0x02,   // length of this data
-  GAP_ADTYPE_POWER_LEVEL,
-  0       // 0dBm
+  11,   // length of this data
+  GAP_ADTYPE_MANUFACTURER_SPECIFIC,
+  0xd3,
+  0x04,
+  0x41,
+  0x52,
+  0x4F,
+  0x59,
+  0x47,
+  0x42,
+  0x49,
+  0x56
 };
 
 // GAP - Advertisement data (max size = 31 bytes, though this is
