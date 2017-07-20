@@ -152,6 +152,7 @@ void connection_opened(UArg uart_id) {
     }
 
     arm_icontile_state = ICONTILE_STATE_OPEN;
+    arm_phy_state = SERIAL_PHY_STATE_PLUGGED;
     arm_color(uart_id, 255,255,255);
     if (ui_screen == UI_SCREEN_GAME &&
             ((serial_handshake_t*) &arm_rx_buf.payload)->current_mode == UI_SCREEN_GAME) {
@@ -517,15 +518,17 @@ void serial_arm_task(UArg uart_id, UArg arg1) {
                 rx_timeouts_to_idle--;
                 if (!rx_timeouts_to_idle) {
                     arm_phy_state = SERIAL_PHY_STATE_PLUGGED;
-                    // Clean up:
-                    UART_readCancel(uart_h);
-                    UART_close(uart_h);
-                    arm_gpio_pin_handle = PIN_open(&arm_gpio_pin_state,
-                                                   arm_gpio_init_table);
-                    Semaphore_post(uart_mutex);
-
                 }
             }
+            if (arm_phy_state == SERIAL_PHY_STATE_PLUGGED) {
+                // Clean up, we're going inactive on this line:
+                UART_readCancel(uart_h);
+                UART_close(uart_h);
+                arm_gpio_pin_handle = PIN_open(&arm_gpio_pin_state,
+                                               arm_gpio_init_table);
+                Semaphore_post(uart_mutex);
+            }
+
             break;
         }
     } while (1);
