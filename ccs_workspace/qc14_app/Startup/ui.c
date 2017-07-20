@@ -406,7 +406,7 @@ void ui_click(uint8_t sw_signal)
         break;
     case UI_SCREEN_SLEEPING: // We're asleep.
         // Doesn't matter what we click. Time to wake up like a timeout:
-        ui_next = UI_SCREEN_SLEEP;
+        ui_screen = UI_SCREEN_SLEEP;
         ui_timeout();
         return;
     default: // We are in one of the switchable versions:
