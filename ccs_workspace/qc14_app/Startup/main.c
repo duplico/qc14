@@ -151,8 +151,8 @@ uint8_t game_been_icon(uint8_t icon_id) {
 
 void set_radio_crc() {
     uint16_t c = crc16(&advertData[11], 9);
-    advertData[20] = c & 0xff;
-    advertData[21] = (c >> 8) & 0xff;
+    advertData[21] = c & 0xff;
+    advertData[20] = (c >> 8) & 0xff;
 }
 
 void game_set_icon(uint8_t icon_id) {
@@ -269,8 +269,8 @@ void qc14conf_init() {
     set_clock(my_conf.csecs_of_queercon); // Make SURE we get the unlocks done.
 
 
-    advertData[11] = my_conf.badge_id & 0xff;
-    advertData[12] = (my_conf.badge_id >> 8) & 0xff;
+    advertData[12] = my_conf.badge_id & 0xff;
+    advertData[11] = (my_conf.badge_id >> 8) & 0xff;
 
     game_set_icon(my_conf.current_icon);
 
