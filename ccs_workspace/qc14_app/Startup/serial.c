@@ -108,7 +108,7 @@ void setup_tx_buf_no_payload(UArg uart_id) {
         arm_tx_buf.msg_type &= 0b01111111;
         arm_tx_buf.ack = 1;
     }
-    arm_tx_buf.crc = crc16((uint8_t *) &arm_rx_buf,
+    arm_tx_buf.crc = crc16((uint8_t *) &arm_tx_buf,
                            sizeof(serial_message_t) - 2);
 }
 
@@ -294,12 +294,20 @@ void serial_arm_task(UArg uart_id, UArg arg1) {
             // We're physically unplugged.
             // Wait forever for our input to go high for PLUG_INTERVAL,
             // yielding execution during that loop.
+            arm_color(uart_id, 0,0,0);
             wait_with_timeout(uart_id, 1, UINT32_MAX, PLUG_INTERVAL);
             // We are physically connected, but not logically.
             // Prep a logical handshake.
             send_serial_handshake(uart_id, 0);
             arm_icontile_state = ICONTILE_STATE_HS1;
             arm_proto_state = SERIAL_PHY_STATE_CON;
+        }
+        arm_color(uart_id, 10,10,10);
+
+        if (!PINCC26XX_getInputValue(arm_gpio_rx) &&
+                wait_with_timeout(uart_id, 0, UNPLUG_INTERVAL_MS, UNPLUG_INTERVAL_MS)) {
+            disconnected(uart_id);
+            continue;
         }
 
         // If we're physically plugged but not connected, keep
@@ -330,7 +338,7 @@ void serial_arm_task(UArg uart_id, UArg arg1) {
 
         // Sending is non-blocking, so do it if we need to:
         if (arm_nts) {
-            arm_color(uart_id, 100,0,0);
+            arm_color(uart_id, 0,0,100); // blue: send
 
             // Setup the non-payload parts of the message:
             //  (the payload parts are configured by the function that sets
@@ -347,22 +355,26 @@ void serial_arm_task(UArg uart_id, UArg arg1) {
             Semaphore_post(tx_done_sem);
         }
 
+        arm_color(uart_id, 0,100,0); // green: receive
         // Listen for a message. BLOCKING:
         results_flag = UART_read(uart_h, &arm_rx_buf, sizeof(serial_message_t));
 
+        arm_color(uart_id, 0,0,10); // blue: rx wait
         // Wait for our write to finish, and cancel it if it's broken.
         if (!Semaphore_pend(tx_done_sem, RTS_TIMEOUT*2)) {
             // write error well past timeout. bork bork.
             UART_writeCancel(uart_h);
+            arm_color(uart_id, 100,0,100); // red+blue: tx fail
         }
 
         if (results_flag!=sizeof(serial_message_t) || !rx_valid(uart_id)) {
             // We didn't get a good message. We'll have to keep listening.
+            arm_color(uart_id, 10,10,10);
             rx_timeout(uart_id);
 
         } else { // success. It's valid, right size, and no error.
             // Good, back to connected.
-            arm_color(uart_id, 10,10,10);
+            arm_color(uart_id, 255,255,255);
             // Process message.
             rx_done(uart_id); // determine need to ack, here.
         }
