@@ -29,8 +29,8 @@
 
 // Serial timeout configuration
 #define RTS_TIMEOUT_MS 50
-#define SERIAL_SETTLE_TIME_MS 5
-#define PLUG_TIMEOUT_MS 100
+#define SERIAL_SETTLE_TIME_MS 10
+#define PLUG_TIMEOUT_MS 1000
 
 // UI constant configuration
 #define UI_CLOCK_MS 10
