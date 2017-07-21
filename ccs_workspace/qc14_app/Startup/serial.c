@@ -150,8 +150,8 @@ uint8_t process_game_open(UArg uart_id, uint8_t icon_id) {
         // This means that this match is good enough to do the transition.
 
         // Covfefe is forever.
-        if (my_conf.current_icon == ICON_COFFEE_ID)
-            do_icon_transition(ICON_COFFEE_ID);
+        if (my_conf.current_icon == ICON_COFFEE)
+            do_icon_transition(ICON_COFFEE);
 
         do_icon_transition(game_curr_icon.arms[uart_id].result_icon_id);
         return 1;

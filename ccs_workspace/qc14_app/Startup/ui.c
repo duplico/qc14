@@ -401,7 +401,9 @@ void set_screen_solid_local(const screen_frame_t *frame) {
 uint8_t icon_available(uint8_t icon_id) {
     return 1; // TODO
     if (my_conf.icons_unlocked) {
-        return game_been_icon(icon_id);
+        return icon_id == ICON_AIR || icon_id == ICON_EARTH ||
+                icon_id == ICON_WATER || icon_id == ICON_FIRE ||
+                icon_id == ICON_COFFEE || game_been_icon(icon_id);
     }
 
     if (icon_id == game_starting_icon(my_conf.badge_id))
@@ -410,7 +412,7 @@ uint8_t icon_available(uint8_t icon_id) {
     if (icon_id == my_conf.earned_icon)
         return 1; // Can also go back to our last earned icon.
 
-    if (icon_id == ICON_COFFEE_ID &&
+    if (icon_id == ICON_COFFEE &&
             (is_handler(my_conf.badge_id) || is_sponsor(my_conf.badge_id)))
         return 1; // Handlers and sponsors can be covfefe.
 
