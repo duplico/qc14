@@ -59,6 +59,8 @@ extern uint8_t uart_proto_state[4];
 #define ICON_AIR 17
 #define ICON_FIRE 18
 #define ICON_WATER 19
+#define ICON_ICE 25
+#define ICON_SUN 23
 #define ICON_COFFEE_ID 42
 #define ICON_COUNT 43
 #define TILE_COUNT 12

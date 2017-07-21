@@ -95,6 +95,30 @@ void screen_blink_tick_swi(UArg a0) {
     screen_blink_status = !screen_blink_status;
 }
 
+void its_cold() {
+    // It's cold!
+    //
+    if (ui_screen == UI_SCREEN_GAME && my_conf.current_icon == ICON_WATER &&
+            !serial_in_progress()) {
+        // We're not mated, we're in game mode, and we have water up.
+        // FREEZE IT.
+        game_set_icon(ICON_ICE);
+        ui_update(UI_SCREEN_GAME); // TODO: Threadsafe????
+    }
+}
+
+void its_bright() {
+    // It's bright!
+    //
+    if (ui_screen == UI_SCREEN_GAME && my_conf.current_icon == ICON_EARTH &&
+            !serial_in_progress()) {
+        // We're not mated, we're in game mode, and we have water up.
+        // FREEZE IT.
+        game_set_icon(ICON_SUN);
+        ui_update(UI_SCREEN_GAME); // TODO: Threadsafe????
+    }
+}
+
 void csecs_swi(UArg a0) {
     // It's been another centisecond of queercon.
     my_conf.csecs_of_queercon++;
