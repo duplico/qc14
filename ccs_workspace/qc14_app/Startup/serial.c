@@ -476,7 +476,7 @@ void rx_done(UArg uart_id) {
     arm_disp(uart_id);
 }
 
-#define RX_TIMEOUTS_TO_IDLE 10
+#define RX_TIMEOUTS_TO_IDLE 20
 
 void serial_arm_task(UArg uart_id, UArg arg1) {
     arm_phy_state=SERIAL_PHY_STATE_DIS;
