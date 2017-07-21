@@ -175,6 +175,30 @@ void sw_clock_swi(UArg a0) {
     }
 }
 
+void arm_color(UArg uart_id, uint8_t r, uint8_t g, uint8_t b) {
+    for (uint8_t i=0; i<6; i++) {
+        led_buf[7+uart_id][i][0] = r;
+        led_buf[7+uart_id][i][1] = g;
+        led_buf[7+uart_id][i][2] = b;
+    }
+}
+
+void inner_arm_color(UArg uart_id, uint8_t r, uint8_t g, uint8_t b) {
+    for (uint8_t i=0; i<3; i++) {
+        led_buf[7+uart_id][i][0] = r;
+        led_buf[7+uart_id][i][1] = g;
+        led_buf[7+uart_id][i][2] = b;
+    }
+}
+
+void arm_color_rgb(UArg uart_id, rgbcolor_t rgb) {
+    arm_color(uart_id, rgb.red, rgb.green, rgb.blue);
+}
+
+void inner_arm_color_rgb(UArg uart_id, rgbcolor_t rgb) {
+    inner_arm_color(uart_id, rgb.red, rgb.green, rgb.blue);
+}
+
 void screen_blink_on(uint8_t start_off) {
     screen_blink_status = start_off;
     Clock_start(screen_blink_clock_h);
@@ -222,9 +246,12 @@ void set_screen_animation(size_t base, uint32_t index) {
                      2);
     Clock_start(screen_anim_clock_h);
     Semaphore_post(flash_sem);
+    for (uint8_t i=0; i<4; i++) {
+        arm_color(i, 0, 0, 0);
+    }
 }
 
-void set_screen_tile(uint32_t index) {
+void set_screen_tile(uint32_t index, uint8_t sel) {
     // Load the icon:
     // Stop animating.
     Clock_stop(screen_anim_clock_h);
@@ -247,11 +274,21 @@ void set_screen_tile(uint32_t index) {
     Clock_start(screen_anim_clock_h);
     Semaphore_post(flash_sem);
 
-    // TODO: Set arms.
+    if (!sel) {
+        // TODO: Set arms.
+        for (uint8_t i=0; i<4; i++) {
+            arm_color(i, 0, 0, 0);
+        }
+    } else {
+        for (uint8_t i=0; i<4; i++) {
+            arm_color(i, 0, 0, 0);
+        }
+    }
+
 
 }
 
-void set_screen_game(uint32_t index) {
+void set_screen_game(uint32_t index, uint8_t sel) {
     // Load the icon:
     // Stop animating.
     Clock_stop(screen_anim_clock_h);
@@ -274,7 +311,15 @@ void set_screen_game(uint32_t index) {
     Clock_start(screen_anim_clock_h);
     Semaphore_post(flash_sem);
 
-    // TODO: Set arms.
+    if (!sel) {
+        for (uint8_t i=0; i<4; i++) {
+            inner_arm_color_rgb(i, game_curr_icon.arms[i].arm_color);
+        }
+    } else {
+        for (uint8_t i=0; i<4; i++) {
+            arm_color(i, 0, 0, 0);
+        }
+    }
 
 }
 
@@ -290,14 +335,6 @@ void set_screen_solid_local(const screen_frame_t *frame) {
     screen_anim->anim_frame_delay_ms = 0;
     // Don't start the clock. Just let it ride.
     screen_put_buffer((screen_frame_t *)frame);
-}
-
-void arm_color(UArg uart_id, uint8_t r, uint8_t g, uint8_t b) {
-    for (uint8_t i=0; i<6; i++) {
-        led_buf[7+uart_id][i][0] = r;
-        led_buf[7+uart_id][i][1] = g;
-        led_buf[7+uart_id][i][2] = b;
-    }
 }
 
 uint8_t icon_available(uint8_t icon_id) {
@@ -483,17 +520,17 @@ void ui_update(uint8_t ui_next) {
         break;
     case UI_SCREEN_GAME_SEL:
         screen_blink_on(ui_screen != ui_next);
-        set_screen_game(sel_id);
+        set_screen_game(sel_id, 1);
         break;
     case UI_SCREEN_GAME:
-        set_screen_game(my_conf.current_icon);
+        set_screen_game(my_conf.current_icon, 0);
         break;
     case UI_SCREEN_TILE_SEL:
         screen_blink_on(ui_screen != ui_next);
-        set_screen_tile(sel_id);
+        set_screen_tile(sel_id, 1);
         break;
     case UI_SCREEN_TILE:
-        set_screen_tile(my_conf.current_tile);
+        set_screen_tile(my_conf.current_tile, 0);
         break;
     }
     ui_screen = ui_next;

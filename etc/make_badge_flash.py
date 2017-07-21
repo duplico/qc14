@@ -125,8 +125,18 @@ def icon_struct_bytes(id, animation_bytes, connections):
         # uint16_t arm_anim_id;
         # uint8_t sufficient_flag;
         # uint8_t other_arm_id;
+        # rgbcolor_t arm_color;
     # } mate_spec_t;
-    connection_pack_string = '<HHHBB'
+        
+    # Then one of these:
+    
+    # typedef struct {
+        # uint8_t red;
+        # uint8_t green;
+        # uint8_t blue;
+    # } rgbcolor_t;
+    
+    connection_pack_string = '<HHHBBBBBx'
     
     bytelist = map(ord, list(struct.pack(
         icon_pack_string,
@@ -142,7 +152,10 @@ def icon_struct_bytes(id, animation_bytes, connections):
             connection.result_icon if connection else 0,
             connection.arm_anim_id if connection else 0,
             connection.sufficiency if connection else 0,
-            connection.other_arm_id if connection else 0
+            connection.other_arm_id if connection else 0,
+            connection.rgb[0] if connection else 0,
+            connection.rgb[1] if connection else 0,
+            connection.rgb[2] if connection else 0,
         )))
     return bytelist
     
