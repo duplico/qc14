@@ -700,6 +700,15 @@ void screen_anim_task_fn(UArg a0, UArg a1) {
             }
         }
 
+        uint8_t tile_anim_active_arm = 0;
+        uint8_t icon_anim_active_dot = 0;
+
+        if (Semaphore_pend(arm_anim_sem, BIOS_NO_WAIT)) {
+            if (ui_screen == UI_SCREEN_GAME) {
+
+            }
+        }
+
         // Save if necessary.
         if (Semaphore_pend(save_sem, BIOS_NO_WAIT))
             qc14conf_save();
