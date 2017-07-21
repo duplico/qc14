@@ -71,6 +71,8 @@ uint8_t sw_l_clicked = 0;
 uint8_t sw_r_clicked = 0;
 uint8_t sw_c_clicked = 0;
 
+game_arm_status_t game_arm_status[4] = {0};
+
 uint_fast32_t screen_timeout_ticks = 0;
 
 PIN_Config sw_pin_table[] = {
@@ -710,7 +712,6 @@ void ui_init() {
     clockParams.startFlag = TRUE;
     sw_debounce_clock = Clock_create(sw_clock_swi, 2, &clockParams, &eb);
 }
-
 
 void screen_init() {
     Semaphore_Params params;

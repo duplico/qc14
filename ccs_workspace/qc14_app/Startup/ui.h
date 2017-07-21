@@ -71,6 +71,21 @@ typedef struct {
     screen_anim_t animation;
 } tile_t;
 
+typedef struct {
+    uint8_t connectable;
+    uint8_t connected;
+    uint16_t icon_id;
+    uint8_t sufficiency_info;
+    uint8_t nts;
+    uint8_t nts_done;
+} game_arm_status_t;
+
+#define ARM_CONNECT_STATUS_DIS 0
+#define ARM_CONNECT_STATUS_DONE 1
+#define ARM_CONNECT_STATUS_WAITMSG 2 // Waiting on a message from
+#define ARM_CONNECT_STATUS_WAITCON 3
+
+extern game_arm_status_t game_arm_status[4];
 extern Semaphore_Handle flash_sem;
 extern game_icon_t game_curr_icon;
 

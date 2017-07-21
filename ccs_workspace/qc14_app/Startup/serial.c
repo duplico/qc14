@@ -140,18 +140,28 @@ uint8_t rx_valid(UArg uart_id) {
     return 1;
 }
 
-// TODO: struct or array for connected icons.
-
 uint8_t process_game_open(UArg uart_id, uint8_t icon_id) {
+    // Returns 0 if this connection is rejected.
+    // Return 1 if this connection is accepted.
+
     if (icon_id != game_curr_icon.arms[uart_id].mate_icon_id)
         return 0;
     if (arm_rx_buf.arm_id != ((uart_id + 2) % 4))
         return 0; // In game mode, we only accept connections from opposite arm
 
+    game_arm_status[uart_id].connected = 1;
+    game_arm_status[uart_id].icon_id = icon_id;
+
     // If we're here, this was a match.
     switch(game_curr_icon.arms[uart_id].sufficient_flag) {
     case GAME_SUFFICIENT_ALONE:
         // This means that this match is good enough to do the transition.
+
+        // Preempt all other arms
+        for (uint8_t i=0; i<4; i++) {
+            if (i==uart_id) continue;
+            game_arm_status[i].connectable = 0;
+        }
 
         // Covfefe is forever.
         if (my_conf.current_icon == ICON_COFFEE)
@@ -160,17 +170,42 @@ uint8_t process_game_open(UArg uart_id, uint8_t icon_id) {
         do_icon_transition(game_curr_icon.arms[uart_id].result_icon_id);
         return 1;
     case GAME_SUFFICIENT_MSG:
+        // I'm a LEAF BADGE.
+        //  (watch how I soar)
         // We need a message from this person in order to transition.
         //  Let us prepare our bodies.
-        //  TODO: Graphics.
+        // There is nothing yet to do.
+
+        // Preempt all other arms
+        for (uint8_t i=0; i<4; i++) {
+            if (i==uart_id) continue;
+            game_arm_status[i].connectable = 0;
+        }
+
         return 1; // TODO?
     case GAME_SUFFICIENT_CONN:
+        // I'm the MIDDLE BADGE.
         // We need another badge physically plugged into ourselves in order
         //  to transition. It may already be here, or we may need to wait
         //  for it. Regardless, once it's plugged we will need to send a
         //  message to the badge that this function is processing.
 
-        // TODO: Process
+        // TODO: Prevent connections if they're preempted by another badge.
+        if (game_arm_status[game_curr_icon.arms[uart_id].other_arm_id].connected) {
+            // We're connected on the other arm, and our connection-preemption
+            //  keeps us from that badge being anything other than what we want.
+            // We are ready to transition as soon as we communicate to our leaf
+            //  badges that it's transition time.
+        } else {
+            // The other arm is disconnected.
+            // Preempt all arms other than what we're waiting for.
+            for (uint8_t i=0; i<4; i++) {
+                if (i==uart_id ||
+                        i == game_curr_icon.arms[uart_id].other_arm_id)
+                    continue;
+                game_arm_status[i].connectable = 0;
+            }
+        }
         return 1;
     }
     return 0;
@@ -212,6 +247,28 @@ uint8_t serial_in_progress() {
 void disconnected(UArg uart_id) {
     outer_arm_color(uart_id, 0,0,0);
     arm_phy_state=SERIAL_PHY_STATE_DIS;
+
+    if (ui_screen == UI_SCREEN_GAME && arm_icontile_state == ICONTILE_STATE_OPEN) {
+        // We need to clean up the game_arm_status setup.
+        game_arm_status[uart_id].connected = 0;
+        // Leave my own connectability unchanged.
+        game_arm_status[uart_id].nts = 0;
+        game_arm_status[uart_id].nts_done = 0;
+        game_arm_status[uart_id].icon_id = 255;
+        if (serial_in_progress()) {
+            // Are any other arms connected?
+            // TODO: Are there special cases here?
+        } else {
+            // We're the last to disconnect.
+            // Make everybody else connectable.
+            for (uint8_t i=0; i<4; i++) {
+                game_arm_status[uart_id].connectable = 1;
+            }
+        }
+    } else {
+        // Handle tile cleanup.
+    }
+
     arm_icontile_state = ICONTILE_STATE_DIS;
     PINCC26XX_setOutputValue(arm_gpio_tx, 0);
     Task_sleep(RTS_TIMEOUT*1.2);
@@ -236,6 +293,18 @@ uint8_t wait_with_timeout(UArg uart_id, uint8_t match_val, uint32_t timeout_ms, 
     return 0;
 }
 
+uint8_t arm_connectable(UArg uart_id) {
+    if (ui_screen != UI_SCREEN_GAME && ui_screen != UI_SCREEN_TILE)
+        return 0;
+
+    // We're not connectable if we're in game mode and this arm has been
+    //  turned off by another arm.
+    if (ui_screen == UI_SCREEN_GAME && !game_arm_status[uart_id].connectable)
+        return 0;
+
+    return 1;
+}
+
 void block_until_plugged(UArg uart_id) {
     uint32_t plugin_timeout_ms = PLUG_TIMEOUT_MS;
     if (arm_phy_state == SERIAL_PHY_STATE_DIS) { // We are disconnected.
@@ -254,14 +323,13 @@ void block_until_plugged(UArg uart_id) {
             // however, need to yield so that other threads
             // (including other arms) can actually function.
 
-            if (ui_screen == UI_SCREEN_SLEEP ||
-                    ui_screen == UI_SCREEN_SLEEPING) {
-                PINCC26XX_setOutputValue(arm_gpio_tx, 0);
-            } else {
+            if (arm_connectable(uart_id)) {
                 PINCC26XX_setOutputValue(arm_gpio_tx, 1);
+            } else {
+                PINCC26XX_setOutputValue(arm_gpio_tx, 0);
             }
 
-            if (PINCC26XX_getInputValue(arm_gpio_rx)) {
+            if (PINCC26XX_getInputValue(arm_gpio_rx) && arm_connectable(uart_id)) {
                 plugin_timeout_ms--;
             } else {
                 plugin_timeout_ms = PLUG_TIMEOUT_MS;
@@ -272,14 +340,6 @@ void block_until_plugged(UArg uart_id) {
             //  sleeping thing. Otherwise start the whole business over.
 
             Task_sleep(100); // 1 ms.
-
-            if (ui_screen == UI_SCREEN_GAME ||
-                    ui_screen == UI_SCREEN_TILE) {
-                // we're OK, go back up to the while.
-            } else {
-                // not OK to continue, restart the timeout.
-                plugin_timeout_ms = PLUG_TIMEOUT_MS;
-            }
         }
 
         // we are now plugged, can fall through:
@@ -415,7 +475,7 @@ void rx_timeout(UArg uart_id) {
         rx_timeouts_to_idle = RX_TIMEOUTS_TO_IDLE;
         break;
     case ICONTILE_STATE_OPEN_WAIT:
-        arm_icontile_state = ICONTILE_STATE_OPEN;
+        arm_icontile_state = ICONTILE_STATE_OPEN_WAIT2;
         rx_timeouts_to_idle = RX_TIMEOUTS_TO_IDLE;
         break;
     case ICONTILE_STATE_OPEN:
@@ -488,7 +548,6 @@ void rx_done(UArg uart_id) {
 
 void serial_arm_task(UArg uart_id, UArg arg1) {
     arm_phy_state=SERIAL_PHY_STATE_DIS;
-    int results_flag = 0;
 
     // This table holds the correct disconnected values:
     arm_gpio_pin_handle = PIN_open(&arm_gpio_pin_state, arm_gpio_init_table);
@@ -531,7 +590,7 @@ void serial_arm_task(UArg uart_id, UArg arg1) {
                 // So let's set up an asynchronous read, and then if we need to,
                 //  make a blocking write.
                 // Reads do not time out in callback mode.
-                results_flag = UART_read(uart_h, rx_bytes, sizeof(serial_message_t));
+                UART_read(uart_h, rx_bytes, sizeof(serial_message_t));
 
                 if (arm_fop) {
                     new_plug(uart_id);
@@ -577,7 +636,7 @@ void serial_arm_task(UArg uart_id, UArg arg1) {
                 rx_timeout(uart_id); // We didn't get a message during our timeout window. Maybe we will later.
                 rx_timeouts_to_idle--;
                 if (!rx_timeouts_to_idle) {
-                    if (arm_icontile_state == ICONTILE_STATE_OPEN) {
+                    if (arm_icontile_state == ICONTILE_STATE_OPEN_WAIT2) {
                         rx_timeouts_to_idle = RX_TIMEOUTS_TO_IDLE;
                         connection_opened(uart_id);
                     }
@@ -646,5 +705,7 @@ void serial_init() {
         taskParams.priority = 1;
         taskParams.arg0 = task_arm_id;
         Task_construct(&uart_arm_tasks[task_arm_id], serial_arm_task, &taskParams, NULL);
+        game_arm_status[task_arm_id].connectable = 1;
+        game_arm_status[task_arm_id].icon_id = 255;
     }
 }
