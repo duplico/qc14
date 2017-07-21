@@ -683,7 +683,7 @@ void screen_anim_task_fn(UArg a0, UArg a1) {
                 } else {
                     screen_frame_index = 0;
                     Clock_setTimeout(screen_anim_clock_h,
-                                     screen_anim->anim_frame_delay_ms * 100);
+                                     (screen_anim->anim_frame_delay_ms - ((10*my_conf.csecs_of_queercon) % screen_anim->anim_frame_delay_ms)) * 100);
                     Clock_start(screen_anim_clock_h);
                 }
             }
