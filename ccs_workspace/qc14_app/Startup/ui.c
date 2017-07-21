@@ -34,6 +34,9 @@ Task_Struct screen_anim_task; // Main UI task
 Clock_Handle screen_anim_clock_h;  // Ticks when we need a new screen
 void screen_anim_tick_swi(UArg a0);
 
+Clock_Handle arm_anim_clock_h;  // Ticks when we need a new screen
+void arm_anim_tick_swi(UArg a0);
+
 Clock_Handle screen_blink_clock_h; // Ticks when we're blinking
 void screen_blink_tick_swi(UArg a0);
 
@@ -44,6 +47,7 @@ Clock_Handle csecs_clock_h; // Ticks to set the centisecond clock
 void csecs_swi(UArg a0);
 
 Semaphore_Handle screen_anim_sem; // Posted when we need a new screen
+Semaphore_Handle arm_anim_sem; // Posted when we need new arms.
 Semaphore_Handle flash_sem; // Protects the flash.
 Semaphore_Handle sw_sem; // Posted when the switch is clicked.
 Semaphore_Handle save_sem; // Posted when we need to save.
@@ -91,6 +95,9 @@ const screen_frame_t all_off = {0};
 
 void screen_anim_tick_swi(UArg a0) {
     Semaphore_post(screen_anim_sem);
+}
+void arm_anim_tick_swi(UArg a0) {
+    Semaphore_post(arm_anim_sem);
 }
 void screen_blink_tick_swi(UArg a0) {
     led_blank_set(screen_blink_status);
@@ -718,6 +725,9 @@ void screen_init() {
     Semaphore_Params_init(&params);
     params.mode = Semaphore_Mode_BINARY;
     screen_anim_sem = Semaphore_create(0, &params, NULL);
+    Semaphore_Params_init(&params);
+    params.mode = Semaphore_Mode_BINARY;
+    arm_anim_sem = Semaphore_create(0, &params, NULL);
 
     Semaphore_Params_init(&params);
     params.mode = Semaphore_Mode_BINARY;
@@ -753,6 +763,11 @@ void screen_init() {
     clockParams.period = 0; // One-shot clock.
     clockParams.startFlag = FALSE;
     screen_anim_clock_h = Clock_create(screen_anim_tick_swi, 100, &clockParams, NULL); // Wait 100 ticks (1ms) before firing for the first time.
+
+    Clock_Params_init(&clockParams);
+    clockParams.period = 25000; // TODO
+    clockParams.startFlag = TRUE;
+    screen_anim_clock_h = Clock_create(arm_anim_tick_swi, 100, &clockParams, NULL);
 
     Clock_Params blink_clock_params;
     Clock_Params_init(&blink_clock_params);
