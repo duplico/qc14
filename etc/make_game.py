@@ -11,15 +11,15 @@ LISTEN_FLAG = 254
 
 ICON = 0
 ICON_DIR1 = 1
-ICON_MATE1 = 2
-ICON_DIR1R = 3
-ICON_DIR1G = 4
-ICON_DIR1B = 5
+ICON_MATE1 = 5
+ICON_DIR1R = 2
+ICON_DIR1G = 3
+ICON_DIR1B = 4
 ICON_DIR2 = 6
-ICON_MATE2 = 7
-ICON_DIR2R = 8
-ICON_DIR2G = 9
-ICON_DIR2B = 10
+ICON_MATE2 = 10
+ICON_DIR2R = 7
+ICON_DIR2G = 8
+ICON_DIR2B = 9
 ICON_RESULT = 11
 
 # TODO: OTHER ARM ID ISN'T THIS. IT'S SUPPOSED TO BE USED WITH
@@ -79,7 +79,7 @@ def get_icons():
                 if mate_con:
                     # Validate the other side.
                     assert mate_con.mate_icon == this_icon
-                    assert mate_con.sufficiency == SUFFICIENT_CONN
+                    # assert mate_con.sufficiency == SUFFICIENT_CONN
                     assert mate_con.rgb == adj.rgb
                     
                 icons[this_icon][this_dir] = adj
