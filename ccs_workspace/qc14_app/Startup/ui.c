@@ -22,6 +22,8 @@
 #include "serial.h"
 #include "tlc_driver.h"
 
+#define BLINK_LEN (BLINK_LEN_MS * 100)
+
 extern uint8_t led_buf[11][7][3];
 void ui_update(uint8_t ui_next);
 
@@ -302,10 +304,24 @@ void set_screen_game(uint32_t index, uint8_t sel) {
 
     memcpy(screen_anim, &game_curr_icon.animation, sizeof(screen_anim_t));
 
-    screen_frame_index = (10*my_conf.csecs_of_queercon / screen_anim->anim_frame_delay_ms) % screen_anim->anim_len;
+    uint32_t timeout = screen_anim->anim_frame_delay_ms;
 
-    uint32_t timeout = screen_anim->anim_frame_delay_ms - ((10*my_conf.csecs_of_queercon) % screen_anim->anim_frame_delay_ms);
-    // Kick the clock back off to change frames basically immediately:
+    if (sel) {
+        // If we're just selecting, start it on frame 1 so we can actually
+        //  see it.
+        screen_frame_index = 0;
+    } else {
+        // We're in the real display, so synchronize it to the centisecond
+        //  clock:
+        screen_frame_index = (10*my_conf.csecs_of_queercon / screen_anim->anim_frame_delay_ms) % screen_anim->anim_len;
+        timeout = screen_anim->anim_frame_delay_ms - ((10*my_conf.csecs_of_queercon) % screen_anim->anim_frame_delay_ms);
+    }
+
+    // In either case, we're going to set the clock to go off when it's time
+    //  to change frames. So we'll need to post to the semaphore ourselves
+    //  here, since we're doing its job for the first frame.
+    Semaphore_post(anim_sem);
+
     Clock_setTimeout(screen_anim_clock_h,
                      timeout * 100);
     Clock_start(screen_anim_clock_h);
@@ -651,6 +667,7 @@ void ui_init() {
 void screen_init() {
     Semaphore_Params params;
     Semaphore_Params_init(&params);
+    params.mode = Semaphore_Mode_BINARY;
     anim_sem = Semaphore_create(0, &params, NULL);
 
     Semaphore_Params_init(&params);
@@ -690,7 +707,7 @@ void screen_init() {
 
     Clock_Params blink_clock_params;
     Clock_Params_init(&blink_clock_params);
-    blink_clock_params.period = 50000; // 500 ms recurring
+    blink_clock_params.period = BLINK_LEN; // 500 ms recurring
     blink_clock_params.startFlag = FALSE; // Don't auto-start (only when we blink-on)
     screen_blink_clock_h = Clock_create(screen_blink_tick_swi, 0, &blink_clock_params, NULL);
 
