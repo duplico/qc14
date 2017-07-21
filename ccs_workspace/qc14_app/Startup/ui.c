@@ -230,6 +230,14 @@ void inner_arm_color(UArg uart_id, uint8_t r, uint8_t g, uint8_t b) {
     }
 }
 
+void outer_arm_color(UArg uart_id, uint8_t r, uint8_t g, uint8_t b) {
+    for (uint8_t i=3; i<6; i++) {
+        led_buf[7+uart_id][i][0] = r;
+        led_buf[7+uart_id][i][1] = g;
+        led_buf[7+uart_id][i][2] = b;
+    }
+}
+
 void arm_color_rgb(UArg uart_id, rgbcolor_t rgb) {
     arm_color(uart_id, rgb.red, rgb.green, rgb.blue);
 }

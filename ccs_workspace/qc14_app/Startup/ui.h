@@ -72,6 +72,7 @@ typedef struct {
 } tile_t;
 
 extern Semaphore_Handle flash_sem;
+extern game_icon_t game_curr_icon;
 
 void screen_init();
 void screen_blink_on(uint8_t start_off);
@@ -81,11 +82,13 @@ void ui_click(uint8_t sw_signal);
 void ui_init();
 void ui_timeout();
 void arm_color(UArg uart_id, uint8_t r, uint8_t g, uint8_t b);
+void outer_arm_color(UArg uart_id, uint8_t r, uint8_t g, uint8_t b);
 void arm_color_rgb(UArg uart_id, rgbcolor_t rgb);
 void its_cold();
 void its_bright();
 void set_screen_animation(size_t base, uint32_t index);
 void do_animation_loop();
+void do_icon_transition(uint16_t dest_icon);
 
 extern Semaphore_Handle save_sem;
 

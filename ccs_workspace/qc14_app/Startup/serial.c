@@ -136,6 +136,40 @@ uint8_t rx_valid(UArg uart_id) {
     return 1;
 }
 
+// TODO: struct or array for connected icons.
+
+uint8_t process_game_open(UArg uart_id, uint8_t icon_id) {
+    if (icon_id != game_curr_icon.arms[uart_id].mate_icon_id)
+        return 0;
+    if (my_conf.current_icon == ICON_COFFEE_ID)
+        return 0; // Covfefe is forever. Covfefe is life.
+
+    // If we're here, this was a match.
+    switch(game_curr_icon.arms[uart_id].sufficient_flag) {
+    case GAME_SUFFICIENT_ALONE:
+        // This means that this match is good enough to do the transition.
+        do_icon_transition(game_curr_icon.arms[uart_id].result_icon_id);
+        return 1;
+    case GAME_SUFFICIENT_MSG:
+        // We need a message from this person in order to transition.
+        //  Let us prepare our bodies.
+        //  TODO: Graphics.
+        return 1; // TODO?
+    case GAME_SUFFICIENT_CONN:
+        // We need another badge physically plugged into ourselves in order
+        //  to transition. It may already be here, or we may need to wait
+        //  for it. Regardless, once it's plugged we will need to send a
+        //  message to the badge that this function is processing.
+
+        // TODO: Process
+        return 1;
+    }
+}
+
+void process_tile_open(UArg uart_id) {
+
+}
+
 void connection_opened(UArg uart_id) {
     set_badge_mated(arm_rx_buf.badge_id);
     // We take our clock setting from this person if:
@@ -151,20 +185,22 @@ void connection_opened(UArg uart_id) {
 
     arm_icontile_state = ICONTILE_STATE_OPEN;
     arm_phy_state = SERIAL_PHY_STATE_PLUGGED;
-    arm_color(uart_id, 255,255,255);
+    outer_arm_color(uart_id, 255,255,255);
     if (ui_screen == UI_SCREEN_GAME &&
             ((serial_handshake_t*) &arm_rx_buf.payload)->current_mode == UI_SCREEN_GAME) {
         // We're doing game things!
+        process_game_open(uart_id, ((serial_handshake_t*) &arm_rx_buf.payload)->current_icon_or_tile_id);
     } else if (ui_screen == UI_SCREEN_TILE &&
             ((serial_handshake_t*) &arm_rx_buf.payload)->current_mode == UI_SCREEN_TILE) {
         // We're doing color tile things!
+        process_tile_open(uart_id);
     } else {
         // We're not useful to each other.
         for (uint8_t i=255; i>0; i--) {
-            arm_color(uart_id, i, 0, 0);
+            outer_arm_color(uart_id, i, 0, 0);
             Task_sleep(500); // 500 * 10 us = 50 ms
         }
-        arm_color(uart_id, 0, 0, 0);
+        outer_arm_color(uart_id, 0, 0, 0);
     }
 
 }
@@ -174,7 +210,7 @@ uint8_t serial_in_progress() {
 }
 
 void disconnected(UArg uart_id) {
-    arm_color(uart_id, 0,0,0);
+    outer_arm_color(uart_id, 0,0,0);
     arm_phy_state=SERIAL_PHY_STATE_DIS;
     arm_icontile_state = ICONTILE_STATE_DIS;
     PINCC26XX_setOutputValue(arm_gpio_tx, 0);
@@ -329,19 +365,19 @@ void uart_rx_done(UART_Handle h, void *buf, size_t count) {
 void arm_disp(UArg uart_id) {
     switch (arm_icontile_state) {
     case ICONTILE_STATE_DIS:
-        arm_color(uart_id, 255,0,0);
+        outer_arm_color(uart_id, 255,0,0);
         break;
     case ICONTILE_STATE_HS0:
-        arm_color(uart_id, 255,255,0);
+        outer_arm_color(uart_id, 255,255,0);
         break;
     case ICONTILE_STATE_HS1:
-        arm_color(uart_id, 0,255,0);
+        outer_arm_color(uart_id, 0,255,0);
         break;
     case ICONTILE_STATE_HS2:
-        arm_color(uart_id, 255,0,255);
+        outer_arm_color(uart_id, 255,0,255);
         break;
     case ICONTILE_STATE_OPEN_WAIT:
-        arm_color(uart_id, 0,0,255);
+        outer_arm_color(uart_id, 0,0,255);
         break;
     case ICONTILE_STATE_OPEN:
         break;
@@ -376,6 +412,9 @@ void rx_timeout(UArg uart_id) {
         // TODO: Reset timeout?
         break;
     case ICONTILE_STATE_OPEN_WAIT:
+        arm_icontile_state = ICONTILE_STATE_OPEN;
+        break;
+    case ICONTILE_STATE_OPEN:
         connection_opened(uart_id);
         break;
     }
@@ -421,6 +460,10 @@ void rx_done(UArg uart_id) {
         // If it's not a handshake, fall through. The other side may be
         //  all the way open.
     case ICONTILE_STATE_OPEN:
+        if (arm_rx_buf.msg_type == SERIAL_MSG_TYPE_HANDSHAKE) {
+            send_serial_handshake(uart_id, 2);
+            break;
+        }
         // TODO: Process more interesting messages here.
         break;
     }
@@ -449,7 +492,7 @@ void serial_arm_task(UArg uart_id, UArg arg1) {
 
         switch (arm_phy_state) {
         case SERIAL_PHY_STATE_PLUGGED:
-            arm_color(uart_id, 25, 25, 25);
+            outer_arm_color(uart_id, 25, 25, 25);
             // We are just hanging out plugged into each other. Two things
             //  can cause us to want to change that. Either we need to send
             //  or we've gotten a RTS (or disconnect) from our peer.
