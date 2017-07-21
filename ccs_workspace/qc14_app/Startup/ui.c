@@ -95,6 +95,21 @@ void screen_blink_tick_swi(UArg a0) {
     screen_blink_status = !screen_blink_status;
 }
 
+volatile uint8_t onetime_animation = 0;
+
+// TASK CONTEXT?
+void do_icon_transition(uint16_t dest_icon) {
+    if (dest_icon >= ICON_COUNT)
+        return;
+
+    game_set_icon(dest_icon);
+
+    set_screen_animation(FLASH_POOF_ANIM_LOC, 0);
+    do_animation_loop();
+    ui_update(UI_SCREEN_GAME); // TODO: Threadsafe????
+
+}
+
 void its_cold() {
     // It's cold!
     //
@@ -102,8 +117,7 @@ void its_cold() {
             !serial_in_progress()) {
         // We're not mated, we're in game mode, and we have water up.
         // FREEZE IT.
-        game_set_icon(ICON_ICE);
-        ui_update(UI_SCREEN_GAME); // TODO: Threadsafe????
+        do_icon_transition(ICON_ICE);
     }
 }
 
@@ -114,8 +128,7 @@ void its_bright() {
             !serial_in_progress()) {
         // We're not mated, we're in game mode, and we have water up.
         // FREEZE IT.
-        game_set_icon(ICON_SUN);
-        ui_update(UI_SCREEN_GAME); // TODO: Threadsafe????
+        do_icon_transition(ICON_SUN);
     }
 }
 

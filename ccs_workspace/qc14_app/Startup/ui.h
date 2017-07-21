@@ -84,6 +84,8 @@ void arm_color(UArg uart_id, uint8_t r, uint8_t g, uint8_t b);
 void arm_color_rgb(UArg uart_id, rgbcolor_t rgb);
 void its_cold();
 void its_bright();
+void set_screen_animation(size_t base, uint32_t index);
+void do_animation_loop();
 
 extern Semaphore_Handle save_sem;
 
