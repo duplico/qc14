@@ -141,8 +141,6 @@ uint8_t rx_valid(UArg uart_id) {
 uint8_t process_game_open(UArg uart_id, uint8_t icon_id) {
     if (icon_id != game_curr_icon.arms[uart_id].mate_icon_id)
         return 0;
-    if (my_conf.current_icon == ICON_COFFEE_ID)
-        return 0; // Covfefe is forever. Covfefe is life.
     if (arm_rx_buf.arm_id != ((uart_id + 2) % 4))
         return 0; // In game mode, we only accept connections from opposite arm
 
@@ -150,6 +148,11 @@ uint8_t process_game_open(UArg uart_id, uint8_t icon_id) {
     switch(game_curr_icon.arms[uart_id].sufficient_flag) {
     case GAME_SUFFICIENT_ALONE:
         // This means that this match is good enough to do the transition.
+
+        // Covfefe is forever.
+        if (my_conf.current_icon == ICON_COFFEE_ID)
+            do_icon_transition(ICON_COFFEE_ID);
+
         do_icon_transition(game_curr_icon.arms[uart_id].result_icon_id);
         return 1;
     case GAME_SUFFICIENT_MSG:
