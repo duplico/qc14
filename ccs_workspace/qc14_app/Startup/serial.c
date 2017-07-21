@@ -404,6 +404,9 @@ void rx_timeout(UArg uart_id) {
         send_serial_handshake(uart_id, 1);
         break;
     case ICONTILE_STATE_HS2:
+        // TODO: This needs to be a longer timeout than just 1 rx period.
+        //       The problem with that is that the other side also _blocks_
+        //       on the RX period. Maybe we should make it totally nonblocking.
         arm_icontile_state = ICONTILE_STATE_OPEN_WAIT;
         // TODO: Reset timeout?
         break;
