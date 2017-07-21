@@ -55,7 +55,7 @@ typedef struct {
     uint16_t mate_icon_id;
     uint16_t result_icon_id;
     uint16_t arm_anim_id;
-    uint8_t sufficient_flag;
+    uint8_t sufficient_flag; // 0 if non-connection.
     uint8_t other_arm_id;
     rgbcolor_t arm_color;
     // Probably a pad byte here.
