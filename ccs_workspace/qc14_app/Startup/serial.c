@@ -55,9 +55,10 @@ UART_Handle uart_h;
 UART_Params uart_p;
 Semaphore_Handle uart_mutex;
 Semaphore_Handle rx_done_sem;
+Semaphore_Handle tx_done_sem;
 
 Task_Struct uart_arm_tasks[4];
-char uart_arm_task_stacks[4][400];
+char uart_arm_task_stacks[4][512];
 
 uint32_t uart_timeout[4] = {0, 0, 0, 0};
 uint8_t uart_proto_state[4] = {0, 0, 0, 0};
@@ -84,6 +85,7 @@ PIN_Config arm_gpio_init_tables[4][3] = {
         PIN_TERMINATE
     }
 };
+
 PIN_State arm_gpio_pin_states[4];
 PIN_Handle arm_gpio_pin_handles[4];
 
@@ -114,6 +116,12 @@ void setup_tx_buf_no_payload(UArg uart_id) {
 }
 
 inline void send_serial_handshake(UArg uart_id, uint8_t ack) {
+    // Can we send? If not, no worries - our timeouts will take care of these.
+    //  TODO: Won't they???
+    if (!Semaphore_pend(tx_done_sem, BIOS_NO_WAIT))
+        return;
+    // Not currently sending.
+    outer_arm_color(uart_id, 15,15,15);
     arm_tx_buf.msg_type = SERIAL_MSG_TYPE_HANDSHAKE;
     uint8_t* payload = arm_tx_buf.payload;
     serial_handshake_t* handshake_payload = (serial_handshake_t*) payload;
@@ -123,7 +131,8 @@ inline void send_serial_handshake(UArg uart_id, uint8_t ack) {
     handshake_payload->pad[0] = 0xdc;
     handshake_payload->pad[1] = 0x19;
     memcpy(handshake_payload->badges_mated, my_conf.badges_mated, BADGES_MATED_BYTES);
-    arm_nts = SERIAL_MSG_TYPE_HANDSHAKE;
+    setup_tx_buf_no_payload(uart_id);
+    UART_write(uart_h, tx_bytes, sizeof(serial_message_t));
 }
 
 uint8_t rx_valid(UArg uart_id) {
@@ -362,6 +371,16 @@ void uart_rx_done(UART_Handle h, void *buf, size_t count) {
     Semaphore_post(rx_done_sem);
 }
 
+void uart_tx_done(UART_Handle h, void *buf, size_t count) {
+
+    if (count != sizeof(serial_message_t)) {
+        Semaphore_post(tx_done_sem);
+        return; // TODO, broken message
+    }
+
+    Semaphore_post(tx_done_sem);
+}
+
 void arm_disp(UArg uart_id) {
     switch (arm_icontile_state) {
     case ICONTILE_STATE_DIS:
@@ -469,12 +488,7 @@ void rx_done(UArg uart_id) {
         }
         break;
     case ICONTILE_STATE_OPEN_WAIT:
-        if (arm_rx_buf.msg_type == SERIAL_MSG_TYPE_HANDSHAKE) {
-            send_serial_handshake(uart_id, 2);
-            break;
-        }
-        // If it's not a handshake, fall through. The other side may be
-        //  all the way open.
+        // Fall through. The other side may be all the way open.
     case ICONTILE_STATE_OPEN:
         if (arm_rx_buf.msg_type == SERIAL_MSG_TYPE_HANDSHAKE) {
             send_serial_handshake(uart_id, 2);
@@ -488,7 +502,6 @@ void rx_done(UArg uart_id) {
 
 void serial_arm_task(UArg uart_id, UArg arg1) {
     arm_phy_state=SERIAL_PHY_STATE_DIS;
-    int results_flag = 0;
 
     // This table holds the correct disconnected values:
     arm_gpio_pin_handle = PIN_open(&arm_gpio_pin_state, arm_gpio_init_table);
@@ -510,6 +523,7 @@ void serial_arm_task(UArg uart_id, UArg arg1) {
             //  can cause us to want to change that. Either we need to send
             //  or we've gotten a RTS (or disconnect) from our peer.
 
+            // TODO: Check our logical state here.
             if (do_phy_handshake_rx(uart_id) || ((arm_fop || arm_nts) && do_phy_handshake_tx(uart_id))) {
                 // If we got here, then we know it was a signal to connect.
                 //  Or we just plugged in.
@@ -531,7 +545,7 @@ void serial_arm_task(UArg uart_id, UArg arg1) {
                 // So let's set up an asynchronous read, and then if we need to,
                 //  make a blocking write.
                 // Reads do not time out in callback mode.
-                results_flag = UART_read(uart_h, rx_bytes, sizeof(serial_message_t));
+                UART_read(uart_h, rx_bytes, sizeof(serial_message_t));
 
                 if (arm_fop) {
                     new_plug(uart_id);
@@ -546,13 +560,13 @@ void serial_arm_task(UArg uart_id, UArg arg1) {
             // TODO: Do NTS type timeouts more often than the RX timeout???
 
             // If we're here, we're also already listening.
-            if (arm_nts) {
-                outer_arm_color(uart_id, 15,15,15);
-                setup_tx_buf_no_payload(uart_id);
-                UART_write(uart_h, tx_bytes, sizeof(serial_message_t));
-                // Done sending, so we can cancel this flag:
-                arm_nts = SERIAL_MSG_TYPE_NOMSG;
+            //  If we've heard something, process it before looping back to
+            //  here.
+
+            // If we did a tx, go to normal color.
+            if (Semaphore_pend(tx_done_sem, BIOS_NO_WAIT)) {
                 arm_disp(uart_id);
+                Semaphore_post(tx_done_sem); // normal color.
             }
 
             if (Semaphore_pend(rx_done_sem, RTS_TIMEOUT*2)) {
@@ -579,9 +593,8 @@ void serial_arm_task(UArg uart_id, UArg arg1) {
                 if (!rx_timeouts_to_idle) {
                     if (arm_icontile_state == ICONTILE_STATE_OPEN) {
                         rx_timeouts_to_idle = RX_TIMEOUTS_TO_IDLE;
-                        connection_opened(uart_id);
+                        connection_opened(uart_id); // TODO: don't do the animation here stupid.
                     }
-
 
                     arm_phy_state = SERIAL_PHY_STATE_PLUGGED;
                 }
@@ -589,6 +602,8 @@ void serial_arm_task(UArg uart_id, UArg arg1) {
             if (arm_phy_state == SERIAL_PHY_STATE_PLUGGED) {
                 // Clean up, we're going inactive on this line:
                 UART_readCancel(uart_h);
+                UART_writeCancel(uart_h); // TODO
+                Semaphore_post(tx_done_sem);
                 UART_close(uart_h);
                 arm_gpio_pin_handle = PIN_open(&arm_gpio_pin_state,
                                                arm_gpio_init_table);
@@ -611,6 +626,11 @@ void serial_init() {
     rx_done_sem_params.mode = Semaphore_Mode_BINARY;
     rx_done_sem = Semaphore_create(0, &rx_done_sem_params, NULL);
 
+    Semaphore_Params tx_done_sem_params;
+    Semaphore_Params_init(&tx_done_sem_params);
+    tx_done_sem_params.mode = Semaphore_Mode_BINARY;
+    tx_done_sem = Semaphore_create(1, &tx_done_sem_params, NULL);
+
     UART_Params_init(&uart_p);
     // Defaults used:
     // blocking reads and writes, no write timeout, 8N1.
@@ -620,7 +640,8 @@ void serial_init() {
     // No write timeout because there's no flow control.
     uart_p.readMode = UART_MODE_CALLBACK;
     uart_p.readCallback = uart_rx_done;
-    uart_p.writeMode = UART_MODE_BLOCKING;
+    uart_p.writeMode = UART_MODE_CALLBACK;
+    uart_p.writeCallback = uart_tx_done;
     uart_p.readEcho = UART_ECHO_OFF;
     uart_p.readDataMode = UART_DATA_BINARY;
     uart_p.writeDataMode = UART_DATA_BINARY;
