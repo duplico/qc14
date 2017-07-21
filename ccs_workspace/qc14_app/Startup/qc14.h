@@ -62,9 +62,9 @@ extern uint8_t uart_proto_state[4];
 #define ICON_WATER 19
 #define ICON_ICE 25
 #define ICON_SUN 23
-#define ICON_COFFEE_ID 42
+#define ICON_COFFEE 42
 #define ICON_COUNT 43
-#define TILE_COUNT 12
+#define TILE_COUNT 8
 
 // 285 badges, plus #285 (the fallback ID)
 // I am #5 because reasons.
