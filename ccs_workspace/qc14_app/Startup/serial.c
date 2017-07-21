@@ -40,12 +40,16 @@
 // in 10s of us:
 #define RTS_TIMEOUT (RTS_TIMEOUT_MS*100)
 #define PLUG_TIMEOUT (PLUG_TIMEOUT_MS*100)
+#define RX_TIMEOUTS_TO_IDLE 20
 
 serial_message_t uart_tx_buf[4] = {0};
 uint8_t tx_bytes[sizeof(serial_message_t)+2];
 // NB: This must be protected by the semaphore:
 serial_message_t arm_rx_buf;
 uint8_t rx_bytes[sizeof(serial_message_t)+2];
+
+// This, too:
+uint8_t rx_timeouts_to_idle = RX_TIMEOUTS_TO_IDLE;
 
 UART_Handle uart_h;
 UART_Params uart_p;
@@ -408,10 +412,11 @@ void rx_timeout(UArg uart_id) {
         //       The problem with that is that the other side also _blocks_
         //       on the RX period. Maybe we should make it totally nonblocking.
         arm_icontile_state = ICONTILE_STATE_OPEN_WAIT;
-        // TODO: Reset timeout?
+        rx_timeouts_to_idle = RX_TIMEOUTS_TO_IDLE;
         break;
     case ICONTILE_STATE_OPEN_WAIT:
         arm_icontile_state = ICONTILE_STATE_OPEN;
+        rx_timeouts_to_idle = RX_TIMEOUTS_TO_IDLE;
         break;
     case ICONTILE_STATE_OPEN:
         break;
@@ -420,6 +425,7 @@ void rx_timeout(UArg uart_id) {
 }
 
 void rx_done(UArg uart_id) {
+    // RX Timeouts are automatically reset here.
     switch (arm_icontile_state) {
     case ICONTILE_STATE_DIS:
         // TODO: bork bork
@@ -437,6 +443,7 @@ void rx_done(UArg uart_id) {
         }
 
         send_serial_handshake(uart_id, 1); // ack this
+
         if (((serial_handshake_t*) &arm_rx_buf.payload)->ack) {
             arm_icontile_state = ICONTILE_STATE_HS2;
         } else {
@@ -479,11 +486,8 @@ void rx_done(UArg uart_id) {
     arm_disp(uart_id);
 }
 
-#define RX_TIMEOUTS_TO_IDLE 20
-
 void serial_arm_task(UArg uart_id, UArg arg1) {
     arm_phy_state=SERIAL_PHY_STATE_DIS;
-    uint8_t rx_timeouts_to_idle = RX_TIMEOUTS_TO_IDLE;
     int results_flag = 0;
 
     // This table holds the correct disconnected values:
@@ -539,11 +543,16 @@ void serial_arm_task(UArg uart_id, UArg arg1) {
             // If we're here, that means the other side signaled to us, or
             // that we have something to say.
 //
+            // TODO: Do NTS type timeouts more often than the RX timeout???
+
+            // If we're here, we're also already listening.
             if (arm_nts) {
+                outer_arm_color(uart_id, 15,15,15);
                 setup_tx_buf_no_payload(uart_id);
                 UART_write(uart_h, tx_bytes, sizeof(serial_message_t));
                 // Done sending, so we can cancel this flag:
                 arm_nts = SERIAL_MSG_TYPE_NOMSG;
+                arm_disp(uart_id);
             }
 
             if (Semaphore_pend(rx_done_sem, RTS_TIMEOUT*2)) {
@@ -554,11 +563,7 @@ void serial_arm_task(UArg uart_id, UArg arg1) {
                 else
                     __nop();
 
-//                // We got a message.
-//                if (rx_bytes[0] == 0xF0)
-//                    memcpy(&arm_rx_buf, &rx_bytes[1], sizeof(serial_message_t)); // Work around silliness.
-//                else
-//                    memcpy(&arm_rx_buf, &rx_bytes, sizeof(serial_message_t));
+                UART_read(uart_h, rx_bytes, sizeof(serial_message_t));
 
                 if (((UARTCC26XX_Object *) uart_h->object)->status == UART_OK &&
                         arm_rx_buf.current_time && rx_valid(uart_id)) { // nobody will ever have 0 time, and sometimes this just gets zeroes.
@@ -567,7 +572,6 @@ void serial_arm_task(UArg uart_id, UArg arg1) {
                     arm_rx_buf.crc++;
                     rx_timeouts_to_idle = RX_TIMEOUTS_TO_IDLE;
                 }
-                results_flag = UART_read(uart_h, rx_bytes, sizeof(serial_message_t));
                 // TODO: what if we get crap a zillion times?
             } else {
                 rx_timeout(uart_id); // We didn't get a message during our timeout window. Maybe we will later.
