@@ -43,7 +43,7 @@ void sw_clock_swi(UArg a0);
 Clock_Handle csecs_clock_h; // Ticks to set the centisecond clock
 void csecs_swi(UArg a0);
 
-Semaphore_Handle anim_sem; // Posted when we need a new screen
+Semaphore_Handle screen_anim_sem; // Posted when we need a new screen
 Semaphore_Handle flash_sem; // Protects the flash.
 Semaphore_Handle sw_sem; // Posted when the switch is clicked.
 Semaphore_Handle save_sem; // Posted when we need to save.
@@ -88,7 +88,7 @@ const screen_frame_t needflash_icon = {{{{0, 0, 0}, {0, 0, 0}, {0, 0, 0}, {255, 
 const screen_frame_t all_off = {0};
 
 void screen_anim_tick_swi(UArg a0) {
-    Semaphore_post(anim_sem);
+    Semaphore_post(screen_anim_sem);
 }
 void screen_blink_tick_swi(UArg a0) {
     led_blank_set(screen_blink_status);
@@ -365,7 +365,7 @@ void set_screen_game(uint32_t index, uint8_t sel) {
     // In either case, we're going to set the clock to go off when it's time
     //  to change frames. So we'll need to post to the semaphore ourselves
     //  here, since we're doing its job for the first frame.
-    Semaphore_post(anim_sem);
+    Semaphore_post(screen_anim_sem);
 
     Clock_setTimeout(screen_anim_clock_h,
                      timeout * 100);
@@ -386,7 +386,7 @@ void set_screen_game(uint32_t index, uint8_t sel) {
 
 void set_screen_solid_local(const screen_frame_t *frame) {
     // Pre-empt the animation semaphore:
-    Semaphore_pend(anim_sem, BIOS_NO_WAIT);
+    Semaphore_pend(screen_anim_sem, BIOS_NO_WAIT);
     // Pre-emption is off, so there is no need to protect this clock
     //  with a semaphore, and this is going to be called from a Task
     //  context.
@@ -613,7 +613,7 @@ void do_animation_loop_body() {
 
 void do_animation_loop() {
     while (screen_frame_index < screen_anim->anim_len) {
-        Semaphore_pend(anim_sem, BIOS_WAIT_FOREVER);
+        Semaphore_pend(screen_anim_sem, BIOS_WAIT_FOREVER);
         do_animation_loop_body();
     }
 }
@@ -676,7 +676,7 @@ void screen_anim_task_fn(UArg a0, UArg a1) {
         }
 
         // Handle animations:
-        if (Semaphore_pend(anim_sem, BIOS_NO_WAIT)) {
+        if (Semaphore_pend(screen_anim_sem, BIOS_NO_WAIT)) {
             do_animation_loop_body();
 
             if (screen_frame_index == screen_anim->anim_len) {
@@ -716,7 +716,7 @@ void screen_init() {
     Semaphore_Params params;
     Semaphore_Params_init(&params);
     params.mode = Semaphore_Mode_BINARY;
-    anim_sem = Semaphore_create(0, &params, NULL);
+    screen_anim_sem = Semaphore_create(0, &params, NULL);
 
     Semaphore_Params_init(&params);
     params.mode = Semaphore_Mode_BINARY;
