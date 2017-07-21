@@ -160,7 +160,8 @@ void set_radio_crc() {
 void game_set_icon(uint8_t icon_id) {
     if (icon_id > ICON_COUNT)
         return;
-    if (icon_id != game_starting_icon(my_conf.badge_id))
+    if (icon_id != game_starting_icon(my_conf.badge_id) &&
+            icon_id != ICON_COFFEE_ID)
         my_conf.earned_icon = icon_id;
     my_conf.current_icon = icon_id;
     advertData[13] = icon_id;
