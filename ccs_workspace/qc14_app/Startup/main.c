@@ -264,7 +264,7 @@ void qc14conf_init() {
             memset((uint8_t *) &load_conf, 0x00, sizeof(qc14_badge_conf_t));
 
             load_conf.badge_id = badge_id1;
-            load_conf.avail_tiles = 0x00ff;
+            load_conf.avail_tiles = 0x001f;
             load_conf.earned_icon = game_starting_icon(load_conf.badge_id);
             load_conf.current_icon = game_starting_icon(load_conf.badge_id);
             set_badge_mated(load_conf.badge_id);

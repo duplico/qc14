@@ -421,6 +421,7 @@ uint8_t icon_available(uint8_t icon_id) {
 }
 
 uint8_t tile_available(uint16_t tile_id) {
+    return 1; // TODO
     return (0x0001 << tile_id) & my_conf.avail_tiles ? 1 : 0;
 }
 
