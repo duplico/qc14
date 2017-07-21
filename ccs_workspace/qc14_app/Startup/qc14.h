@@ -30,7 +30,7 @@
 #define SW_SIGNAL_TIMEOUT 0b10000
 
 // Serial timeout configuration
-#define SERIAL_RX_TIMEOUT_MS 10
+#define SERIAL_RX_TIMEOUT_MS 8
 #define RTS_TIMEOUT_MS 50
 #define SERIAL_SETTLE_TIME_MS 10
 #define PLUG_TIMEOUT_MS 1000
