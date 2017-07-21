@@ -169,6 +169,7 @@ uint8_t process_game_open(UArg uart_id, uint8_t icon_id) {
         // TODO: Process
         return 1;
     }
+    return 0;
 }
 
 void process_tile_open(UArg uart_id) {
@@ -420,7 +421,6 @@ void rx_timeout(UArg uart_id) {
         arm_icontile_state = ICONTILE_STATE_OPEN;
         break;
     case ICONTILE_STATE_OPEN:
-        connection_opened(uart_id);
         break;
     }
     arm_disp(uart_id);
@@ -475,7 +475,7 @@ void rx_done(UArg uart_id) {
     arm_disp(uart_id);
 }
 
-#define RX_TIMEOUTS_TO_IDLE 20
+#define RX_TIMEOUTS_TO_IDLE 10
 
 void serial_arm_task(UArg uart_id, UArg arg1) {
     arm_phy_state=SERIAL_PHY_STATE_DIS;
@@ -569,6 +569,12 @@ void serial_arm_task(UArg uart_id, UArg arg1) {
                 rx_timeout(uart_id); // We didn't get a message during our timeout window. Maybe we will later.
                 rx_timeouts_to_idle--;
                 if (!rx_timeouts_to_idle) {
+                    if (arm_icontile_state == ICONTILE_STATE_OPEN) {
+                        rx_timeouts_to_idle = RX_TIMEOUTS_TO_IDLE;
+                        connection_opened(uart_id);
+                    }
+
+
                     arm_phy_state = SERIAL_PHY_STATE_PLUGGED;
                 }
             }
