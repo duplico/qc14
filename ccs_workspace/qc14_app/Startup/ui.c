@@ -381,14 +381,17 @@ void set_screen_game(uint32_t index, uint8_t sel) {
     Clock_start(screen_anim_clock_h);
     Semaphore_post(flash_sem);
 
+
+    for (uint8_t i=0; i<4; i++) {
+        arm_color(i, 0, 0, 0);
+        for (uint8_t i=0; i<4; i++) {
+            game_arm_status[i].arm_anim_index = i;
+        }
+    }
     if (!sel) {
-        for (uint8_t i=0; i<4; i++) {
-            inner_arm_color_rgb(i, game_curr_icon.arms[i].arm_color);
-        }
-    } else {
-        for (uint8_t i=0; i<4; i++) {
-            arm_color(i, 0, 0, 0);
-        }
+        Clock_setTimeout(arm_anim_clock_h, ARM_ANIM_PERIOD);
+        Clock_start(arm_anim_clock_h);
+        Semaphore_post(arm_anim_sem);
     }
 
 }
@@ -650,6 +653,9 @@ void screen_anim_task_fn(UArg a0, UArg a1) {
     start_badge();
     ui_timeout(); // Pick the destination based on what time we think it is.
 
+    Clock_setTimeout(arm_anim_clock_h, ARM_ANIM_PERIOD);
+    Clock_start(arm_anim_clock_h);
+
     while (1) {
         // Handle user input:
         if (Semaphore_pend(sw_sem, BIOS_NO_WAIT)) {
@@ -701,12 +707,29 @@ void screen_anim_task_fn(UArg a0, UArg a1) {
         }
 
         uint8_t tile_anim_active_arm = 0;
-        uint8_t icon_anim_active_dot = 0;
 
         if (Semaphore_pend(arm_anim_sem, BIOS_NO_WAIT)) {
             if (ui_screen == UI_SCREEN_GAME) {
+                for (uint8_t i=0; i<4; i++) {
 
+                    inner_arm_color(i, 0, 0, 0);
+                    if (!game_curr_icon.arms[i].sufficient_flag || !game_arm_status[i].connectable)
+                        continue;
+
+                    if (game_arm_status[i].arm_anim_index < 3) {
+                        led_buf[7+i][game_arm_status[i].arm_anim_index][0] = game_curr_icon.arms[i].arm_color.red;
+                        led_buf[7+i][game_arm_status[i].arm_anim_index][1] = game_curr_icon.arms[i].arm_color.green;
+                        led_buf[7+i][game_arm_status[i].arm_anim_index][2] = game_curr_icon.arms[i].arm_color.blue;
+                    }
+
+                    if (!game_arm_status[i].arm_anim_dir) // TODO
+                        game_arm_status[i].arm_anim_index = (game_arm_status[i].arm_anim_index + ((i == 1 || i == 2) ? 3 : 1)) % 4;
+                    else
+                        game_arm_status[i].arm_anim_index = (game_arm_status[i].arm_anim_index + ((i == 1 || i == 2) ? 1 : 3)) % 4;
+                }
             }
+            Clock_setTimeout(arm_anim_clock_h, ARM_ANIM_PERIOD);
+            Clock_start(arm_anim_clock_h);
         }
 
         // Save if necessary.
@@ -774,9 +797,9 @@ void screen_init() {
     screen_anim_clock_h = Clock_create(screen_anim_tick_swi, 100, &clockParams, NULL); // Wait 100 ticks (1ms) before firing for the first time.
 
     Clock_Params_init(&clockParams);
-    clockParams.period = 25000; // TODO
-    clockParams.startFlag = TRUE;
-    screen_anim_clock_h = Clock_create(arm_anim_tick_swi, 100, &clockParams, NULL);
+    clockParams.period = 0; // TODO
+    clockParams.startFlag = FALSE;
+    arm_anim_clock_h = Clock_create(arm_anim_tick_swi, ARM_ANIM_PERIOD, &clockParams, NULL);
 
     Clock_Params blink_clock_params;
     Clock_Params_init(&blink_clock_params);

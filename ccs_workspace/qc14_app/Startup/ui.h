@@ -78,6 +78,8 @@ typedef struct {
     uint8_t sufficiency_info;
     uint8_t nts;
     uint8_t nts_done;
+    uint8_t arm_anim_index;
+    uint8_t arm_anim_dir;
 } game_arm_status_t;
 
 #define ARM_CONNECT_STATUS_DIS 0
