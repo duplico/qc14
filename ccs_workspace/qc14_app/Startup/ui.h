@@ -26,10 +26,6 @@
 #define UI_TIMEOUT_MATCH_MAIN (1000 * UI_MAIN_TIMEOUT_SEC / UI_CLOCK_MS)
 
 Clock_Handle csecs_clock_h;
-void ui_click(uint8_t sw_signal);
-void ui_init();
-void ui_timeout();
-void arm_color(UArg uart_id, uint8_t r, uint8_t g, uint8_t b);
 extern uint8_t ui_screen;
 
 #include <ti/sysbios/knl/Semaphore.h>
@@ -61,6 +57,8 @@ typedef struct {
     uint16_t arm_anim_id;
     uint8_t sufficient_flag;
     uint8_t other_arm_id;
+    rgbcolor_t arm_color;
+    // Probably a pad byte here.
 } mate_spec_t;
 
 typedef struct {
@@ -79,6 +77,11 @@ void screen_init();
 void screen_blink_on(uint8_t start_off);
 void screen_blink_off();
 void screen_update_now();
+void ui_click(uint8_t sw_signal);
+void ui_init();
+void ui_timeout();
+void arm_color(UArg uart_id, uint8_t r, uint8_t g, uint8_t b);
+void arm_color_rgb(UArg uart_id, rgbcolor_t rgb);
 
 extern Semaphore_Handle save_sem;
 
