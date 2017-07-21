@@ -144,9 +144,11 @@ uint8_t is_sponsor(uint16_t id) {
 }
 
 uint8_t game_been_icon(uint8_t icon_id) {
+    if (icon_id > ICON_COUNT)
+        return 0;
     uint8_t byte_number = icon_id / 8;
     uint8_t bit_number = icon_id % 8;
-    return my_conf.icons_been[byte_number] & (1 << bit_number);
+    return (my_conf.icons_been[byte_number] & (1 << bit_number)) ? 1 : 0;
 }
 
 void set_radio_crc() {
@@ -156,6 +158,8 @@ void set_radio_crc() {
 }
 
 void game_set_icon(uint8_t icon_id) {
+    if (icon_id > ICON_COUNT)
+        return;
     if (icon_id != game_starting_icon(my_conf.badge_id))
         my_conf.earned_icon = icon_id;
     my_conf.current_icon = icon_id;
@@ -171,6 +175,8 @@ void game_set_icon(uint8_t icon_id) {
 }
 
 uint8_t has_badge_mated(uint16_t badge_id) {
+    if (badge_id > BADGES_IN_SYSTEM)
+        return 0;
     uint8_t byte_number = badge_id / 8;
     uint8_t bit_number = badge_id % 8;
     return (my_conf.badges_mated[byte_number] & (1 << bit_number))? 1:0;
@@ -178,6 +184,8 @@ uint8_t has_badge_mated(uint16_t badge_id) {
 
 void set_badge_mated(uint16_t badge_id) {
     if (has_badge_mated(badge_id))
+        return;
+    if (badge_id > BADGES_IN_SYSTEM)
         return;
 
     uint8_t byte_number = badge_id / 8;
