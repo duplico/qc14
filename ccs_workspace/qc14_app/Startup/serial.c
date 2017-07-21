@@ -562,6 +562,16 @@ void serial_arm_task(UArg uart_id, UArg arg1) {
         //  We can either just hang out like this, or we can mutually secure
         //  our UARTs and start chatting.
 
+        // We're going to take this opportunity to set all our other arms
+        //  non-connectable temporarily.
+        // TODO: Deadlock possible.
+
+        for (uint8_t i=0; i<4; i++) {
+            if (game_arm_status[i].connected || i==uart_id)
+                continue;
+            game_arm_status[i].connectable = 0;
+        }
+
         switch (arm_phy_state) {
         case SERIAL_PHY_STATE_PLUGGED:
             outer_arm_color(uart_id, 25, 25, 25);
