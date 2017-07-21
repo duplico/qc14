@@ -82,6 +82,8 @@ void ui_init();
 void ui_timeout();
 void arm_color(UArg uart_id, uint8_t r, uint8_t g, uint8_t b);
 void arm_color_rgb(UArg uart_id, rgbcolor_t rgb);
+void its_cold();
+void its_bright();
 
 extern Semaphore_Handle save_sem;
 

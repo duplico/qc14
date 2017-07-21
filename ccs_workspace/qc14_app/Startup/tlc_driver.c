@@ -20,6 +20,7 @@
 #include "qc14.h"
 #include "board.h"
 #include "ExtFlash.h"
+#include "ui.h"
 
 // General convention:
 //  Things that deal with the LED system driver as a whole: led_
@@ -32,26 +33,26 @@
 #define LED_NUM_BRIGHTNESS_STEPS 20
 
 const uint16_t BRIGHTNESS_STEPS[LED_NUM_BRIGHTNESS_STEPS][2] = {
-    {150, 0},
-    {300, 12},
-    {450, 19},
-    {600, 25},
-    {750, 31},
-    {900, 38},
-    {1050, 44},
-    {1200, 50},
-    {1350, 57},
-    {1500, 63},
-    {1650, 69},
-    {1800, 76},
-    {1950, 82},
-    {2100, 88},
-    {2250, 95},
-    {2400, 101},
-    {2550, 107},
-    {2700, 114},
-    {2850, 120},
-    {3000, 127},
+                                                                {600, 0},
+                                                                {700, 6},
+                                                                {800, 13},
+                                                                {900, 20},
+                                                                {1000, 26},
+                                                                {1100, 33},
+                                                                {1200, 40},
+                                                                {1300, 46},
+                                                                {1400, 53},
+                                                                {1500, 60},
+                                                                {1600, 66},
+                                                                {1700, 73},
+                                                                {1800, 80},
+                                                                {1900, 86},
+                                                                {2000, 93},
+                                                                {2100, 100},
+                                                                {2200, 106},
+                                                                {2300, 113},
+                                                                {3700, 127},
+                                                                {4200, 127},
 };
 
 // LED systemwide declarations:
@@ -289,11 +290,15 @@ void led_brightness_task_fn(UArg a0, UArg a1)
                 tlc_msg_fun_base[18] = (0b10000000 & tlc_msg_fun_base[18]) |
                         (0b01111111 & BRIGHTNESS_STEPS[led_global_brightness_level][1]);
                 tlc_update_fun = 1;
+
+                if (led_global_brightness_level == LED_NUM_BRIGHTNESS_STEPS - 1)
+                    its_bright();
             }
         }
 
         if (AONBatMonNewTempMeasureReady()) {
             if (AONBatMonTemperatureGetDegC() < 6) { // deg C (-256..255)
+                its_cold();
             }
         }
 
