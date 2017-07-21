@@ -47,7 +47,8 @@ extern uint8_t uart_proto_state[4];
 #define FLASH_ID_LOC                0x001000
 #define FLASH_CONF_LOC              0x002000
 #define FLASH_BOOT_ANIM_LOC         0x003000
-#define FLASH_TILE_ANIM_LOC         0x004000
+#define FLASH_POOF_ANIM_LOC         0x004000
+#define FLASH_TILE_ANIM_LOC         0x005000
 #define FLASH_CONF_BACKUP_LOC       0x008000
 #define FLASH_ID_LOC2               0x009000
 #define FLASH_GAME_ANIM_LOC         0x00a000

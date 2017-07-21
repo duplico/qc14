@@ -176,7 +176,8 @@ def main():
         
     parser.add_argument('--workaround', action='store_true', help="Work around the issue where we cannot use odd numbered pages. Note that this must be paired with using the `skipodd` versions of the flash functions on the badge.")
     parser.add_argument('--boot-addr', type=int, default=0x003000, help="Address of the boot animation struct")
-    parser.add_argument('--tile-addr', type=int, default=0x004000, help="Address of the tile animation buffer")
+    parser.add_argument('--poof-addr', type=int, default=0x004000, help="Address of the boot animation struct")
+    parser.add_argument('--tile-addr', type=int, default=0x005000, help="Address of the tile animation buffer")
     parser.add_argument('--game-addr', type=int, default=0x00a000, help="Address of the game animation struct")
     parser.add_argument('--frame-addr', type=int, default=0x010000, help='Starting offset for animation frames')
     parser.add_argument('--id-addr', type=int, default=0x001000, help="Address of the badge ID.")
@@ -210,6 +211,16 @@ def main():
         get_frame_delay('_badge_graphics/bootup', args.frame_delay)
     )
     put_bytes_at(flash, args.boot_addr, boot_anim, args.workaround)
+    
+    all_frames += imgs
+        
+    imgs = image_list_from_directory('_badge_graphics/poof')
+    poof_anim = anim_struct_bytes(
+        0, 
+        len(imgs), 
+        get_frame_delay('_badge_graphics/poof', args.frame_delay)
+    )
+    put_bytes_at(flash, args.poof_addr, poof_anim, args.workaround)
     
     all_frames += imgs
     
