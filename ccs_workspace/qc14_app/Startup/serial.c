@@ -262,7 +262,7 @@ void disconnected(UArg uart_id) {
             // We're the last to disconnect.
             // Make everybody else connectable.
             for (uint8_t i=0; i<4; i++) {
-                game_arm_status[uart_id].connectable = 1;
+                game_arm_status[i].connectable = 1;
             }
         }
     } else {
