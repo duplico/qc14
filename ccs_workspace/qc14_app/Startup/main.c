@@ -144,7 +144,7 @@ uint8_t is_sponsor(uint16_t id) {
 }
 
 uint8_t game_been_icon(uint8_t icon_id) {
-    if (icon_id > ICON_COUNT)
+    if (icon_id >= ICON_COUNT)
         return 0;
     uint8_t byte_number = icon_id / 8;
     uint8_t bit_number = icon_id % 8;
@@ -158,7 +158,7 @@ void set_radio_crc() {
 }
 
 void game_set_icon(uint8_t icon_id) {
-    if (icon_id > ICON_COUNT)
+    if (icon_id >= ICON_COUNT)
         return;
     if (icon_id != game_starting_icon(my_conf.badge_id) &&
             icon_id != ICON_COFFEE_ID)
