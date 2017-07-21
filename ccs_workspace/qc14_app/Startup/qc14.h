@@ -18,6 +18,8 @@
 #define LED_MP_RATE LED_MP_RATE_BEST
 #define LED_BRIGHTNESS_INTERVAL 12500
 
+#define BLINK_LEN_MS 250
+
 // Switch signals
 #define SW_SIGNAL_NONE 0
 #define SW_SIGNAL_OPEN 0b1000
