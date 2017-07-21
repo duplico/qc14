@@ -2,7 +2,8 @@
 0x001000 - first ID in here
 0x002000 - main conf in here
 0x003000 - boot anim here
-0x004000 - tiles live in here
+0x004000 - poof lives in here
+0x005000 - tiles live in here
 0x008000 - backup conf here
 0x009000 - second ID copy here
 0x00a000 - icons live in here

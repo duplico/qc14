@@ -229,7 +229,8 @@ void qc14conf_init() {
 
     volatile uint16_t load_crc = crc16((uint8_t*) &load_conf, sizeof(qc14_badge_conf_t)-4);
 
-    if (load_crc != load_conf.crc) {
+    // TODO
+    if (1 || load_crc != load_conf.crc) {
         // Invalid CRC. Check backup:
 
         Semaphore_pend(flash_sem, BIOS_WAIT_FOREVER);
@@ -263,7 +264,7 @@ void qc14conf_init() {
             memset((uint8_t *) &load_conf, 0x00, sizeof(qc14_badge_conf_t));
 
             load_conf.badge_id = badge_id1;
-            load_conf.avail_tiles = 0x000f;
+            load_conf.avail_tiles = 0x00ff;
             load_conf.earned_icon = game_starting_icon(load_conf.badge_id);
             load_conf.current_icon = game_starting_icon(load_conf.badge_id);
             set_badge_mated(load_conf.badge_id);
