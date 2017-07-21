@@ -28,13 +28,14 @@
 #define SERIAL_MSG_TYPE_CONF 4
 #define SERIAL_MSG_TYPE_MAX 4
 
-//#define SYNC_BYTE 0x94
+#define GAME_SUFFICIENT_ALONE 3
+#define GAME_SUFFICIENT_CONN 2
+#define GAME_SUFFICIENT_MSG 1
 
 void serial_init();
 uint8_t serial_in_progress();
 
 typedef struct {
-//    uint8_t sync_byte;
     uint16_t badge_id;
     uint8_t msg_type;
     uint32_t current_time;
@@ -54,8 +55,10 @@ typedef struct {
 } serial_handshake_t; // Initialization handshake
 
 typedef struct {
-
-} serial_game_msg; // Game update
+    uint8_t conn_msg;
+    uint8_t conn_result;
+    uint8_t pad[48];
+} serial_game_msg_t; // Game update
 
 typedef struct {
 

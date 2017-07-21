@@ -3,8 +3,8 @@ SUFFICIENT_CONN  = 2
 SUFFICIENT_MSG   = 1
 
 icons = [] # ID : list of IconConnections.
-trans = dict(UP=0, RIGHT=1, DOWN=2, LEFT=3)
-trans_rev = ['U', 'R', 'D', 'L']
+trans = dict(UP=0, RIGHT=3, DOWN=2, LEFT=1)
+trans_rev = ['U', 'L', 'D', 'R']
 icon_ids = dict() # Lookup for NAME : ID
 id_icons = dict()
 LISTEN_FLAG = 254
