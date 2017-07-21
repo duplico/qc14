@@ -178,16 +178,6 @@ void process_tile_open(UArg uart_id) {
 
 void connection_opened(UArg uart_id) {
     set_badge_mated(arm_rx_buf.badge_id);
-    // We take our clock setting from this person if:
-    //  1. They are authoritative and we are not, OR
-    //  2. Neither of us are authoritative and they are ahead of us.
-
-    if (!my_conf.time_is_set &&
-            (arm_rx_buf.current_time_authority ||
-             arm_rx_buf.current_time > my_conf.csecs_of_queercon)) {
-        set_clock(arm_rx_buf.current_time);
-        my_conf.time_is_set = arm_rx_buf.current_time_authority;
-    }
 
     arm_icontile_state = ICONTILE_STATE_OPEN;
     arm_phy_state = SERIAL_PHY_STATE_PLUGGED;
@@ -432,6 +422,17 @@ void rx_done(UArg uart_id) {
         // TODO: bork bork
         break;
     case ICONTILE_STATE_HS0:
+        // We take our clock setting from this person if:
+        //  1. They are authoritative and we are not, OR
+        //  2. Neither of us are authoritative and they are ahead of us.
+
+        if (!my_conf.time_is_set &&
+                (arm_rx_buf.current_time_authority ||
+                 arm_rx_buf.current_time > my_conf.csecs_of_queercon)) {
+            set_clock(arm_rx_buf.current_time);
+            my_conf.time_is_set = arm_rx_buf.current_time_authority;
+        }
+
         send_serial_handshake(uart_id, 1); // ack this
         if (((serial_handshake_t*) &arm_rx_buf.payload)->ack) {
             arm_icontile_state = ICONTILE_STATE_HS2;
