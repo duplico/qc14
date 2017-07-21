@@ -187,6 +187,10 @@ void set_badge_mated(uint16_t badge_id) {
 }
 
 void set_clock(uint32_t csecs) {
+    uint8_t restore = Clock_isActive(csecs_clock_h);
+    if (restore)
+        Clock_stop(csecs_clock_h);
+
     my_conf.csecs_of_queercon = csecs;
     if (my_conf.csecs_of_queercon >= POOL_TILE_TIME) {
         // TODO: Unlock pool tile
@@ -196,6 +200,9 @@ void set_clock(uint32_t csecs) {
         my_conf.icons_unlocked = 1;
         Semaphore_post(save_sem);
     }
+
+    if (restore)
+        Clock_start(csecs_clock_h);
 }
 
 void qc14conf_init() {

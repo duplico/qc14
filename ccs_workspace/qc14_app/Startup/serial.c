@@ -140,13 +140,11 @@ void connection_opened(UArg uart_id) {
     set_badge_mated(arm_rx_buf.badge_id);
     // We take our clock setting from this person if:
     //  1. They are authoritative and we are not, OR
-    //  2. Neither of us are authoritative and they are more than 10 csecs
-    //     (500 ms) ahead of us.
-    //     This is to avoid any accidental positive feedback loops on time.
+    //  2. Neither of us are authoritative and they are ahead of us.
 
     if (!my_conf.time_is_set &&
             (arm_rx_buf.current_time_authority ||
-             arm_rx_buf.current_time > my_conf.csecs_of_queercon+50)) {
+             arm_rx_buf.current_time > my_conf.csecs_of_queercon)) {
         set_clock(arm_rx_buf.current_time);
         my_conf.time_is_set = arm_rx_buf.current_time_authority;
     }
@@ -513,9 +511,8 @@ void serial_arm_task(UArg uart_id, UArg arg1) {
                 if (((UARTCC26XX_Object *) uart_h->object)->status == UART_OK &&
                         arm_rx_buf.current_time && rx_valid(uart_id)) { // nobody will ever have 0 time, and sometimes this just gets zeroes.
                     rx_done(uart_id);
-                    // Invalidate already received message:
-                    arm_rx_buf.crc = 0;
-                    arm_rx_buf.badge_id = 2500;
+                    // Invalidate already received message, just in case.
+                    arm_rx_buf.crc++;
                     rx_timeouts_to_idle = RX_TIMEOUTS_TO_IDLE;
                 }
                 results_flag = UART_read(uart_h, rx_bytes, sizeof(serial_message_t));
