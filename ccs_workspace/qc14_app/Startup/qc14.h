@@ -98,12 +98,14 @@ extern uint8_t uart_proto_state[4];
 #define CLUB_OVER_TIME    35640000
 #define UNLOCK_TIME       41760000
 
+#define ICONS_BEEN_BYTES 6
+
 unsigned short crc16(volatile unsigned char *sbuf,unsigned char len);
 
 typedef struct {
     uint16_t badge_id;
     uint8_t badges_mated[BADGES_MATED_BYTES];
-    uint8_t icons_been[6];
+    uint8_t icons_been[ICONS_BEEN_BYTES];
     char handle[10];
     uint8_t current_icon;
     uint8_t earned_icon;
