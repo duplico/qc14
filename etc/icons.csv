@@ -1,44 +1,45 @@
-Display Name,Map Name,status,Location,STATUS
-Air,AIR,frames,18,DONE
-Alcohol,ALCOHOL,frames,27,DONE
-Bear,BEAR,frames,30,DONE
-Beast,BEAST,frames,29,DONE
-Blooper,BLOOPER,frames,1,DONE
-Circuit,CIRCUIT,frames,8,DONE
-City,CITY,frames,3,SUCKS
-Cocktail,COCKTAIL,frames,31,DONE
-Coffee,COFFEE,frames,43,DONE
-Companion Cube,COMPANION CUBE,frames,5,DONE
-Computer,COMPUTER,frames,7,MEDIOCRE
-Dark & Stormy,DARKSTORMY,frames,36,DONE
-Earth,EARTH,frames,17,DONE
-Fire,FIRE,frames,19,DONE
-Fish,FISH,frames,28,DONE
-Forest,FOREST,frames,21,DONE
-Game,GAME,frames,6,DONE
-Gay,GAY,frames,38,DONE
-Hacker,HACKER,frames,41,DONE
-Heart,HEART,frames,42,DONE
-House,HOUSE,frames,9,DONE
-Human,HUMAN,frames,33,SUCKS
-Ice,ICE,frames,26,DONE
-Las Vegas,LAS VEGAS,frames,4,DONE
-Life,LIFE,frames,23,DONE
-Ligfhtbulb,LIGHTBULB,frames,25,DONE
-Lightning,LIGHTNING,frames,13,DONE
-Man,MAN,frames,32,DONE
-Otter,OTTER,frames,34,DONE
-Party,PARTY,frames,37,DONE
-Poop,POOP,frames,35,DONE
-Queercon,QUEERCON,frames,40,SUCKS
-Rain,RAIN,frames,15,DONE
-River,RIVER,frames,16,DONE
-San Francisco,SAN FRANCISCO,frames,10,SUCKS
-Seattle,SEATTLE,frames,2,SUCKS
-Stickman,STICKMAN,frames,12,DONE
-Stone,STONE,frames,14,DONE
-Storm,STORM,frames,11,DONE
-Sun,SUN,frames,24,DONE
-Tree,TREE,frames,22,DONE
-Water,WATER,frames,20,DONE
-Woman,WOMAN,frames,39,DONE
+Display Name,Map Name,status,Type,Location,STATUS
+Air,AIR,frames,,18,DONE
+Alcohol,ALCOHOL,frames,,27,DONE
+Bear,BEAR,frames,,30,DONE
+Beast,BEAST,frames,,29,DONE
+Blooper,BLOOPER,frames,End,1,DONE
+Circuit,CIRCUIT,frames,,8,DONE
+City,CITY,frames,,3,SUCKS
+Cocktail,COCKTAIL,frames,,31,DONE
+Coffee,COFFEE,frames,,43,DONE
+Companion Cube,COMPANION CUBE,frames,End,5,DONE
+Computer,COMPUTER,frames,,7,MEDIOCRE
+Dark & Stormy,DARKSTORMY,frames,End,36,DONE
+Earth,EARTH,frames,,17,DONE
+Fire,FIRE,frames,,19,DONE
+Fish,FISH,frames,,28,DONE
+Forest,FOREST,frames,,21,DONE
+Game,GAME,frames,,6,DONE
+Gay,GAY,frames,,38,DONE
+Hacker,HACKER,frames,,41,DONE
+Heart,HEART,frames,,42,DONE
+House,HOUSE,frames,,9,DONE
+Human,HUMAN,frames,,33,SUCKS
+Ice,ICE,frames,,26,DONE
+Las Vegas,LAS VEGAS,frames,,4,DONE
+Life,LIFE,frames,,23,DONE
+Ligfhtbulb,LIGHTBULB,frames,,25,DONE
+Lightning,LIGHTNING,frames,,13,DONE
+Man,MAN,frames,,32,DONE
+Otter,OTTER,frames,,34,DONE
+Party,PARTY,frames,,37,DONE
+Poop,POOP,frames,,35,DONE
+Queercon,QUEERCON,frames,,40,SUCKS
+Rain,RAIN,frames,,15,DONE
+River,RIVER,frames,,16,DONE
+San Francisco,SAN FRANCISCO,frames,End,10,SUCKS
+Seattle,SEATTLE,frames,End,2,SUCKS
+Stickman,STICKMAN,frames,End,12,DONE
+Stone,STONE,frames,,14,DONE
+Storm,STORM,frames,,11,DONE
+Sun,SUN,frames,,24,DONE
+Tree,TREE,frames,,22,DONE
+Water,WATER,frames,,20,DONE
+Woman,WOMAN,frames,,39,DONE
+Irish,IRISH,frames,End,44,

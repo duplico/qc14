@@ -45,8 +45,8 @@ def get_icons():
             if not record_str:
                 break
             record = record_str.strip().split(',')
-            icon_ids[record[1]] = int(record[3])-1 #make it 0-origined
-            id_icons[int(record[3])-1] = record[1]
+            icon_ids[record[1]] = int(record[4])-1 #make it 0-origined
+            id_icons[int(record[4])-1] = record[1]
             
     for i in sorted(icon_ids.keys(), cmp=lambda x,y: cmp(icon_ids[x], icon_ids[y])):
         icons.append([None, None, None, None])
