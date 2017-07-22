@@ -183,7 +183,8 @@ uint8_t process_game_open(UArg uart_id, uint8_t icon_id) {
         for (uint8_t i=0; i<4; i++) {
             if (i == uart_id)
                 game_arm_status[i].connectable = 1; // Keep mine lit up.
-            game_arm_status[i].connectable = 0;
+            else
+                game_arm_status[i].connectable = 0;
         }
 
         return 1;
