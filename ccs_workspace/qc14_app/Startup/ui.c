@@ -616,11 +616,11 @@ void ui_update(uint8_t ui_next) {
     ui_screen = ui_next;
 }
 
-void do_animation_loop_body() {
+void do_animation_loop_body(uint8_t csecs_sync) {
     screen_put_buffer_from_flash(screen_anim->anim_start_frame
                                  + screen_frame_index);
     if (screen_frame_index < screen_anim->anim_len) {
-        if (ui_screen == UI_SCREEN_GAME || ui_screen == UI_SCREEN_TILE) {
+        if (csecs_sync) {
             screen_frame_index = (10*my_conf.csecs_of_queercon / screen_anim->anim_frame_delay_ms) % screen_anim->anim_len;\
             Clock_setTimeout(screen_anim_clock_h,
                              screen_anim->anim_frame_delay_ms - ((10*my_conf.csecs_of_queercon) % screen_anim->anim_frame_delay_ms));
@@ -637,7 +637,7 @@ void do_animation_loop_body() {
 void do_animation_loop() {
     while (screen_frame_index < screen_anim->anim_len) {
         Semaphore_pend(screen_anim_sem, BIOS_WAIT_FOREVER);
-        do_animation_loop_body();
+        do_animation_loop_body(0);
     }
 }
 
@@ -705,7 +705,7 @@ void screen_anim_task_fn(UArg a0, UArg a1) {
 
         // Handle animations:
         if (Semaphore_pend(screen_anim_sem, BIOS_NO_WAIT)) {
-            do_animation_loop_body();
+            do_animation_loop_body(ui_screen == UI_SCREEN_GAME || ui_screen == UI_SCREEN_TILE);
 
             if (screen_frame_index == screen_anim->anim_len) {
                 if (ui_screen == UI_SCREEN_BOOT) {
