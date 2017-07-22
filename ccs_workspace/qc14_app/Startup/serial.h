@@ -52,7 +52,8 @@ typedef struct {
     uint8_t current_mode;
     uint8_t current_icon_or_tile_id;
     uint8_t ack;
-    uint8_t pad[2];
+    uint8_t in_fabric;
+    int8_t fabric_offset;
 } serial_handshake_t; // Initialization handshake
 
 typedef struct {

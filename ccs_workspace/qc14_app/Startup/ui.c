@@ -93,6 +93,9 @@ const screen_frame_t tile_placeholder = {{{{0, 0, 0}, {0, 0, 0}, {0, 0, 0}, {0, 
 const screen_frame_t needflash_icon = {{{{0, 0, 0}, {0, 0, 0}, {0, 0, 0}, {255, 255, 255}, {0, 0, 0}, {0, 0, 0}, {0, 0, 0}}, {{0, 0, 0}, {255, 255, 255}, {0, 0, 0}, {255, 255, 255}, {0, 0, 0}, {255, 255, 255}, {0, 0, 0}}, {{0, 0, 0}, {0, 0, 0}, {255, 255, 255}, {0, 0, 0}, {255, 255, 255}, {0, 0, 0}, {0, 0, 0}}, {{255, 255, 255}, {0, 0, 0}, {0, 0, 0}, {255, 255, 255}, {0, 0, 0}, {0, 0, 0}, {255, 255, 255}}, {{255, 255, 255}, {0, 0, 0}, {0, 0, 0}, {0, 0, 0}, {0, 0, 0}, {0, 0, 0}, {255, 255, 255}}, {{255, 255, 255}, {0, 0, 0}, {0, 0, 0}, {0, 0, 0}, {0, 0, 0}, {0, 0, 0}, {255, 255, 255}}, {{255, 255, 255}, {255, 255, 255}, {255, 255, 255}, {255, 255, 255}, {255, 255, 255}, {255, 255, 255}, {255, 255, 255}}}, 0};
 const screen_frame_t all_off = {0};
 
+uint8_t tile_active = 0;
+int8_t tile_offset = 0;
+
 void screen_anim_tick_swi(UArg a0) {
     Semaphore_post(screen_anim_sem);
 }
@@ -627,9 +630,20 @@ void ui_update(uint8_t ui_next) {
 void do_animation_loop_body(uint8_t csecs_sync) {
     screen_put_buffer_from_flash(screen_anim->anim_start_frame
                                  + screen_frame_index);
+
+    int16_t offset_frames = 0;
+    if (ui_screen == UI_SCREEN_TILE && tile_active && tile_offset) {
+        offset_frames = tile_offsets[my_conf.current_tile] * tile_offset;
+        offset_frames = offset_frames % screen_anim->anim_len; // signed.
+        if (offset_frames < 0)
+            // Make it positive. This is probably irrelevant because of how
+            //  enormous csecs_of_queercon is, but whatever.
+            offset_frames = screen_anim->anim_len - offset_frames;
+    }
+
     if (screen_frame_index < screen_anim->anim_len) {
         if (csecs_sync) {
-            screen_frame_index = (10*my_conf.csecs_of_queercon / screen_anim->anim_frame_delay_ms) % screen_anim->anim_len;\
+            screen_frame_index = (10*my_conf.csecs_of_queercon / screen_anim->anim_frame_delay_ms + offset_frames) % screen_anim->anim_len;
             Clock_setTimeout(screen_anim_clock_h,
                              screen_anim->anim_frame_delay_ms - ((10*my_conf.csecs_of_queercon) % screen_anim->anim_frame_delay_ms));
             Clock_start(screen_anim_clock_h);
