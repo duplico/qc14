@@ -251,6 +251,10 @@ void arm_color_rgb(UArg uart_id, rgbcolor_t rgb) {
     arm_color(uart_id, rgb.red, rgb.green, rgb.blue);
 }
 
+void outer_arm_color_rgb(UArg uart_id, rgbcolor_t rgb) {
+    outer_arm_color(uart_id, rgb.red, rgb.green, rgb.blue);
+}
+
 void inner_arm_color_rgb(UArg uart_id, rgbcolor_t rgb) {
     inner_arm_color(uart_id, rgb.red, rgb.green, rgb.blue);
 }
