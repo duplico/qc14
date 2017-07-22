@@ -459,13 +459,13 @@ void sel_prev_icon() {
 // lol @ the efficiency of these:
 void sel_next_tile() {
     do {
-        sel_id = (sel_id + 1) % ICON_COUNT;
+        sel_id = (sel_id + 1) % TILE_COUNT;
     } while (!tile_available(sel_id));
 }
 
 void sel_prev_tile() {
     do {
-        sel_id = (sel_id + ICON_COUNT - 1) % ICON_COUNT;
+        sel_id = (sel_id + TILE_COUNT - 1) % TILE_COUNT;
     } while (!tile_available(sel_id));
 }
 
