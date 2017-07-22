@@ -656,6 +656,7 @@ void do_animation_loop_body(uint8_t csecs_sync) {
     }
 }
 
+// TODO: This needs to be mutually exclusive with the one in the task function.
 void do_animation_loop() {
     while (screen_frame_index < screen_anim->anim_len) {
         Semaphore_pend(screen_anim_sem, BIOS_WAIT_FOREVER);
