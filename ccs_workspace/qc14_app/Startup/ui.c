@@ -735,7 +735,7 @@ void screen_anim_task_fn(UArg a0, UArg a1) {
 //                        game_arm_status[i].arm_anim_index = (game_arm_status[i].arm_anim_index + ((i == 2 || i == 3) ? loopat-1 : 1)) % loopat;
 //                    else
 //                        game_arm_status[i].arm_anim_index = (game_arm_status[i].arm_anim_index + ((i == 2 || i == 3) ? 1 : loopat-1)) % loopat;
-                    if (game_arm_status[i].arm_anim_dir)
+                    if (!game_arm_status[i].arm_anim_dir)
                         game_arm_status[i].arm_anim_index = (game_arm_status[i].arm_anim_index + 1) % loopat;
                     else
                         game_arm_status[i].arm_anim_index = (game_arm_status[i].arm_anim_index + loopat-1) % loopat;
