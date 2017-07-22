@@ -327,8 +327,8 @@ void set_screen_tile(uint32_t index, uint8_t sel) {
 
     screen_frame_index = (10*my_conf.csecs_of_queercon / screen_anim->anim_frame_delay_ms) % screen_anim->anim_len;
 
+    // TODO: Copy behavior from the icon setting one:
     uint32_t timeout = screen_anim->anim_frame_delay_ms - ((10*my_conf.csecs_of_queercon) % screen_anim->anim_frame_delay_ms);
-    // Kick the clock back off to change frames basically immediately:
     Clock_setTimeout(screen_anim_clock_h,
                      timeout * 100);
     Clock_start(screen_anim_clock_h);
@@ -619,11 +619,18 @@ void ui_update(uint8_t ui_next) {
 void do_animation_loop_body() {
     screen_put_buffer_from_flash(screen_anim->anim_start_frame
                                  + screen_frame_index);
-    screen_frame_index++;
     if (screen_frame_index < screen_anim->anim_len) {
-        Clock_setTimeout(screen_anim_clock_h,
-                         screen_anim->anim_frame_delay_ms * 100);
-        Clock_start(screen_anim_clock_h);
+        if (ui_screen == UI_SCREEN_GAME || ui_screen == UI_SCREEN_TILE) {
+            screen_frame_index = (10*my_conf.csecs_of_queercon / screen_anim->anim_frame_delay_ms) % screen_anim->anim_len;\
+            Clock_setTimeout(screen_anim_clock_h,
+                             screen_anim->anim_frame_delay_ms - ((10*my_conf.csecs_of_queercon) % screen_anim->anim_frame_delay_ms));
+            Clock_start(screen_anim_clock_h);
+        } else {
+            screen_frame_index++;
+            Clock_setTimeout(screen_anim_clock_h,
+                             screen_anim->anim_frame_delay_ms * 100);
+            Clock_start(screen_anim_clock_h);
+        }
     }
 }
 
