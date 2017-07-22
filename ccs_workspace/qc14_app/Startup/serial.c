@@ -232,6 +232,7 @@ uint8_t process_tile_open(UArg uart_id) {
         //  controls.
         // Regardless, we adopt their offset.
         // TODO: This should be set based on direction.
+        // TODO: Why isn't this next line working properly?
 //        tile_offset = payload->fabric_offset + tile_frame_periods[my_conf.current_tile][arm_rx_buf.arm_id];
         tile_offset = payload->fabric_offset + tile_frame_periods[my_conf.current_tile][uart_id];
     else {
