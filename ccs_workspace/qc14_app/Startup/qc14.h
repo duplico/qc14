@@ -120,7 +120,7 @@ extern ICall_Semaphore ble_sem;
 extern volatile uint8_t update_ble;
 
 extern uint32_t tile_offsets[TILE_COUNT];
-extern int8_t tile_frame_periods[TILE_COUNT];
+extern int8_t tile_frame_periods[TILE_COUNT][4];
 
 void start_badge();
 void set_clock(uint32_t csecs);
