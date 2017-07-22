@@ -132,6 +132,8 @@ uint8_t rx_valid(UArg uart_id) {
         return 0;
     if (arm_rx_buf.msg_type > SERIAL_MSG_TYPE_MAX)
         return 0;
+    if (arm_rx_buf.arm_id > 3)
+        return 0;
     // TODO:
 //    if (arm_rx_buf.badge_id == my_conf.badge_id)
 //        return 0;
@@ -230,7 +232,8 @@ uint8_t process_tile_open(UArg uart_id) {
         //  controls.
         // Regardless, we adopt their offset.
         // TODO: This should be set based on direction.
-        tile_offset = payload->fabric_offset + 1;
+//        tile_offset = payload->fabric_offset + tile_frame_periods[my_conf.current_tile][arm_rx_buf.arm_id];
+        tile_offset = payload->fabric_offset + tile_frame_periods[my_conf.current_tile][uart_id];
     else {
         // Neither of us is in a fabric, and the tie-breaker has decided that
         //  I don't have to do anything to my offset. Because I am awesome.

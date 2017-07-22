@@ -60,7 +60,7 @@ uint32_t tile_offsets[TILE_COUNT] = {
                          3
 };
 
-int8_t tile_frame_periods[TILE_COUNT] = {
+int8_t tile_frame_periods[TILE_COUNT][4] = {
                                   {0,-1,0,1},
                                   {1,1,1,1},
                                   {0,-1,0,1},
