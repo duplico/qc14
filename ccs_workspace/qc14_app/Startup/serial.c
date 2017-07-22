@@ -144,6 +144,10 @@ uint8_t process_game_open(UArg uart_id, uint8_t icon_id) {
     // Returns 0 if this connection is rejected.
     // Return 1 if this connection is accepted.
 
+    // In general, getting here means that our line is not connectable.
+    //  That could change lower down, though, if it's a good match.
+    game_arm_status[uart_id].connectable = 0;
+
     if (icon_id != game_curr_icon.arms[uart_id].mate_icon_id)
         return 0;
     if (arm_rx_buf.arm_id != ((uart_id + 2) % 4))
@@ -157,9 +161,8 @@ uint8_t process_game_open(UArg uart_id, uint8_t icon_id) {
     case GAME_SUFFICIENT_ALONE:
         // This means that this match is good enough to do the transition.
 
-        // Preempt all other arms
+        // Preempt all arms.
         for (uint8_t i=0; i<4; i++) {
-            if (i==uart_id) continue;
             game_arm_status[i].connectable = 0;
         }
 
@@ -178,11 +181,12 @@ uint8_t process_game_open(UArg uart_id, uint8_t icon_id) {
 
         // Preempt all other arms
         for (uint8_t i=0; i<4; i++) {
-            if (i==uart_id) continue;
+            if (i == uart_id)
+                game_arm_status[i].connectable = 1; // Keep mine lit up.
             game_arm_status[i].connectable = 0;
         }
 
-        return 1; // TODO?
+        return 1;
     case GAME_SUFFICIENT_CONN:
         // I'm the MIDDLE BADGE.
         // We need another badge physically plugged into ourselves in order
@@ -190,10 +194,10 @@ uint8_t process_game_open(UArg uart_id, uint8_t icon_id) {
         //  for it. Regardless, once it's plugged we will need to send a
         //  message to the badge that this function is processing.
 
-        // TODO: Prevent connections if they're preempted by another badge.
         if (game_arm_status[game_curr_icon.arms[uart_id].other_arm_id].connected) {
             // We're connected on the other arm, and our connection-preemption
             //  keeps us from that badge being anything other than what we want.
+            // TODO: Does it?
             // We are ready to transition as soon as we communicate to our leaf
             //  badges that it's transition time.
         } else {
@@ -202,8 +206,9 @@ uint8_t process_game_open(UArg uart_id, uint8_t icon_id) {
             for (uint8_t i=0; i<4; i++) {
                 if (i==uart_id ||
                         i == game_curr_icon.arms[uart_id].other_arm_id)
-                    continue;
-                game_arm_status[i].connectable = 0;
+                    game_arm_status[i].connectable = 1;
+                else // TODO: stupid
+                    game_arm_status[i].connectable = 0;
             }
         }
         return 1;
@@ -211,7 +216,7 @@ uint8_t process_game_open(UArg uart_id, uint8_t icon_id) {
     return 0;
 }
 
-void process_tile_open(UArg uart_id) {
+uint8_t process_tile_open(UArg uart_id) {
 
 }
 
@@ -220,22 +225,22 @@ void connection_opened(UArg uart_id) {
 
     arm_icontile_state = ICONTILE_STATE_OPEN;
     arm_phy_state = SERIAL_PHY_STATE_PLUGGED;
-    outer_arm_color(uart_id, 255,255,255);
+    outer_arm_color_rgb(uart_id, game_curr_icon.arms[uart_id].arm_color);
     if (ui_screen == UI_SCREEN_GAME &&
-            ((serial_handshake_t*) &arm_rx_buf.payload)->current_mode == UI_SCREEN_GAME) {
+            ((serial_handshake_t*) &arm_rx_buf.payload)->current_mode == UI_SCREEN_GAME &&
+            process_game_open(uart_id, ((serial_handshake_t*) &arm_rx_buf.payload)->current_icon_or_tile_id)) {
         // We're doing game things!
-        process_game_open(uart_id, ((serial_handshake_t*) &arm_rx_buf.payload)->current_icon_or_tile_id);
     } else if (ui_screen == UI_SCREEN_TILE &&
-            ((serial_handshake_t*) &arm_rx_buf.payload)->current_mode == UI_SCREEN_TILE) {
+            ((serial_handshake_t*) &arm_rx_buf.payload)->current_mode == UI_SCREEN_TILE &&
+            process_tile_open(uart_id)) {
         // We're doing color tile things!
-        process_tile_open(uart_id);
     } else {
         // We're not useful to each other.
         for (uint8_t i=255; i>0; i--) {
-            outer_arm_color(uart_id, i, 0, 0);
+            arm_color(uart_id, i, 0, 0);
             Task_sleep(500); // 500 * 10 us = 50 ms
         }
-        outer_arm_color(uart_id, 0, 0, 0);
+        arm_color(uart_id, 0, 0, 0);
     }
 
 }
@@ -345,6 +350,16 @@ void block_until_plugged(UArg uart_id) {
         // we are now plugged, can fall through:
         arm_phy_state = SERIAL_PHY_STATE_PLUGGED;
         arm_fop = 1;
+
+        // We're going to take this opportunity to set all our other arms
+        //  non-connectable temporarily.
+        // TODO: Deadlock possible?
+        for (uint8_t i=0; i<4; i++) {
+            if (game_arm_status[i].connected || i==uart_id)
+                continue;
+            game_arm_status[i].connectable = 0;
+        }
+
     }
 }
 
@@ -562,19 +577,9 @@ void serial_arm_task(UArg uart_id, UArg arg1) {
         //  We can either just hang out like this, or we can mutually secure
         //  our UARTs and start chatting.
 
-        // We're going to take this opportunity to set all our other arms
-        //  non-connectable temporarily.
-        // TODO: Deadlock possible.
-
-        for (uint8_t i=0; i<4; i++) {
-            if (game_arm_status[i].connected || i==uart_id)
-                continue;
-            game_arm_status[i].connectable = 0;
-        }
-
         switch (arm_phy_state) {
         case SERIAL_PHY_STATE_PLUGGED:
-            outer_arm_color(uart_id, 25, 25, 25);
+//            outer_arm_color(uart_id, 25, 25, 25);
             // We are just hanging out plugged into each other. Two things
             //  can cause us to want to change that. Either we need to send
             //  or we've gotten a RTS (or disconnect) from our peer.
