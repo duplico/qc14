@@ -650,6 +650,8 @@ inline void bootup_sequence() {
 }
 
 void screen_anim_task_fn(UArg a0, UArg a1) {
+    uint8_t tile_anim_active_arm = 0;
+
     // Bootup animation time!
     bootup_sequence(); // Only returns if we're programmed.
 
@@ -710,9 +712,9 @@ void screen_anim_task_fn(UArg a0, UArg a1) {
             }
         }
 
-        uint8_t tile_anim_active_arm = 0;
-
         if (Semaphore_pend(arm_anim_sem, BIOS_NO_WAIT)) {
+            Clock_setTimeout(arm_anim_clock_h, ARM_ANIM_PERIOD);
+
             if (ui_screen == UI_SCREEN_GAME) {
                 for (uint8_t i=0; i<4; i++) {
                     inner_arm_color(i, 0, 0, 0);
@@ -721,7 +723,7 @@ void screen_anim_task_fn(UArg a0, UArg a1) {
 
                     inner_arm_color_rgb(i, game_curr_icon.arms[i].arm_color);
 
-                    uint8_t loopat = 20;
+                    uint8_t loopat = 8;
 
                     if (game_arm_status[i].arm_anim_index < 3) {
                         led_buf[7+i][game_arm_status[i].arm_anim_index][0] /= 4;
@@ -729,13 +731,20 @@ void screen_anim_task_fn(UArg a0, UArg a1) {
                         led_buf[7+i][game_arm_status[i].arm_anim_index][2] /= 4;
                     }
 
-                    if (!game_arm_status[i].arm_anim_dir)
-                        game_arm_status[i].arm_anim_index = (game_arm_status[i].arm_anim_index + ((i == 1 || i == 2) ? loopat-1 : 1)) % loopat;
+//                    if (game_arm_status[i].arm_anim_dir)
+//                        game_arm_status[i].arm_anim_index = (game_arm_status[i].arm_anim_index + ((i == 2 || i == 3) ? loopat-1 : 1)) % loopat;
+//                    else
+//                        game_arm_status[i].arm_anim_index = (game_arm_status[i].arm_anim_index + ((i == 2 || i == 3) ? 1 : loopat-1)) % loopat;
+                    if (game_arm_status[i].arm_anim_dir)
+                        game_arm_status[i].arm_anim_index = (game_arm_status[i].arm_anim_index + 1) % loopat;
                     else
-                        game_arm_status[i].arm_anim_index = (game_arm_status[i].arm_anim_index + ((i == 1 || i == 2) ? 1 : loopat-1)) % loopat;
+                        game_arm_status[i].arm_anim_index = (game_arm_status[i].arm_anim_index + loopat-1) % loopat;
                 }
+            } else if (ui_screen == UI_SCREEN_TILE) {
+                // The tiles kinda look best with blank arms...
+                // TODO:
+                //  animate them when we're plugged in.
             }
-            Clock_setTimeout(arm_anim_clock_h, ARM_ANIM_PERIOD);
             Clock_start(arm_anim_clock_h);
         }
 
