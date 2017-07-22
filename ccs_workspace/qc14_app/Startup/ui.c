@@ -579,10 +579,18 @@ void ui_update(uint8_t ui_next) {
     case UI_SCREEN_SLEEPING:
         // Shut it down. Shut everything down.
         set_screen_solid_local(&all_off);
+        arm_color(0, 0, 0, 0);
+        arm_color(1, 0, 0, 0);
+        arm_color(2, 0, 0, 0);
+        arm_color(3, 0, 0, 0);
         break;
     case UI_SCREEN_SLEEP:
         screen_blink_on(0);
         set_screen_solid_local(&power_bmp);
+        arm_color(0, 0, 0, 0);
+        arm_color(1, 0, 0, 0);
+        arm_color(2, 0, 0, 0);
+        arm_color(3, 0, 0, 0);
         break;
     case UI_SCREEN_BOOT:
         set_screen_animation(FLASH_BOOT_ANIM_LOC, 0);
@@ -657,8 +665,6 @@ inline void bootup_sequence() {
 }
 
 void screen_anim_task_fn(UArg a0, UArg a1) {
-    uint8_t tile_anim_active_arm = 0;
-
     // Bootup animation time!
     bootup_sequence(); // Only returns if we're programmed.
 
