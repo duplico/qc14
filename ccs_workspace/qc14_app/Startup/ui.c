@@ -716,20 +716,37 @@ void screen_anim_task_fn(UArg a0, UArg a1) {
             if (ui_screen == UI_SCREEN_GAME) {
                 for (uint8_t i=0; i<4; i++) {
 
+//                    inner_arm_color(i, 0, 0, 0);
+//                    if (!game_curr_icon.arms[i].sufficient_flag || !game_arm_status[i].connectable)
+//                        continue;
+//
+//                    if (game_arm_status[i].arm_anim_index < 3) {
+//                        led_buf[7+i][game_arm_status[i].arm_anim_index][0] = game_curr_icon.arms[i].arm_color.red;
+//                        led_buf[7+i][game_arm_status[i].arm_anim_index][1] = game_curr_icon.arms[i].arm_color.green;
+//                        led_buf[7+i][game_arm_status[i].arm_anim_index][2] = game_curr_icon.arms[i].arm_color.blue;
+//                    }
+
+
                     inner_arm_color(i, 0, 0, 0);
                     if (!game_curr_icon.arms[i].sufficient_flag || !game_arm_status[i].connectable)
                         continue;
 
+                    inner_arm_color_rgb(i, game_curr_icon.arms[i].arm_color);
+
+                    uint8_t loopat = 10;
+
                     if (game_arm_status[i].arm_anim_index < 3) {
-                        led_buf[7+i][game_arm_status[i].arm_anim_index][0] = game_curr_icon.arms[i].arm_color.red;
-                        led_buf[7+i][game_arm_status[i].arm_anim_index][1] = game_curr_icon.arms[i].arm_color.green;
-                        led_buf[7+i][game_arm_status[i].arm_anim_index][2] = game_curr_icon.arms[i].arm_color.blue;
+                        led_buf[7+i][game_arm_status[i].arm_anim_index][0] = 0;
+                        led_buf[7+i][game_arm_status[i].arm_anim_index][1] = 0;
+                        led_buf[7+i][game_arm_status[i].arm_anim_index][2] = 0;
                     }
 
+
+
                     if (!game_arm_status[i].arm_anim_dir) // TODO
-                        game_arm_status[i].arm_anim_index = (game_arm_status[i].arm_anim_index + ((i == 1 || i == 2) ? 3 : 1)) % 4;
+                        game_arm_status[i].arm_anim_index = (game_arm_status[i].arm_anim_index + ((i == 1 || i == 2) ? loopat-1 : 1)) % loopat;
                     else
-                        game_arm_status[i].arm_anim_index = (game_arm_status[i].arm_anim_index + ((i == 1 || i == 2) ? 1 : 3)) % 4;
+                        game_arm_status[i].arm_anim_index = (game_arm_status[i].arm_anim_index + ((i == 1 || i == 2) ? 1 : loopat-1)) % loopat;
                 }
             }
             Clock_setTimeout(arm_anim_clock_h, ARM_ANIM_PERIOD);

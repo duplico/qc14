@@ -35,7 +35,7 @@ class IconConnection(object):
         self.sufficiency = sufficiency
         self.arm_anim_id = arm_anim_id
         self.other_arm_id = other_arm_id
-        self.rgb = map(int,rgb)
+        self.rgb = map(lambda a: int(a)/6,rgb)
 
 def get_icons():
     with open('icons.csv') as icon_file:
@@ -138,7 +138,6 @@ def get_icons():
                 icons[this_icon][this_dir] = adj
                 
     # TODO: Confirm what queercon down game looks like.
-    # TODO: Add colors
                             
     for icon_id in range(len(icons)):
         icon = icons[icon_id]
