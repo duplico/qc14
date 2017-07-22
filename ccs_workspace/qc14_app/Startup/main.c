@@ -49,6 +49,17 @@ qc14_badge_conf_t my_conf;
 ICall_Semaphore ble_sem;
 volatile uint8_t update_ble = 0;
 
+uint32_t tile_frame_periods[8] = {
+                                  28,
+                                  41,
+                                  32,
+                                  33,
+                                  148,
+                                  0,
+                                  18,
+                                  3
+};
+
 unsigned short crc16(volatile unsigned char *sbuf,unsigned char len) {
     unsigned short crc=0xB8F6;
 
