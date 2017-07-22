@@ -120,8 +120,9 @@ inline void send_serial_handshake(UArg uart_id, uint8_t ack) {
     handshake_payload->current_mode = ui_screen;
     handshake_payload->current_icon_or_tile_id = (ui_screen? my_conf.current_tile : my_conf.current_icon);
     handshake_payload->ack = ack;
-    handshake_payload->pad[0] = 0xdc;
-    handshake_payload->pad[1] = 0x19;
+    handshake_payload->in_fabric = tile_active;
+    handshake_payload->fabric_offset = tile_offset;
+
     memcpy(handshake_payload->badges_mated, my_conf.badges_mated, BADGES_MATED_BYTES);
     arm_nts = SERIAL_MSG_TYPE_HANDSHAKE;
 }
@@ -218,6 +219,25 @@ uint8_t process_game_open(UArg uart_id, uint8_t icon_id) {
 }
 
 uint8_t process_tile_open(UArg uart_id) {
+    serial_handshake_t* payload = (serial_handshake_t*) &arm_rx_buf.payload;
+    if (tile_active) {
+        // Already in a fabric.
+        // TODO: unite them somehow.
+        return 1;
+    } else if (payload->in_fabric || my_conf.badge_id > arm_rx_buf.badge_id)
+        // We're not in a fabric, and our new mate _is_. OR, neither of us
+        //  is in a fabric, but their ID is lower than ours and therefore
+        //  controls.
+        // Regardless, we adopt their offset.
+        // TODO: This should be set based on direction.
+        tile_offset = payload->fabric_offset + 1;
+    else {
+        // Neither of us is in a fabric, and the tie-breaker has decided that
+        //  I don't have to do anything to my offset. Because I am awesome.
+        }
+
+    // If we're down here, we're joining a fabric.
+    tile_active = 1;
 
     return 1;
 }
@@ -278,6 +298,9 @@ void disconnected(UArg uart_id) {
                 for (uint8_t i=0; i<4; i++) {
                     game_arm_status[i].connectable = 1;
                 }
+            } else {
+                tile_active = 0;
+                tile_offset = 0;
             }
         }
     } else {

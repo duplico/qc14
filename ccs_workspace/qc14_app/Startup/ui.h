@@ -109,5 +109,7 @@ void do_animation_loop();
 void do_icon_transition(uint16_t dest_icon);
 
 extern Semaphore_Handle save_sem;
+extern uint8_t tile_active;
+extern int8_t tile_offset;
 
 #endif /* STARTUP_UI_H_ */

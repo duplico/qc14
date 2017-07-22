@@ -49,16 +49,26 @@ qc14_badge_conf_t my_conf;
 ICall_Semaphore ble_sem;
 volatile uint8_t update_ble = 0;
 
-// TODO: Put these in the extflash?
-uint32_t tile_frame_periods[8][4] = {
-                                  {0,28,0,28},
-                                  {41,41,41,41},
-                                  {0,32,0,32},
-                                  {33,33,33,33},
-                                  {148,148,148,148},
+uint32_t tile_offsets[TILE_COUNT] = {
+                         28,
+                         41,
+                         32,
+                         33,
+                         148,
+                         0,
+                         18,
+                         3
+};
+
+int8_t tile_frame_periods[TILE_COUNT] = {
+                                  {0,-1,0,1},
+                                  {1,1,1,1},
+                                  {0,-1,0,1},
+                                  {1,1,1,1},
+                                  {-1,-1,1,1},
                                   {0,0,0,0},
-                                  {18,18,18,18},
-                                  {3,3,3,3}
+                                  {1,1,1,1},
+                                  {1,-1,1,1}
 };
 
 unsigned short crc16(volatile unsigned char *sbuf,unsigned char len) {

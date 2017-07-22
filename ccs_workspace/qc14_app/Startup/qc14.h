@@ -119,6 +119,9 @@ extern qc14_badge_conf_t my_conf;
 extern ICall_Semaphore ble_sem;
 extern volatile uint8_t update_ble;
 
+extern uint32_t tile_offsets[TILE_COUNT];
+extern int8_t tile_frame_periods[TILE_COUNT];
+
 void start_badge();
 void set_clock(uint32_t csecs);
 void qc14conf_save();
