@@ -142,10 +142,10 @@ Task_Struct sbbTask;
 Char sbbTaskStack[SBB_TASK_STACK_SIZE];
 
 // GAP - SCAN RSP data (max size = 31 bytes)
-static uint8 scanRspData[] =
+uint8 scanRspData[] =
 {
   // complete name
-  14,   // length of this data
+  15,   // length of this data
   GAP_ADTYPE_LOCAL_NAME_COMPLETE,
   'Q',
   'C',
@@ -182,7 +182,7 @@ static uint8 scanRspData[] =
 
 // GAP - Advertisement data (max size = 31 bytes, though this is
 // best kept short to conserve power while advertisting)
-uint8 advertData[] =
+static uint8 advertData[] =
 {
   // Flags; this sets the device to use limited discoverable
   // mode (advertises for 30 seconds at a time) instead of general
