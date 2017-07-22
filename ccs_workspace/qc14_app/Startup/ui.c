@@ -392,7 +392,7 @@ void set_screen_game(uint32_t index, uint8_t sel) {
     for (uint8_t i=0; i<4; i++) {
         arm_color(i, 0, 0, 0);
         for (uint8_t i=0; i<4; i++) {
-            game_arm_status[i].arm_anim_index = i;
+            game_arm_status[i].arm_anim_index = 0;
         }
     }
     if (!sel) {
