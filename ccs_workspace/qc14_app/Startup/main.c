@@ -152,9 +152,9 @@ uint8_t game_been_icon(uint8_t icon_id) {
 }
 
 void set_radio_crc() {
-    uint16_t c = crc16(&advertData[11], 9);
-    advertData[21] = c & 0xff;
-    advertData[20] = (c >> 8) & 0xff;
+    uint16_t c = crc16(&advertData[20], 9);
+    advertData[30] = c & 0xff;
+    advertData[29] = (c >> 8) & 0xff;
 }
 
 void game_set_icon(uint8_t icon_id) {
@@ -164,13 +164,13 @@ void game_set_icon(uint8_t icon_id) {
             icon_id != ICON_COFFEE)
         my_conf.earned_icon = icon_id;
     my_conf.current_icon = icon_id;
-    advertData[13] = icon_id;
+    advertData[22] = icon_id;
     if (!game_been_icon(icon_id)) {
         uint8_t byte_number = icon_id / 8;
         uint8_t bit_number = icon_id % 8;
         my_conf.icons_been[byte_number] |= (1 << bit_number);
     }
-    memcpy(&advertData[14], my_conf.icons_been, 6);
+    memcpy(&advertData[23], my_conf.icons_been, 6);
     set_radio_crc();
     Semaphore_post(save_sem);
 }
@@ -286,8 +286,8 @@ void qc14conf_init() {
     set_clock(my_conf.csecs_of_queercon); // Make SURE we get the unlocks done.
 
 
-    advertData[12] = my_conf.badge_id & 0xff;
-    advertData[11] = (my_conf.badge_id >> 8) & 0xff;
+    advertData[21] = my_conf.badge_id & 0xff;
+    advertData[20] = (my_conf.badge_id >> 8) & 0xff;
 
     game_set_icon(my_conf.current_icon);
 
