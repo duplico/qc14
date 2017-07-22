@@ -277,7 +277,7 @@ void disconnected(UArg uart_id) {
     outer_arm_color(uart_id, 0,0,0);
     arm_phy_state=SERIAL_PHY_STATE_DIS;
 
-    if (ui_screen == UI_SCREEN_GAME && arm_icontile_state == ICONTILE_STATE_OPEN) {
+    if (ui_screen == UI_SCREEN_GAME) {
         // We need to clean up the game_arm_status setup.
         game_arm_status[uart_id].connected = 0;
         // Leave my own connectability unchanged.
@@ -294,17 +294,18 @@ void disconnected(UArg uart_id) {
         } else {
             // We're the last to disconnect.
             // Make everybody else connectable.
-            if (ui_screen == UI_SCREEN_GAME) {
-                for (uint8_t i=0; i<4; i++) {
-                    game_arm_status[i].connectable = 1;
-                }
-            } else {
-                tile_active = 0;
-                tile_offset = 0;
+            for (uint8_t i=0; i<4; i++) {
+                game_arm_status[i].connectable = 1;
             }
         }
     } else {
         // Handle tile cleanup.
+
+        if (!serial_in_progress()) {
+            tile_active = 0;
+            tile_offset = 0;
+        }
+
     }
 
     arm_icontile_state = ICONTILE_STATE_DIS;
