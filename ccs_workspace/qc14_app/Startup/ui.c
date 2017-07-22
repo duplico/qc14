@@ -422,7 +422,7 @@ uint8_t icon_available(uint8_t icon_id) {
     if (my_conf.icons_unlocked) {
         return icon_id == ICON_AIR || icon_id == ICON_EARTH ||
                 icon_id == ICON_WATER || icon_id == ICON_FIRE ||
-                icon_id == ICON_COFFEE || game_been_icon(icon_id);
+                game_been_icon(icon_id);
     }
 
     if (icon_id == game_starting_icon(my_conf.badge_id))
