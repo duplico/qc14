@@ -219,6 +219,7 @@ uint8_t process_game_open(UArg uart_id, uint8_t icon_id) {
 
 uint8_t process_tile_open(UArg uart_id) {
 
+    return 1;
 }
 
 void connection_opened(UArg uart_id) {
@@ -236,6 +237,8 @@ void connection_opened(UArg uart_id) {
             process_tile_open(uart_id)) {
         // We're doing color tile things!
     } else {
+        if (ui_screen == UI_SCREEN_GAME)
+            game_arm_status[uart_id].connectable = 0;
         // We're not useful to each other.
         for (uint8_t i=255; i>0; i--) {
             arm_color(uart_id, i, 0, 0);
@@ -264,11 +267,17 @@ void disconnected(UArg uart_id) {
         if (serial_in_progress()) {
             // Are any other arms connected?
             // TODO: Are there special cases here?
+
+            // What if we plugged in a color tile to a 3-way badge setup here,
+            //  and we were expecting someone to plug in here, and it made
+            //  this arm unconnectable.
         } else {
             // We're the last to disconnect.
             // Make everybody else connectable.
-            for (uint8_t i=0; i<4; i++) {
-                game_arm_status[i].connectable = 1;
+            if (ui_screen == UI_SCREEN_GAME) {
+                for (uint8_t i=0; i<4; i++) {
+                    game_arm_status[i].connectable = 1;
+                }
             }
         }
     } else {
@@ -353,12 +362,13 @@ void block_until_plugged(UArg uart_id) {
         arm_fop = 1;
 
         // We're going to take this opportunity to set all our other arms
-        //  non-connectable temporarily.
-        // TODO: Deadlock possible?
-        for (uint8_t i=0; i<4; i++) {
-            if (game_arm_status[i].connected || i==uart_id)
-                continue;
-            game_arm_status[i].connectable = 0;
+        //  non-connectable temporarily. (if we're playing the game.)
+        if (ui_screen == UI_SCREEN_GAME) {
+            for (uint8_t i=0; i<4; i++) {
+                if (game_arm_status[i].connected || i==uart_id)
+                    continue;
+                game_arm_status[i].connectable = 0;
+            }
         }
 
     }
