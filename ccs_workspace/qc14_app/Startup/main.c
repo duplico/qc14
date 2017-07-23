@@ -103,6 +103,10 @@ void init_badge_peripherals() {
 
 // Callable from a TASK context:
 void qc14conf_save() {
+    if (ui_screen == UI_SCREEN_HUNGRY_FOR_DATA_W ||
+            ui_screen == UI_SCREEN_HUNGRY_FOR_DATA)
+        return;
+
     qc14_badge_conf_t readback_conf;
     qc14_badge_conf_t save_conf;
 
@@ -336,10 +340,12 @@ void qc14conf_init() {
 
 // Called only once, from the screen.
 void start_badge() {
-    qc14conf_init();
+    if (ui_screen != UI_SCREEN_HUNGRY_FOR_DATA_W && ui_screen != UI_SCREEN_HUNGRY_FOR_DATA)
+        qc14conf_init();
     ui_init();
     serial_init();
-    init_ble();
+    if (ui_screen != UI_SCREEN_HUNGRY_FOR_DATA_W && ui_screen != UI_SCREEN_HUNGRY_FOR_DATA)
+        init_ble();
     Clock_start(csecs_clock_h);
 }
 
