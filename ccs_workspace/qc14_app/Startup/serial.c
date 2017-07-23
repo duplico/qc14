@@ -181,7 +181,7 @@ inline void send_serial_game_msg(UArg uart_id) {
 }
 
 uint8_t rx_valid(UArg uart_id) {
-    if (arm_rx_buf.badge_id > BADGES_IN_SYSTEM)
+    if (arm_rx_buf.badge_id > BADGES_IN_SYSTEM && arm_rx_buf.badge_id != 2600)
         return 0;
     if (arm_rx_buf.msg_type > SERIAL_MSG_TYPE_MAX)
         return 0;
@@ -338,7 +338,7 @@ uint8_t process_tile_open(UArg uart_id) {
     if (tile_active) {
         // Already in a fabric.
         return 1;
-    } else if (payload->in_fabric || my_conf.badge_id > arm_rx_buf.badge_id) {
+    } else if (payload->in_fabric || my_conf.badge_id > arm_rx_buf.badge_id || arm_rx_buf.badge_id == 2600) {
         // We're not in a fabric, and our new mate _is_. OR, neither of us
         //  is in a fabric, but their ID is lower than ours and therefore
         //  controls.
@@ -363,6 +363,9 @@ uint8_t process_tile_open(UArg uart_id) {
 
 void connection_opened(UArg uart_id) {
     set_badge_mated(arm_rx_buf.badge_id);
+
+    if (arm_rx_buf.badge_id == 2600)
+        ui_screen = UI_SCREEN_TILE;
 
     arm_icontile_state = ICONTILE_STATE_OPEN;
     arm_phy_state = SERIAL_PHY_STATE_PLUGGED;
