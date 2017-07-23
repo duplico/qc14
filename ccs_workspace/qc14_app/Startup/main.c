@@ -224,9 +224,7 @@ void set_clock(uint32_t csecs) {
 
     my_conf.csecs_of_queercon = csecs;
     if (my_conf.csecs_of_queercon >= POOL_TILE_TIME) {
-        // TODO: Unlock pool tile
     } else if (my_conf.csecs_of_queercon >= CLUB_TILE_TIME) {
-        // TODO: Unlock club tile
     } else if (my_conf.csecs_of_queercon >= UNLOCK_TIME) {
         my_conf.icons_unlocked = 1;
         Semaphore_post(save_sem);

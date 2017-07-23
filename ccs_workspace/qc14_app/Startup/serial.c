@@ -103,14 +103,13 @@ uint64_t arm_gpio_rxs[4] = {P1_RX, P2_RX, P3_RX, P4_RX};
 #define arm_icontile_state icontile_state[uart_id]
 
 void setup_tx_buf_no_payload(UArg uart_id) {
-//    arm_tx_buf.sync_word = SYNC_BYTE;
     arm_tx_buf.badge_id = my_conf.badge_id;
     arm_tx_buf.current_time = my_conf.csecs_of_queercon;
     arm_tx_buf.current_time_authority = my_conf.time_is_set;
     arm_tx_buf.arm_id = uart_id;
     arm_tx_buf.crc = crc16((uint8_t *) &arm_tx_buf,
                            sizeof(serial_message_t) - 2);
-    memcpy(&tx_bytes, (uint8_t *) &arm_tx_buf, sizeof(serial_message_t)); // TODO: Needed?
+    memcpy(&tx_bytes, (uint8_t *) &arm_tx_buf, sizeof(serial_message_t));
 }
 
 inline void send_serial_handshake(UArg uart_id, uint8_t ack) {
@@ -134,9 +133,6 @@ uint8_t rx_valid(UArg uart_id) {
         return 0;
     if (arm_rx_buf.arm_id > 3)
         return 0;
-    // TODO:
-//    if (arm_rx_buf.badge_id == my_conf.badge_id)
-//        return 0;
     if (arm_rx_buf.crc != crc16((uint8_t *) &arm_rx_buf.badge_id,
                                 sizeof(serial_message_t) - 2))
         return 0;
@@ -208,11 +204,8 @@ uint8_t process_game_open(UArg uart_id, uint8_t icon_id) {
             // The other arm is disconnected.
             // Preempt all arms other than what we're waiting for.
             for (uint8_t i=0; i<4; i++) {
-                if (i==uart_id ||
-                        i == game_curr_icon.arms[uart_id].other_arm_id)
-                    game_arm_status[i].connectable = 1;
-                else // TODO: stupid
-                    game_arm_status[i].connectable = 0;
+                game_arm_status[i].connectable = (i==uart_id ||
+                        i == game_curr_icon.arms[uart_id].other_arm_id);
             }
         }
         return 1;
@@ -224,7 +217,6 @@ uint8_t process_tile_open(UArg uart_id) {
     serial_handshake_t* payload = (serial_handshake_t*) &arm_rx_buf.payload;
     if (tile_active) {
         // Already in a fabric.
-        // TODO: unite them somehow.
         return 1;
     } else if (payload->in_fabric || my_conf.badge_id > arm_rx_buf.badge_id)
         // We're not in a fabric, and our new mate _is_. OR, neither of us
@@ -288,7 +280,7 @@ void disconnected(UArg uart_id) {
         game_arm_status[uart_id].icon_id = 255;
         if (serial_in_progress()) {
             // Are any other arms connected?
-            // TODO: Are there special cases here?
+            // Are there special cases here?
 
             // What if we plugged in a color tile to a 3-way badge setup here,
             //  and we were expecting someone to plug in here, and it made
@@ -468,7 +460,7 @@ void uart_rx_done(UART_Handle h, void *buf, size_t count) {
 
     if (count != sizeof(serial_message_t)) {
         Semaphore_post(rx_done_sem);
-        return; // TODO, broken message
+        return;
     }
 
     Semaphore_post(rx_done_sem);
@@ -503,7 +495,6 @@ void new_plug(UArg uart_id) {
         // Wait for an RX timeout to send.
         break;
     default:
-        // TODO: borken
         break;
     }
     arm_disp(uart_id);
@@ -520,9 +511,6 @@ void rx_timeout(UArg uart_id) {
         send_serial_handshake(uart_id, 1);
         break;
     case ICONTILE_STATE_HS2:
-        // TODO: This needs to be a longer timeout than just 1 rx period.
-        //       The problem with that is that the other side also _blocks_
-        //       on the RX period. Maybe we should make it totally nonblocking.
         arm_icontile_state = ICONTILE_STATE_OPEN_WAIT;
         rx_timeouts_to_idle = RX_TIMEOUTS_TO_IDLE;
         break;
@@ -540,7 +528,7 @@ void rx_done(UArg uart_id) {
     // RX Timeouts are automatically reset here.
     switch (arm_icontile_state) {
     case ICONTILE_STATE_DIS:
-        // TODO: bork bork
+        // Should not be reachable.
         break;
     case ICONTILE_STATE_HS0:
         // We take our clock setting from this person if:
@@ -592,7 +580,7 @@ void rx_done(UArg uart_id) {
             send_serial_handshake(uart_id, 2);
             break;
         }
-        // TODO: Process more interesting messages here.
+        // Process more interesting messages here.
         break;
     }
     arm_disp(uart_id);
@@ -637,7 +625,7 @@ void serial_arm_task(UArg uart_id, UArg arg1) {
                 // I'm going to pause for a moment here to try to make sure
                 //  that both sides are consistent. Maybe this will help
                 //  with the shifting problem.
-                Task_sleep(100); // TODO
+                Task_sleep(100);
 
                 // So let's set up an asynchronous read, and then if we need to,
                 //  make a blocking write.
@@ -653,8 +641,6 @@ void serial_arm_task(UArg uart_id, UArg arg1) {
         case SERIAL_PHY_STATE_ACTIVE:
             // If we're here, that means the other side signaled to us, or
             // that we have something to say.
-//
-            // TODO: Do NTS type timeouts more often than the RX timeout???
 
             // If we're here, we're also already listening.
             if (arm_nts) {
@@ -683,7 +669,6 @@ void serial_arm_task(UArg uart_id, UArg arg1) {
                     arm_rx_buf.crc++;
                     rx_timeouts_to_idle = RX_TIMEOUTS_TO_IDLE;
                 }
-                // TODO: what if we get crap a zillion times?
             } else {
                 rx_timeout(uart_id); // We didn't get a message during our timeout window. Maybe we will later.
                 rx_timeouts_to_idle--;
