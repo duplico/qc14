@@ -216,7 +216,7 @@ def main():
         
     imgs = image_list_from_directory('_badge_graphics/poof')
     poof_anim = anim_struct_bytes(
-        0, 
+        len(all_frames), 
         len(imgs), 
         get_frame_delay('_badge_graphics/poof', args.frame_delay)
     )

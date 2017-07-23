@@ -750,7 +750,7 @@ void screen_anim_task_fn(UArg a0, UArg a1) {
                 if (my_conf.current_icon == 0 || my_conf.current_icon == 4 ||
                         my_conf.current_icon == 35 || my_conf.current_icon == 9 ||
                         my_conf.current_icon == 1 || my_conf.current_icon == 11 ||
-                        my_conf.current_icon == 44) {
+                        my_conf.current_icon == 43) {
 
                     uint8_t loopat = 6;
                     arm_anim_index = (arm_anim_index + 1) % loopat;
@@ -759,7 +759,6 @@ void screen_anim_task_fn(UArg a0, UArg a1) {
                         inner_arm_color(i, 0, 0, 0);
                         outer_arm_color_rgb(i, rainbow_colors[arm_anim_index]);
                     }
-                    Clock_setTimeout(arm_anim_clock_h, ARM_ANIM_PERIOD*2);
                 } else {
                     for (uint8_t i=0; i<4; i++) {
                         inner_arm_color(i, 0, 0, 0);

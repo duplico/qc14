@@ -186,7 +186,8 @@ void game_set_icon(uint8_t icon_id) {
     if (icon_id >= ICON_COUNT)
         return;
     if (icon_id != game_starting_icon(my_conf.badge_id) &&
-            icon_id != ICON_COFFEE)
+            icon_id != ICON_COFFEE && icon_id != ICON_AIR && icon_id != ICON_EARTH &&
+            icon_id != ICON_WATER && icon_id != ICON_FIRE)
         my_conf.earned_icon = icon_id;
     my_conf.current_icon = icon_id;
     scanRspData[6] = icon_id;
