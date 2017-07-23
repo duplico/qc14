@@ -108,7 +108,7 @@ void setup_tx_buf_no_payload(UArg uart_id) {
     arm_tx_buf.current_time_authority = my_conf.time_is_set;
     arm_tx_buf.arm_id = uart_id;
     arm_tx_buf.crc = crc16((uint8_t *) &arm_tx_buf,
-                           sizeof(serial_message_t) - 2);
+                           sizeof(serial_message_t) - 4);
     memcpy(&tx_bytes, (uint8_t *) &arm_tx_buf, sizeof(serial_message_t));
 }
 
@@ -122,6 +122,21 @@ inline void send_serial_handshake(UArg uart_id, uint8_t ack) {
     handshake_payload->in_fabric = tile_active;
     handshake_payload->fabric_offset = tile_offset;
 
+    handshake_payload->msg_ready = 0;
+    // Are we waiting on this arm to get connected?
+    for (uint8_t i=0; i<4; i++) {
+        if (i==uart_id) continue;
+        // In other words, does there exist an arm, other than this one,
+        //  which is connected (correctly), is waiting for a connection,
+        //  and the connection it's waiting for is on this arm?
+        if (game_arm_status[i].connected &&
+                game_arm_status[i].sufficiency_info == GAME_SUFFICIENT_CONN &&
+                game_curr_icon.arms[i].other_arm_id == uart_id) {
+            // If so, then we need to set the payload.
+            handshake_payload->msg_ready = 1;
+        }
+    }
+
     memcpy(handshake_payload->badges_mated, my_conf.badges_mated, BADGES_MATED_BYTES);
     arm_nts = SERIAL_MSG_TYPE_HANDSHAKE;
 }
@@ -134,7 +149,7 @@ uint8_t rx_valid(UArg uart_id) {
     if (arm_rx_buf.arm_id > 3)
         return 0;
     if (arm_rx_buf.crc != crc16((uint8_t *) &arm_rx_buf.badge_id,
-                                sizeof(serial_message_t) - 2))
+                                sizeof(serial_message_t) - 4))
         return 0;
     return 1;
 }
@@ -142,6 +157,7 @@ uint8_t rx_valid(UArg uart_id) {
 uint8_t process_game_open(UArg uart_id, uint8_t icon_id) {
     // Returns 0 if this connection is rejected.
     // Return 1 if this connection is accepted.
+    serial_handshake_t* payload = (serial_handshake_t*) &arm_rx_buf.payload;
 
     // In general, getting here means that our line is not connectable.
     //  That could change lower down, though, if it's a good match.
@@ -157,6 +173,35 @@ uint8_t process_game_open(UArg uart_id, uint8_t icon_id) {
 
     // If we're here, this was a match.
     switch(game_curr_icon.arms[uart_id].sufficient_flag) {
+    case GAME_SUFFICIENT_MSG:
+        // I'm a LEAF BADGE.
+        //  (watch how I soar)
+        // We need a message from this person in order to transition.
+        //  Let us prepare our bodies.
+
+        // It's possible that person is already connected to the badge we need.
+        //  Let's find out.
+        if (!payload->msg_ready) {
+            // There is nothing yet to do. Yet.
+
+            // Preempt all *other* arms
+            for (uint8_t i=0; i<4; i++) {
+                if (i == uart_id)
+                    game_arm_status[i].connectable = 1; // Keep mine lit up.
+                else
+                    game_arm_status[i].connectable = 0;
+            }
+
+            game_arm_status[uart_id].sufficiency_info = GAME_SUFFICIENT_MSG;
+
+            // Bail for now.
+            return 1;
+        }
+
+        // We are ready to transform. We'll let the other badge take care
+        //  of telling its neighbor, but we're going to go ahead and
+        //  dooooo iiiiiit.
+        //   fall through!
     case GAME_SUFFICIENT_ALONE:
         // This means that this match is good enough to do the transition.
 
@@ -169,40 +214,42 @@ uint8_t process_game_open(UArg uart_id, uint8_t icon_id) {
         if (my_conf.current_icon == ICON_COFFEE)
             do_icon_transition(ICON_COFFEE);
 
+        game_arm_status[uart_id].sufficiency_info = GAME_SUFFICIENT_ALONE;
         do_icon_transition(game_curr_icon.arms[uart_id].result_icon_id);
-        return 1;
-    case GAME_SUFFICIENT_MSG:
-        // I'm a LEAF BADGE.
-        //  (watch how I soar)
-        // We need a message from this person in order to transition.
-        //  Let us prepare our bodies.
-        // There is nothing yet to do.
-
-        // Preempt all other arms
-        for (uint8_t i=0; i<4; i++) {
-            if (i == uart_id)
-                game_arm_status[i].connectable = 1; // Keep mine lit up.
-            else
-                game_arm_status[i].connectable = 0;
-        }
-
         return 1;
     case GAME_SUFFICIENT_CONN:
         // I'm the MIDDLE BADGE.
         // We need another badge physically plugged into ourselves in order
         //  to transition. It may already be here, or we may need to wait
-        //  for it. Regardless, once it's plugged we will need to send a
-        //  message to the badge that this function is processing.
+        //  for it.
 
-        if (game_arm_status[game_curr_icon.arms[uart_id].other_arm_id].connected) {
-            // We're connected on the other arm, and our connection-preemption
-            //  keeps us from that badge being anything other than what we want.
-            // TODO: Does it?
-            // We are ready to transition as soon as we communicate to our leaf
-            //  badges that it's transition time.
+        game_arm_status[uart_id].sufficiency_info = GAME_SUFFICIENT_CONN;
+
+        if (game_arm_status[game_curr_icon.arms[uart_id].other_arm_id].connected &&
+                game_arm_status[game_curr_icon.arms[uart_id].other_arm_id].sufficiency_info == GAME_SUFFICIENT_CONN) {
+            // The other arm is already connected. That's pretty sweet.
+            //  And! It's the one we're looking for, waiting for a connection.
+            // Remember, it can only be connected if that arm is enabled. And,
+            //  the sufficiency_info is set to GAME_SUFFICIENT_CONN by the
+            //  other side of the else statement below.
+
+            // Our handshake already told this newly connected badge everything
+            //  it needs to know in order to transform, itself. So now we
+            //  just need to tell the other one, and then transform ourselves.
+
+            // Set the need to send the message, and the result,
+            //  in our status struct:
+            game_arm_status[game_curr_icon.arms[uart_id].other_arm_id].nts = 1;
+
+            // We are now ready to transition as soon as we communicate to our
+            //  other leaf badge that it's transition time.
         } else {
-            // The other arm is disconnected.
+            // The other arm is disconnected. Bummer. But it's OK.
+            //  When it plugs in, we'll automatically TRANSFORM!
+            //  I know, because the code to do it is right above us, on the
+            //  other side of this else.
             // Preempt all arms other than what we're waiting for.
+            game_arm_status[uart_id].sufficiency_info = GAME_SUFFICIENT_CONN;
             for (uint8_t i=0; i<4; i++) {
                 game_arm_status[i].connectable = (i==uart_id ||
                         i == game_curr_icon.arms[uart_id].other_arm_id);
@@ -293,6 +340,7 @@ void disconnected(UArg uart_id) {
         game_arm_status[uart_id].nts = 0;
         game_arm_status[uart_id].nts_done = 0;
         game_arm_status[uart_id].icon_id = 255;
+        game_arm_status[uart_id].sufficiency_info = 0;
         if (serial_in_progress()) {
             // Are any other arms connected?
             // Are there special cases here?
@@ -300,6 +348,7 @@ void disconnected(UArg uart_id) {
             // What if we plugged in a color tile to a 3-way badge setup here,
             //  and we were expecting someone to plug in here, and it made
             //  this arm unconnectable.
+
         } else {
             // We're the last to disconnect.
             // Make everybody else connectable.
@@ -310,6 +359,10 @@ void disconnected(UArg uart_id) {
     } else {
         // Handle tile cleanup.
         tile_arm_status[uart_id].connected = 0;
+        tile_arm_status[uart_id].neighbor_fully_connected = 0;
+        tile_arm_status[uart_id].nts = 0;
+        tile_arm_status[uart_id].nts_done = 0;
+
         arm_color(uart_id, 0, 0, 0);
 
         if (!serial_in_progress()) {
@@ -597,6 +650,12 @@ void rx_done(UArg uart_id) {
             send_serial_handshake(uart_id, 2);
             break;
         }
+
+        if (arm_rx_buf.msg_type == SERIAL_MSG_TYPE_TILE) {
+            // This is a topology update.
+        } else if (arm_rx_buf.msg_type == SERIAL_MSG_TYPE_GAME) {
+            // This is telling us it's time to TRANSFORM.
+        }
         // Process more interesting messages here.
         break;
     }
@@ -694,7 +753,6 @@ void serial_arm_task(UArg uart_id, UArg arg1) {
                         rx_timeouts_to_idle = RX_TIMEOUTS_TO_IDLE;
                         connection_opened(uart_id);
                     }
-
 
                     arm_phy_state = SERIAL_PHY_STATE_PLUGGED;
                 }

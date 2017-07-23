@@ -76,7 +76,7 @@ typedef struct {
     uint8_t connected;
     uint16_t icon_id;
     uint8_t sufficiency_info;
-    uint8_t nts;
+    uint8_t nts; // Am I ready to transform? And do I need to tell my friend?
     uint8_t nts_done;
     uint8_t arm_anim_index;
     uint8_t arm_anim_dir;
@@ -85,6 +85,9 @@ typedef struct {
 typedef struct {
     uint8_t connected;
     uint8_t remote_arm_id;
+    uint8_t neighbor_fully_connected;
+    uint8_t nts; // Am I fully connected, and need to tell this friend I am?
+    uint8_t nts_done;
 } tile_arm_status_t;
 
 #define ARM_CONNECT_STATUS_DIS 0

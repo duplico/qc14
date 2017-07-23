@@ -42,8 +42,8 @@ typedef struct {
     uint32_t current_time;
     uint16_t current_time_authority;
     uint8_t arm_id;
-    uint8_t payload[50];
-    uint16_t crc;
+    uint8_t payload[52];
+    uint32_t crc; // word align this bitch.
 } serial_message_t;
 
 typedef struct {
@@ -54,16 +54,18 @@ typedef struct {
     uint8_t ack;
     uint8_t in_fabric;
     int8_t fabric_offset;
+    uint8_t fully_connected;
+    uint8_t msg_ready; // also encodes result.
 } serial_handshake_t; // Initialization handshake
 
 typedef struct {
     uint8_t conn_msg;
     uint8_t conn_result;
-    uint8_t pad[48];
+    uint8_t pad[50];
 } serial_game_msg_t; // Game update
 
 typedef struct {
-
+    uint8_t fully_connected;
 } serial_tile_msg; // Tile topology/info
 
 typedef struct {
