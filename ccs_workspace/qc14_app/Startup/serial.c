@@ -764,6 +764,12 @@ void rx_done(UArg uart_id) {
                     game_arm_status[uart_id].sufficiency_info == GAME_SUFFICIENT_MSG) {
                 game_arm_status[uart_id].sufficiency_info = GAME_SUFFICIENT_ALONE;
                 do_icon_transition(game_curr_icon.arms[uart_id].result_icon_id);
+
+                // Preempt all arms.
+                for (uint8_t i=0; i<4; i++) {
+                    game_arm_status[i].connectable = 0;
+                }
+
             }
         }
         // Process more interesting messages here.
@@ -869,6 +875,12 @@ void serial_arm_task(UArg uart_id, UArg arg1) {
                         game_arm_status[uart_id].nts_done = 0;
 
                         game_arm_status[uart_id].sufficiency_info = GAME_SUFFICIENT_ALONE;
+
+                        // Preempt all arms.
+                        for (uint8_t i=0; i<4; i++) {
+                            game_arm_status[i].connectable = 0;
+                        }
+
                         do_icon_transition(game_curr_icon.arms[uart_id].result_icon_id);
                     }
 
@@ -888,7 +900,7 @@ void serial_arm_task(UArg uart_id, UArg arg1) {
                 UART_readCancel(uart_h);
                 UART_close(uart_h);
 
-                if (ui_screen == UI_SCREEN_GAME && game_arm_status[uart_id].connected)
+                if (ui_screen == UI_SCREEN_GAME && game_arm_status[uart_id].connected && game_arm_status[uart_id].connectable)
                     outer_arm_color_rgb(uart_id, game_curr_icon.arms[uart_id].arm_color);
                 else if (ui_screen == UI_SCREEN_TILE && tile_arm_status[uart_id].connected)
                     outer_arm_color(uart_id, 5, 5, 5);
