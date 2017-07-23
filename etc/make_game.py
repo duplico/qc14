@@ -79,8 +79,9 @@ def get_icons():
                 if mate_con:
                     # Validate the other side.
                     assert mate_con.mate_icon == this_icon
-                    # assert mate_con.sufficiency == SUFFICIENT_CONN
+                    assert mate_con.sufficiency == SUFFICIENT_CONN
                     assert mate_con.rgb == adj.rgb
+                    adj.result_icon = mate_con.result_icon
                     
                 icons[this_icon][this_dir] = adj
             elif record[ICON_DIR2]: # sufficient_conn
@@ -102,6 +103,8 @@ def get_icons():
                     assert mate_con1.mate_icon == this_icon
                     assert mate_con1.sufficiency == SUFFICIENT_MSG
                     assert mate_con1.rgb == adj1.rgb
+                    if mate_con1.result_icon == LISTEN_FLAG:
+                        mate_con1.result_icon = adj.result_icon
                 
                 adj2 = IconConnection(
                     icon_ids[record[ICON_MATE2]], # Mate 2
@@ -116,6 +119,8 @@ def get_icons():
                     assert mate_con2.mate_icon == this_icon
                     assert mate_con2.sufficiency == SUFFICIENT_MSG
                     assert mate_con2.rgb == adj2.rgb
+                    if mate_con2.result_icon == LISTEN_FLAG:
+                        mate_con2.result_icon = adj.result_icon
                 
                 icons[this_icon][this_dir] = adj1
                 icons[this_icon][this_dir2] = adj2
@@ -156,6 +161,7 @@ def get_icons():
                 print ': CAN CONNECT TO MAKE',
                 print id_icons[connection.result_icon]
             elif connection.sufficiency == SUFFICIENT_MSG:
-                print ': OTHER BADGE COMPLETES THIS.'
+                print ': OTHER BADGE COMPLETES THIS TO',
+                print id_icons[connection.result_icon]
                 
     return icons
