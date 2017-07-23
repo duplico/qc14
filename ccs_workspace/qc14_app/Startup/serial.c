@@ -40,7 +40,7 @@
 // in 10s of us:
 #define RTS_TIMEOUT (RTS_TIMEOUT_MS*100)
 #define PLUG_TIMEOUT (PLUG_TIMEOUT_MS*100)
-#define RX_TIMEOUTS_TO_IDLE 20
+#define RX_TIMEOUTS_TO_IDLE 22
 
 serial_message_t uart_tx_buf[4] = {0};
 uint8_t tx_bytes[sizeof(serial_message_t)+2];
@@ -249,12 +249,11 @@ uint8_t process_game_open(UArg uart_id, uint8_t icon_id) {
             game_arm_status[i].connectable = 0;
         }
 
-        // Covfefe is forever.
-        if (my_conf.current_icon == ICON_COFFEE)
-            do_icon_transition(ICON_COFFEE);
-
         game_arm_status[uart_id].sufficiency_info = GAME_SUFFICIENT_ALONE;
-        do_icon_transition(game_curr_icon.arms[uart_id].result_icon_id);
+
+        // Covfefe is forever.
+        do_icon_transition(my_conf.current_icon == ICON_COFFEE ?
+                ICON_COFFEE : game_curr_icon.arms[uart_id].result_icon_id);
         return 1;
     case GAME_SUFFICIENT_CONN:
         // I'm the MIDDLE BADGE.
@@ -828,7 +827,7 @@ void serial_arm_task(UArg uart_id, UArg arg1) {
                 // I'm going to pause for a moment here to try to make sure
                 //  that both sides are consistent. Maybe this will help
                 //  with the shifting problem.
-                Task_sleep(100);
+                Task_sleep(100+my_conf.badge_id);
 
                 // So let's set up an asynchronous read, and then if we need to,
                 //  make a blocking write.
@@ -855,13 +854,11 @@ void serial_arm_task(UArg uart_id, UArg arg1) {
                 arm_disp(uart_id);
             }
 
-            if (Semaphore_pend(rx_done_sem, RTS_TIMEOUT*2)) {
+            if (Semaphore_pend(rx_done_sem, RTS_TIMEOUT*2 + my_conf.badge_id/10)) {
                 // Look at this...
 
                 if (((UARTCC26XX_Object *) uart_h->object)->status == UART_OK)
                     memcpy(&arm_rx_buf, &rx_bytes, sizeof(serial_message_t));
-                else
-                    __nop();
 
                 UART_read(uart_h, rx_bytes, sizeof(serial_message_t));
 
@@ -875,12 +872,16 @@ void serial_arm_task(UArg uart_id, UArg arg1) {
             } else {
                 rx_timeouts_to_idle--;
                 if (!rx_timeouts_to_idle) {
+                    if (arm_icontile_state == ICONTILE_STATE_HS1) {
+                        arm_icontile_state = ICONTILE_STATE_OPEN_WAIT;
+                    }
                     if (arm_icontile_state == ICONTILE_STATE_OPEN_WAIT2) {
                         rx_timeouts_to_idle = RX_TIMEOUTS_TO_IDLE;
                         connection_opened(uart_id);
                     }
 
-                    if (game_arm_status[uart_id].nts_done) {
+                    if (game_arm_status[uart_id].nts &&
+                            game_arm_status[uart_id].nts_done) {
                         game_arm_status[uart_id].nts = 0;
                         game_arm_status[uart_id].nts_done = 0;
 
