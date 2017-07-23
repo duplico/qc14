@@ -85,7 +85,7 @@
  */
 
 // What is the advertising interval when device is discoverable (units of 625us, 160=100ms)
-#define DEFAULT_ADVERTISING_INTERVAL          160
+#define DEFAULT_ADVERTISING_INTERVAL          1600
 
 // Task configuration
 #define SBB_TASK_PRIORITY                     1
