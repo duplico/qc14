@@ -88,7 +88,7 @@ PIN_Config sw_pin_table[] = {
     PIN_TERMINATE
 };
 
-const uint8_t rainbow_colors[6][3] = {{255,0,0}, {255,30,0}, {255,255,0}, {0,255,0}, {0,0,255}, {98,0,255}};
+const rgbcolor_t rainbow_colors[6] = {{255,0,0}, {255,30,0}, {255,255,0}, {0,255,0}, {0,0,255}, {98,0,255}};
 const screen_frame_t power_bmp = {{{{0, 0, 0}, {0, 0, 0}, {0, 0, 0}, {255, 255, 255}, {0, 0, 0}, {0, 0, 0}, {0, 0, 0}}, {{0, 0, 0}, {255, 255, 255}, {0, 0, 0}, {255, 255, 255}, {0, 0, 0}, {255, 255, 255}, {0, 0, 0}}, {{255, 255, 255}, {0, 0, 0}, {0, 0, 0}, {255, 255, 255}, {0, 0, 0}, {0, 0, 0}, {255, 255, 255}}, {{255, 255, 255}, {0, 0, 0}, {0, 0, 0}, {255, 255, 255}, {0, 0, 0}, {0, 0, 0}, {255, 255, 255}}, {{255, 255, 255}, {0, 0, 0}, {0, 0, 0}, {255, 255, 255}, {0, 0, 0}, {0, 0, 0}, {255, 255, 255}}, {{0, 0, 0}, {255, 255, 255}, {0, 0, 0}, {0, 0, 0}, {0, 0, 0}, {255, 255, 255}, {0, 0, 0}}, {{0, 0, 0}, {0, 0, 0}, {255, 255, 255}, {255, 255, 255}, {255, 255, 255}, {0, 0, 0}, {0, 0, 0}}}};
 const screen_frame_t tile_placeholder = {{{{0, 0, 0}, {0, 0, 0}, {0, 0, 0}, {0, 0, 0}, {0, 0, 0}, {0, 0, 0}, {0, 0, 0}}, {{0, 0, 0}, {255, 255, 255}, {255, 255, 255}, {255, 255, 255}, {255, 255, 255}, {255, 255, 255}, {0, 0, 0}}, {{0, 0, 0}, {0, 0, 0}, {0, 0, 0}, {255, 255, 255}, {0, 0, 0}, {0, 0, 0}, {0, 0, 0}}, {{0, 0, 0}, {0, 0, 0}, {0, 0, 0}, {255, 255, 255}, {0, 0, 0}, {0, 0, 0}, {0, 0, 0}}, {{0, 0, 0}, {0, 0, 0}, {0, 0, 0}, {255, 255, 255}, {0, 0, 0}, {0, 0, 0}, {0, 0, 0}}, {{0, 0, 0}, {0, 0, 0}, {0, 0, 0}, {255, 255, 255}, {0, 0, 0}, {0, 0, 0}, {0, 0, 0}}, {{0, 0, 0}, {0, 0, 0}, {0, 0, 0}, {0, 0, 0}, {0, 0, 0}, {0, 0, 0}, {0, 0, 0}}}};
 const screen_frame_t needflash_icon = {{{{0, 0, 0}, {0, 0, 0}, {0, 0, 0}, {255, 255, 255}, {0, 0, 0}, {0, 0, 0}, {0, 0, 0}}, {{0, 0, 0}, {255, 255, 255}, {0, 0, 0}, {255, 255, 255}, {0, 0, 0}, {255, 255, 255}, {0, 0, 0}}, {{0, 0, 0}, {0, 0, 0}, {255, 255, 255}, {0, 0, 0}, {255, 255, 255}, {0, 0, 0}, {0, 0, 0}}, {{255, 255, 255}, {0, 0, 0}, {0, 0, 0}, {255, 255, 255}, {0, 0, 0}, {0, 0, 0}, {255, 255, 255}}, {{255, 255, 255}, {0, 0, 0}, {0, 0, 0}, {0, 0, 0}, {0, 0, 0}, {0, 0, 0}, {255, 255, 255}}, {{255, 255, 255}, {0, 0, 0}, {0, 0, 0}, {0, 0, 0}, {0, 0, 0}, {0, 0, 0}, {255, 255, 255}}, {{255, 255, 255}, {255, 255, 255}, {255, 255, 255}, {255, 255, 255}, {255, 255, 255}, {255, 255, 255}, {255, 255, 255}}}, 0};
@@ -757,25 +757,40 @@ void screen_anim_task_fn(UArg a0, UArg a1) {
             Clock_setTimeout(arm_anim_clock_h, ARM_ANIM_PERIOD);
 
             if (ui_screen == UI_SCREEN_GAME) {
-                for (uint8_t i=0; i<4; i++) {
-                    inner_arm_color(i, 0, 0, 0);
-                    if (!game_curr_icon.arms[i].sufficient_flag || !game_arm_status[i].connectable)
-                        continue;
+                if (my_conf.current_icon == 0 || my_conf.current_icon == 4 ||
+                        my_conf.current_icon == 35 || my_conf.current_icon == 9 ||
+                        my_conf.current_icon == 1 || my_conf.current_icon == 11 ||
+                        my_conf.current_icon == 44) {
 
-                    inner_arm_color_rgb(i, game_curr_icon.arms[i].arm_color);
+                    uint8_t loopat = 6;
+                    arm_anim_index = (arm_anim_index + 1) % loopat;
 
-                    uint8_t loopat = 8;
-
-                    if (game_arm_status[i].arm_anim_index < 3) {
-                        led_buf[7+i][game_arm_status[i].arm_anim_index][0] /= 4;
-                        led_buf[7+i][game_arm_status[i].arm_anim_index][1] /= 4;
-                        led_buf[7+i][game_arm_status[i].arm_anim_index][2] /= 4;
+                    for (uint8_t i=0; i<4; i++) {
+                        inner_arm_color(i, 0, 0, 0);
+                        outer_arm_color_rgb(i, rainbow_colors[arm_anim_index]);
                     }
+                    Clock_setTimeout(arm_anim_clock_h, ARM_ANIM_PERIOD*2);
+                } else {
+                    for (uint8_t i=0; i<4; i++) {
+                        inner_arm_color(i, 0, 0, 0);
+                        if (!game_curr_icon.arms[i].sufficient_flag || !game_arm_status[i].connectable)
+                            continue;
 
-                    if (!game_arm_status[i].arm_anim_dir)
-                        game_arm_status[i].arm_anim_index = (game_arm_status[i].arm_anim_index + 1) % loopat;
-                    else
-                        game_arm_status[i].arm_anim_index = (game_arm_status[i].arm_anim_index + loopat-1) % loopat;
+                        inner_arm_color_rgb(i, game_curr_icon.arms[i].arm_color);
+
+                        uint8_t loopat = 8;
+
+                        if (game_arm_status[i].arm_anim_index < 3) {
+                            led_buf[7+i][game_arm_status[i].arm_anim_index][0] /= 4;
+                            led_buf[7+i][game_arm_status[i].arm_anim_index][1] /= 4;
+                            led_buf[7+i][game_arm_status[i].arm_anim_index][2] /= 4;
+                        }
+
+                        if (!game_arm_status[i].arm_anim_dir)
+                            game_arm_status[i].arm_anim_index = (game_arm_status[i].arm_anim_index + 1) % loopat;
+                        else
+                            game_arm_status[i].arm_anim_index = (game_arm_status[i].arm_anim_index + loopat-1) % loopat;
+                    }
                 }
             } else if (ui_screen == UI_SCREEN_TILE) {
                 // The tiles kinda look best with blank arms...
