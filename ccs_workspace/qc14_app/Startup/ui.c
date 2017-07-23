@@ -110,7 +110,7 @@ void screen_blink_tick_swi(UArg a0) {
 
 volatile uint8_t onetime_animation = 0;
 
-// TASK CONTEXT?
+// TASK CONTEXT!
 void do_icon_transition(uint16_t dest_icon) {
     if (dest_icon >= ICON_COUNT)
         return;
@@ -439,7 +439,6 @@ void set_screen_solid_local(const screen_frame_t *frame) {
 }
 
 uint8_t icon_available(uint8_t icon_id) {
-    return 1; // TODO
     if (my_conf.icons_unlocked) {
         return icon_id == ICON_AIR || icon_id == ICON_EARTH ||
                 icon_id == ICON_WATER || icon_id == ICON_FIRE ||
@@ -459,11 +458,11 @@ uint8_t icon_available(uint8_t icon_id) {
     if (icon_id == my_conf.current_icon)
         return 1; // Can always select your current icon.
 
-    return 0;
+    return icon_id == ICON_AIR || icon_id == ICON_EARTH ||
+            icon_id == ICON_WATER || icon_id == ICON_FIRE;
 }
 
 uint8_t tile_available(uint16_t tile_id) {
-    return 1; // TODO
     return (0x0001 << tile_id) & my_conf.avail_tiles ? 1 : 0;
 }
 
