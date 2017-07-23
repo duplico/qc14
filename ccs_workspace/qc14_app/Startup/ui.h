@@ -82,12 +82,19 @@ typedef struct {
     uint8_t arm_anim_dir;
 } game_arm_status_t;
 
+typedef struct {
+    uint8_t connected;
+    uint8_t remote_arm_id;
+} tile_arm_status_t;
+
 #define ARM_CONNECT_STATUS_DIS 0
 #define ARM_CONNECT_STATUS_DONE 1
 #define ARM_CONNECT_STATUS_WAITMSG 2 // Waiting on a message from
 #define ARM_CONNECT_STATUS_WAITCON 3
 
 extern game_arm_status_t game_arm_status[4];
+extern tile_arm_status_t tile_arm_status[4];
+
 extern Semaphore_Handle flash_sem;
 extern game_icon_t game_curr_icon;
 
@@ -107,6 +114,8 @@ void its_bright();
 void set_screen_animation(size_t base, uint32_t index);
 void do_animation_loop();
 void do_icon_transition(uint16_t dest_icon);
+void switch_to_tile(uint8_t index, uint8_t unlock);
+uint8_t tile_available(uint16_t tile_id);
 
 extern Semaphore_Handle save_sem;
 extern uint8_t tile_active;

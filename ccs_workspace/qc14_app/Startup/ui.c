@@ -76,6 +76,7 @@ uint8_t sw_r_clicked = 0;
 uint8_t sw_c_clicked = 0;
 
 game_arm_status_t game_arm_status[4] = {0};
+tile_arm_status_t tile_arm_status[4] = {0};
 
 uint_fast32_t screen_timeout_ticks = 0;
 
@@ -335,6 +336,12 @@ void set_screen_tile(uint32_t index, uint8_t sel) {
     Clock_start(screen_anim_clock_h);
     Semaphore_post(flash_sem);
 
+    if (serial_in_progress()) {
+        // If serial is in progress, the arm colors are well in hand
+        //  and we do not need to clear them.
+        return;
+    }
+
     if (!sel) {
         // Turn the arms off if we're not in selection mode.
         for (uint8_t i=0; i<4; i++) {
@@ -345,8 +352,23 @@ void set_screen_tile(uint32_t index, uint8_t sel) {
             arm_color(i, 0, 0, 0);
         }
     }
+}
 
+void switch_to_tile(uint8_t index, uint8_t unlock) {
+    if (index > TILE_COUNT || index == my_conf.current_tile)
+        return;
 
+    my_conf.current_tile = index;
+
+    if (unlock && tile_available(index)) {
+        // This is a new unlock of a tile.
+        unlock_tile(index);
+    }
+
+    if ((ui_screen == UI_SCREEN_TILE || ui_screen == UI_SCREEN_TILE_SEL ||
+            ui_screen == UI_SCREEN_GAME || ui_screen == UI_SCREEN_GAME_SEL)) {
+        ui_update(UI_SCREEN_TILE);
+    }
 }
 
 void set_screen_game(uint32_t index, uint8_t sel) {
@@ -687,6 +709,8 @@ void screen_anim_task_fn(UArg a0, UArg a1) {
     Clock_setTimeout(arm_anim_clock_h, ARM_ANIM_PERIOD);
     Clock_start(arm_anim_clock_h);
 
+    uint8_t arm_anim_index = 0;
+
     while (1) {
         // Handle user input:
         if (Semaphore_pend(sw_sem, BIOS_NO_WAIT)) {
@@ -721,7 +745,7 @@ void screen_anim_task_fn(UArg a0, UArg a1) {
 
         // Handle animations:
         if (Semaphore_pend(screen_anim_sem, BIOS_NO_WAIT)) {
-            do_animation_loop_body(ui_screen == UI_SCREEN_GAME || ui_screen == UI_SCREEN_TILE);
+            do_animation_loop_body(ui_screen == UI_SCREEN_TILE);
 
             if (screen_frame_index == screen_anim->anim_len) {
                 if (ui_screen == UI_SCREEN_BOOT) {
@@ -754,10 +778,6 @@ void screen_anim_task_fn(UArg a0, UArg a1) {
                         led_buf[7+i][game_arm_status[i].arm_anim_index][2] /= 4;
                     }
 
-//                    if (game_arm_status[i].arm_anim_dir)
-//                        game_arm_status[i].arm_anim_index = (game_arm_status[i].arm_anim_index + ((i == 2 || i == 3) ? loopat-1 : 1)) % loopat;
-//                    else
-//                        game_arm_status[i].arm_anim_index = (game_arm_status[i].arm_anim_index + ((i == 2 || i == 3) ? 1 : loopat-1)) % loopat;
                     if (!game_arm_status[i].arm_anim_dir)
                         game_arm_status[i].arm_anim_index = (game_arm_status[i].arm_anim_index + 1) % loopat;
                     else
@@ -766,6 +786,23 @@ void screen_anim_task_fn(UArg a0, UArg a1) {
             } else if (ui_screen == UI_SCREEN_TILE) {
                 // The tiles kinda look best with blank arms...
                 //  animate them when we're plugged in.
+
+                uint8_t loopat = 4;
+
+                for (uint8_t i=0; i<4; i++) {
+                    if (!tile_arm_status[i].connected)
+                        continue;
+
+                    inner_arm_color(i, 0, 0, 0);
+                    if (arm_anim_index < 3) {
+                        led_buf[7+i][(tile_frame_periods[my_conf.current_tile][i] >= 0) ? arm_anim_index : 2-arm_anim_index][0] = 5;
+                        led_buf[7+i][(tile_frame_periods[my_conf.current_tile][i] >= 0) ? arm_anim_index : 2-arm_anim_index][1] = 5;
+                        led_buf[7+i][(tile_frame_periods[my_conf.current_tile][i] >= 0) ? arm_anim_index : 2-arm_anim_index][2] = 5;
+                    }
+                }
+
+                arm_anim_index = (arm_anim_index + 1) % loopat;
+                Clock_setTimeout(arm_anim_clock_h, ARM_ANIM_PERIOD/2);
             }
             Clock_start(arm_anim_clock_h);
         }

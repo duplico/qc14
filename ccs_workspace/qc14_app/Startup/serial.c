@@ -215,23 +215,34 @@ uint8_t process_game_open(UArg uart_id, uint8_t icon_id) {
 
 uint8_t process_tile_open(UArg uart_id) {
     serial_handshake_t* payload = (serial_handshake_t*) &arm_rx_buf.payload;
+
+    tile_arm_status[uart_id].connected = 1;
+    tile_arm_status[uart_id].remote_arm_id = arm_rx_buf.arm_id;
+
     if (tile_active) {
         // Already in a fabric.
         return 1;
-    } else if (payload->in_fabric || my_conf.badge_id > arm_rx_buf.badge_id)
+    } else if (payload->in_fabric || my_conf.badge_id > arm_rx_buf.badge_id) {
         // We're not in a fabric, and our new mate _is_. OR, neither of us
         //  is in a fabric, but their ID is lower than ours and therefore
         //  controls.
         // Regardless, we adopt our offset based on theirs and which of
         //  THEIR arms we plug into.
         tile_offset = payload->fabric_offset + tile_frame_periods[my_conf.current_tile][arm_rx_buf.arm_id];
-    else {
+
+        // Also, since the other side controls, we need to switch our tile to
+        //  theirs if it's different. This is to make things look better.
+
+        switch_to_tile(payload->current_icon_or_tile_id, 0);
+
+    } else {
         // Neither of us is in a fabric, and the tie-breaker has decided that
         //  I don't have to do anything to my offset. Because I am awesome.
-        }
+    }
 
     // If we're down here, we're joining a fabric.
     tile_active = 1;
+
 
     return 1;
 }
@@ -241,7 +252,11 @@ void connection_opened(UArg uart_id) {
 
     arm_icontile_state = ICONTILE_STATE_OPEN;
     arm_phy_state = SERIAL_PHY_STATE_PLUGGED;
-    outer_arm_color_rgb(uart_id, game_curr_icon.arms[uart_id].arm_color);
+    if (ui_screen == UI_SCREEN_GAME)
+        outer_arm_color_rgb(uart_id, game_curr_icon.arms[uart_id].arm_color);
+    else // tile:
+        outer_arm_color(uart_id, 5, 5, 5);
+
     if (ui_screen == UI_SCREEN_GAME &&
             ((serial_handshake_t*) &arm_rx_buf.payload)->current_mode == UI_SCREEN_GAME &&
             process_game_open(uart_id, ((serial_handshake_t*) &arm_rx_buf.payload)->current_icon_or_tile_id)) {
@@ -294,6 +309,8 @@ void disconnected(UArg uart_id) {
         }
     } else {
         // Handle tile cleanup.
+        tile_arm_status[uart_id].connected = 0;
+        arm_color(uart_id, 0, 0, 0);
 
         if (!serial_in_progress()) {
             tile_active = 0;

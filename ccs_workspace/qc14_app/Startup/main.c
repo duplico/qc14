@@ -50,9 +50,9 @@ ICall_Semaphore ble_sem;
 volatile uint8_t update_ble = 0;
 
 uint32_t tile_offsets[TILE_COUNT] = {
-                         28, // rainbow
-                         41, // bi
-                         32, // trans
+                         202-28, // rainbow
+                         146, // bi
+                         103-32, // trans // len is 103 (0 to 102)
                          33, // bear
                          140, // leather (was 148)
                          0, // cubeheart
@@ -61,14 +61,15 @@ uint32_t tile_offsets[TILE_COUNT] = {
 };
 
 int8_t tile_frame_periods[TILE_COUNT][4] = {
-                                  {0,1,0,-1}, // rainbow
-                                  {1,1,1,1}, // bi
-                                  {0,1,0,-1}, // trans
-                                  {1,2,3,4}, // bear
-                                  {-1,-1,1,1}, // leather
+                                  // UP, LEFT, DOWN, RIGHT
+                                  {0,-1,0,1}, // rainbow // revved
+                                  {-1,-1,1,1}, // bi
+                                  {0,-1,0,1}, // trans // revved
+                                  {-1,2,-3,4}, // bear
+                                  {-1,-1,1,1}, // leather // correct
                                   {0,0,0,0}, // cubeheart
                                   {1,1,1,1}, // rainbowboom
-                                  {-1,1,-1,1} // heartonblack
+                                  {-1,-1,-1,-1} // heartonblack
 };
 
 unsigned short crc16(volatile unsigned char *sbuf,unsigned char len) {
@@ -194,6 +195,13 @@ void game_set_icon(uint8_t icon_id) {
     }
     memcpy(&scanRspData[7], my_conf.icons_been, 6);
     set_radio_crc();
+    Semaphore_post(save_sem);
+}
+
+void unlock_tile(uint8_t index) {
+    if (index > TILE_COUNT)
+        return;
+    my_conf.avail_tiles |= (1 << index);
     Semaphore_post(save_sem);
 }
 
