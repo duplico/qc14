@@ -146,7 +146,7 @@ void qc14conf_save() {
     ExtFlash_close();
     Semaphore_post(flash_sem);
     update_ble = 1;
-    sprintf((char *) &advertData[15], "%d", my_conf.badge_id);
+    memcpy((char *) &advertData[15], my_conf.handle, 8);
     ICall_signal(ble_sem);
 }
 
