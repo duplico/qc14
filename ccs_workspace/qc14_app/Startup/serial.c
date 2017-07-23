@@ -123,17 +123,26 @@ inline void send_serial_handshake(UArg uart_id, uint8_t ack) {
     handshake_payload->fabric_offset = tile_offset;
 
     handshake_payload->msg_ready = 0;
-    // Are we waiting on this arm to get connected?
-    for (uint8_t i=0; i<4; i++) {
-        if (i==uart_id) continue;
-        // In other words, does there exist an arm, other than this one,
-        //  which is connected (correctly), is waiting for a connection,
-        //  and the connection it's waiting for is on this arm?
-        if (game_arm_status[i].connected &&
-                game_arm_status[i].sufficiency_info == GAME_SUFFICIENT_CONN &&
-                game_curr_icon.arms[i].other_arm_id == uart_id) {
-            // If so, then we need to set the payload.
-            handshake_payload->msg_ready = 1;
+    if (ui_screen == UI_SCREEN_GAME) {
+        // Are we waiting on this arm to get connected?
+        for (uint8_t i=0; i<4; i++) {
+            if (i==uart_id) continue;
+            // In other words, does there exist an arm, other than this one,
+            //  which is connected (correctly), is waiting for a connection,
+            //  and the connection it's waiting for is on this arm?
+            if (game_arm_status[i].connected &&
+                    game_arm_status[i].sufficiency_info == GAME_SUFFICIENT_CONN &&
+                    game_curr_icon.arms[i].other_arm_id == uart_id) {
+                // If so, then we need to set the payload.
+                handshake_payload->msg_ready = 1;
+            }
+        }
+    } else { // Are we fully connected except for this person?
+        handshake_payload->fully_connected = 1;
+        for (uint8_t i=0; i<4; i++) {
+            if (i==uart_id) continue;
+            if (!tile_arm_status[i].connected)
+                handshake_payload->fully_connected = 0;
         }
     }
 
@@ -142,6 +151,20 @@ inline void send_serial_handshake(UArg uart_id, uint8_t ack) {
 }
 
 inline void send_serial_tile_msg(UArg uart_id) {
+    arm_tx_buf.msg_type = SERIAL_MSG_TYPE_TILE;
+    uint8_t* payload_buf = arm_tx_buf.payload;
+    serial_tile_msg_t* payload = (serial_tile_msg_t*) payload_buf;
+
+    payload->fully_connected = 1;
+    for (uint8_t i=0; i<4; i++) {
+        if (i==uart_id) continue;
+        if (!tile_arm_status[i].connected)
+            payload->fully_connected = 0;
+    }
+
+    tile_arm_status[uart_id].nts_done = 1;
+
+    arm_nts = SERIAL_MSG_TYPE_GAME;
 }
 
 inline void send_serial_game_msg(UArg uart_id) {
@@ -282,6 +305,36 @@ uint8_t process_tile_open(UArg uart_id) {
     tile_arm_status[uart_id].connected = 1;
     tile_arm_status[uart_id].remote_arm_id = arm_rx_buf.arm_id;
 
+    // First, we need to check whether this makes us fully connected.
+    uint8_t fully_connected = 1;
+    uint8_t cube = 0;
+
+    for (uint8_t i=0; i<4; i++) {
+        if (!tile_arm_status[i].connected)
+            fully_connected = 0;
+    }
+
+    if (fully_connected) {
+        // If we're fully connected, two things happen. First: we tell all
+        //  our neighbors.
+        // Second, we check whether all our neighbors are also fully connected.
+        //  If that's the case, we decide that we've become a cube.
+
+        cube = 1;
+
+        for (uint8_t i=0; i<4; i++) {
+            tile_arm_status[i].nts = 1;
+            if (!tile_arm_status[i].neighbor_fully_connected)
+                cube = 0;
+        }
+    }
+
+    // Maybe it's even a cube.
+    if (cube) {
+        // If we're a cube, it's time to become and unlock the cube heart.
+        switch_to_tile(TILE_CUBEHEART, 0);
+    }
+
     if (tile_active) {
         // Already in a fabric.
         return 1;
@@ -296,7 +349,7 @@ uint8_t process_tile_open(UArg uart_id) {
         // Also, since the other side controls, we need to switch our tile to
         //  theirs if it's different. This is to make things look better.
 
-        switch_to_tile(payload->current_icon_or_tile_id, 0);
+        if (!cube) switch_to_tile(payload->current_icon_or_tile_id, 0);
 
     } else {
         // Neither of us is in a fabric, and the tie-breaker has decided that
@@ -305,8 +358,6 @@ uint8_t process_tile_open(UArg uart_id) {
 
     // If we're down here, we're joining a fabric.
     tile_active = 1;
-
-
     return 1;
 }
 
@@ -674,6 +725,39 @@ void rx_done(UArg uart_id) {
 
         if (arm_rx_buf.msg_type == SERIAL_MSG_TYPE_TILE) {
             // This is a topology update.
+//            if (!((serial_tile_msg_t*) &arm_rx_buf.payload)->fully_connected)
+//                break; // don't care. why would it even be this? it wouldn't.
+
+            tile_arm_status[uart_id].neighbor_fully_connected = 1;
+            // First, we need to check whether this makes us fully connected.
+            uint8_t fully_connected = 1;
+            uint8_t cube = 0;
+            for (uint8_t i=0; i<4; i++) {
+                if (!tile_arm_status[i].connected)
+                    fully_connected = 0;
+            }
+
+            // If we're not fully connected, we don't care.
+            //  That can't happen here - this only updates us about our
+            //  neighbors.
+            if (!fully_connected)
+                break;
+
+            // Check whether all our neighbors are also fully connected.
+            //  If that's the case, we decide that we've become a cube.
+            cube = 1;
+
+            for (uint8_t i=0; i<4; i++) {
+                tile_arm_status[i].nts = 1;
+                if (!tile_arm_status[i].neighbor_fully_connected)
+                    cube = 0;
+            }
+
+            if (cube) {
+                // If we're a cube, it's time to become and unlock the cube heart.
+                switch_to_tile(TILE_CUBEHEART, 0);
+            }
+
         } else if (arm_rx_buf.msg_type == SERIAL_MSG_TYPE_GAME) {
             // This is telling us it's time to TRANSFORM.
             if (((serial_game_msg_t*) &arm_rx_buf.payload)->conn_msg &&
@@ -711,7 +795,8 @@ void serial_arm_task(UArg uart_id, UArg arg1) {
             //  can cause us to want to change that. Either we need to send
             //  or we've gotten a RTS (or disconnect) from our peer.
 
-            if (do_phy_handshake_rx(uart_id) || ((arm_fop || arm_nts || game_arm_status[uart_id].nts) && do_phy_handshake_tx(uart_id))) {
+            if (do_phy_handshake_rx(uart_id) || ((arm_fop || arm_nts || game_arm_status[uart_id].nts ||
+                    tile_arm_status[uart_id].nts) && do_phy_handshake_tx(uart_id))) {
                 // If we got here, then we know it was a signal to connect.
                 //  Or we just plugged in.
                 //  We can assert our side high by switching on our UART.
@@ -785,7 +870,11 @@ void serial_arm_task(UArg uart_id, UArg arg1) {
 
                         game_arm_status[uart_id].sufficiency_info = GAME_SUFFICIENT_ALONE;
                         do_icon_transition(game_curr_icon.arms[uart_id].result_icon_id);
+                    }
 
+                    if (tile_arm_status[uart_id].nts_done) {
+                        tile_arm_status[uart_id].nts = 0;
+                        tile_arm_status[uart_id].nts_done = 0;
                     }
 
                     arm_phy_state = SERIAL_PHY_STATE_PLUGGED;
