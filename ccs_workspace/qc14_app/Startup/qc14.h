@@ -139,6 +139,7 @@ void qc14conf_save();
 void set_badge_mated(uint16_t badge_id);
 uint8_t game_been_icon(uint8_t icon_id);
 void game_set_icon(uint8_t icon_id);
+void unlock_tile(uint8_t index);
 uint8_t game_starting_icon(uint16_t badge_id);
 uint8_t is_uber(uint16_t id);
 uint8_t is_handler(uint16_t id);
