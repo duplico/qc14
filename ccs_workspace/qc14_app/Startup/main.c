@@ -43,6 +43,7 @@ bleUserCfg_t user0Cfg = BLE_USER_CFG; // BLE user defined configuration
 #include "qc14.h"
 
 extern uint8 scanRspData[22];
+extern uint8 advertData[23];
 
 qc14_badge_conf_t my_conf;
 
@@ -145,6 +146,7 @@ void qc14conf_save() {
     ExtFlash_close();
     Semaphore_post(flash_sem);
     update_ble = 1;
+    sprintf((char *) &advertData[15], "%d", my_conf.badge_id);
     ICall_signal(ble_sem);
 }
 
@@ -297,6 +299,8 @@ void qc14conf_init() {
             load_conf.avail_tiles = 0x001f;
             load_conf.earned_icon = game_starting_icon(load_conf.badge_id);
             load_conf.current_icon = game_starting_icon(load_conf.badge_id);
+            sprintf(load_conf.handle, "%d", load_conf.badge_id);
+
             set_badge_mated(load_conf.badge_id);
             if (load_conf.badge_id == BADGE_ID_DUPLICO)
                 load_conf.csecs_of_queercon = START_TIME_GEORGE;
