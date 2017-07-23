@@ -56,7 +56,7 @@ uint32_t tile_offsets[TILE_COUNT] = {
                          33, // bear
                          140, // leather (was 148)
                          0, // cubeheart
-                         6, // rainbowboom (18 to sync)
+                         8, // rainbowboom (18 to sync)
                          3 // heartonblack
 };
 
@@ -232,7 +232,9 @@ void set_clock(uint32_t csecs) {
 
     my_conf.csecs_of_queercon = csecs;
     if (my_conf.csecs_of_queercon >= POOL_TILE_TIME) {
+        unlock_tile(TILE_RAINBOWBOOM);
     } else if (my_conf.csecs_of_queercon >= CLUB_TILE_TIME) {
+        unlock_tile(TILE_HEARTONBLACK);
     } else if (my_conf.csecs_of_queercon >= UNLOCK_TIME) {
         my_conf.icons_unlocked = 1;
         Semaphore_post(save_sem);
