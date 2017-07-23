@@ -50,25 +50,25 @@ ICall_Semaphore ble_sem;
 volatile uint8_t update_ble = 0;
 
 uint32_t tile_offsets[TILE_COUNT] = {
-                         28,
-                         41,
-                         32,
-                         33,
-                         148,
-                         0,
-                         18,
-                         3
+                         28, // rainbow
+                         41, // bi
+                         32, // trans
+                         33, // bear
+                         138, // leather (was 148)
+                         0, // cubeheart
+                         18, // rainbowboom
+                         3 // heartonblack
 };
 
 int8_t tile_frame_periods[TILE_COUNT][4] = {
-                                  {0,-1,0,1},
+                                  {0,1,0,-1},
                                   {1,1,1,1},
-                                  {0,-1,0,1},
+                                  {0,1,0,-1},
                                   {1,1,1,1},
                                   {-1,-1,1,1},
                                   {0,0,0,0},
                                   {1,1,1,1},
-                                  {1,-1,1,1}
+                                  {-1,1,-1,1}
 };
 
 unsigned short crc16(volatile unsigned char *sbuf,unsigned char len) {

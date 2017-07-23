@@ -638,7 +638,7 @@ void do_animation_loop_body(uint8_t csecs_sync) {
         if (offset_frames < 0)
             // Make it positive. This is probably irrelevant because of how
             //  enormous csecs_of_queercon is, but whatever.
-            offset_frames = screen_anim->anim_len - offset_frames;
+            offset_frames = screen_anim->anim_len + offset_frames;
     }
 
     if (screen_frame_index < screen_anim->anim_len) {
