@@ -28,7 +28,7 @@ extern uint8_t led_buf[11][7][3];
 void ui_update(uint8_t ui_next);
 
 // OS and Task constructs:
-char screen_anim_task_stack[768];
+char screen_anim_task_stack[1024];
 Task_Struct screen_anim_task; // Main UI task
 
 Clock_Handle screen_anim_clock_h;  // Ticks when we need a new screen
@@ -729,7 +729,6 @@ void screen_anim_task_fn(UArg a0, UArg a1) {
         if (Semaphore_pend(pool_sem, BIOS_NO_WAIT)) {
             // time for the pool tile
             switch_to_tile(TILE_RAINBOWBOOM, 1);
-            my_conf.current_tile = TILE_HEARTONBLACK;
         }
 
         if (Semaphore_pend(unlock_sem, BIOS_NO_WAIT)) {

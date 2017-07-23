@@ -155,17 +155,17 @@ uint8_t game_starting_icon(uint16_t badge_id) {
 }
 
 uint8_t is_uber(uint16_t id) {
-    return my_conf.badge_id < BADGE_UBER_CUTOFF;
+    return id < BADGE_UBER_CUTOFF;
 }
 
 uint8_t is_handler(uint16_t id) {
-    return my_conf.badge_id >= BADGE_HANDLER_START &&
-            my_conf.badge_id < BADGE_HANDLER_CUTOFF;
+    return id >= BADGE_HANDLER_START &&
+            id < BADGE_HANDLER_CUTOFF;
 }
 
 uint8_t is_sponsor(uint16_t id) {
-    return my_conf.badge_id >= BADGE_SPONSOR_START &&
-            my_conf.badge_id < BADGE_SPONSOR_CUTOFF;
+    return id >= BADGE_SPONSOR_START &&
+            id < BADGE_SPONSOR_CUTOFF;
 }
 
 uint8_t game_been_icon(uint8_t icon_id) {
@@ -261,7 +261,8 @@ void qc14conf_init() {
 
     volatile uint16_t load_crc = crc16((uint8_t*) &load_conf, sizeof(qc14_badge_conf_t)-4);
 
-    if (load_crc != load_conf.crc) {
+    // TODO
+    if (1 || load_crc != load_conf.crc) {
         // Invalid CRC. Check backup:
 
         Semaphore_pend(flash_sem, BIOS_WAIT_FOREVER);
