@@ -38,7 +38,7 @@
 #define PLUG_TIMEOUT_MS 1000
 
 // UI constant configuration
-#define UI_CLOCK_MS 10
+#define UI_CLOCK_MS 5
 #define UI_SEL_TIMEOUT_SEC 10
 #define UI_MAIN_TIMEOUT_SEC 600
 
