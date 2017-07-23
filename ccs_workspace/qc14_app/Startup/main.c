@@ -261,8 +261,7 @@ void qc14conf_init() {
 
     volatile uint16_t load_crc = crc16((uint8_t*) &load_conf, sizeof(qc14_badge_conf_t)-4);
 
-    // TODO
-    if (1 || load_crc != load_conf.crc) {
+    if (load_crc != load_conf.crc) {
         // Invalid CRC. Check backup:
 
         Semaphore_pend(flash_sem, BIOS_WAIT_FOREVER);
