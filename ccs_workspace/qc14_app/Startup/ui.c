@@ -387,17 +387,7 @@ void set_screen_game(uint32_t index, uint8_t sel) {
     memcpy(screen_anim, &game_curr_icon.animation, sizeof(screen_anim_t));
 
     uint32_t timeout = screen_anim->anim_frame_delay_ms;
-
-    if (sel) {
-        // If we're just selecting, start it on frame 1 so we can actually
-        //  see it.
-        screen_frame_index = 0;
-    } else {
-        // We're in the real display, so synchronize it to the centisecond
-        //  clock:
-        screen_frame_index = (10*my_conf.csecs_of_queercon / screen_anim->anim_frame_delay_ms) % screen_anim->anim_len;
-        timeout = screen_anim->anim_frame_delay_ms - ((10*my_conf.csecs_of_queercon) % screen_anim->anim_frame_delay_ms);
-    }
+    screen_frame_index = 0;
 
     // In either case, we're going to set the clock to go off when it's time
     //  to change frames. So we'll need to post to the semaphore ourselves
