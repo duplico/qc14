@@ -118,8 +118,7 @@ void do_icon_transition(uint16_t dest_icon) {
 
     set_screen_animation(FLASH_POOF_ANIM_LOC, 0);
     do_animation_loop();
-    ui_update(UI_SCREEN_GAME); // TODO: Threadsafe????
-
+    ui_update(UI_SCREEN_GAME);
 }
 
 void its_cold() {
@@ -330,7 +329,6 @@ void set_screen_tile(uint32_t index, uint8_t sel) {
 
     screen_frame_index = (10*my_conf.csecs_of_queercon / screen_anim->anim_frame_delay_ms) % screen_anim->anim_len;
 
-    // TODO: Copy behavior from the icon setting one:
     uint32_t timeout = screen_anim->anim_frame_delay_ms - ((10*my_conf.csecs_of_queercon) % screen_anim->anim_frame_delay_ms);
     Clock_setTimeout(screen_anim_clock_h,
                      timeout * 100);
@@ -338,7 +336,7 @@ void set_screen_tile(uint32_t index, uint8_t sel) {
     Semaphore_post(flash_sem);
 
     if (!sel) {
-        // TODO: Set arms.
+        // Turn the arms off if we're not in selection mode.
         for (uint8_t i=0; i<4; i++) {
             arm_color(i, 0, 0, 0);
         }
@@ -656,7 +654,6 @@ void do_animation_loop_body(uint8_t csecs_sync) {
     }
 }
 
-// TODO: This needs to be mutually exclusive with the one in the task function.
 void do_animation_loop() {
     while (screen_frame_index < screen_anim->anim_len) {
         Semaphore_pend(screen_anim_sem, BIOS_WAIT_FOREVER);
@@ -702,8 +699,7 @@ void screen_anim_task_fn(UArg a0, UArg a1) {
 
         if (Semaphore_pend(club_sem, BIOS_NO_WAIT)) {
             // time for the club tile
-            // TODO: Unlock tile
-            my_conf.current_tile = 1; // TODO!!!
+            my_conf.current_tile = TILE_RAINBOWBOOM;
             if (ui_screen != UI_SCREEN_SLEEPING && !serial_in_progress()) {
                 ui_update(UI_SCREEN_TILE);
             }
@@ -711,8 +707,7 @@ void screen_anim_task_fn(UArg a0, UArg a1) {
 
         if (Semaphore_pend(pool_sem, BIOS_NO_WAIT)) {
             // time for the pool tile
-            // TODO: Unlock tile
-            my_conf.current_tile = 2; // TODO!!!
+            my_conf.current_tile = TILE_HEARTONBLACK;
             if (ui_screen != UI_SCREEN_SLEEPING && !serial_in_progress()) {
                 ui_update(UI_SCREEN_TILE);
             }
@@ -770,7 +765,6 @@ void screen_anim_task_fn(UArg a0, UArg a1) {
                 }
             } else if (ui_screen == UI_SCREEN_TILE) {
                 // The tiles kinda look best with blank arms...
-                // TODO:
                 //  animate them when we're plugged in.
             }
             Clock_start(arm_anim_clock_h);
@@ -841,7 +835,7 @@ void screen_init() {
     screen_anim_clock_h = Clock_create(screen_anim_tick_swi, 100, &clockParams, NULL); // Wait 100 ticks (1ms) before firing for the first time.
 
     Clock_Params_init(&clockParams);
-    clockParams.period = 0; // TODO
+    clockParams.period = 0;
     clockParams.startFlag = FALSE;
     arm_anim_clock_h = Clock_create(arm_anim_tick_swi, ARM_ANIM_PERIOD, &clockParams, NULL);
 
