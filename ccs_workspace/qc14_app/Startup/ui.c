@@ -355,12 +355,12 @@ void set_screen_tile(uint32_t index, uint8_t sel) {
 }
 
 void switch_to_tile(uint8_t index, uint8_t unlock) {
-    if (index > TILE_COUNT || index == my_conf.current_tile)
+    if (index > TILE_COUNT)
         return;
 
     my_conf.current_tile = index;
 
-    if (unlock && tile_available(index)) {
+    if (unlock && !tile_available(index)) {
         // This is a new unlock of a tile.
         unlock_tile(index);
     }
