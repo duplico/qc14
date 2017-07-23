@@ -73,6 +73,6 @@ typedef struct {
 typedef struct {
     uint8_t update_handle;
     char new_handle[9];
-} serial_conf_msg; // INBOUND FROM CONSOLE
+} serial_conf_msg_t; // INBOUND FROM CONSOLE
 
 #endif /* STARTUP_SERIAL_H_ */

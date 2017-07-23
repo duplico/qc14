@@ -771,8 +771,15 @@ void rx_done(UArg uart_id) {
                 }
 
             }
+        } else if (arm_rx_buf.msg_type == SERIAL_MSG_TYPE_CONF) {
+            if (((serial_conf_msg_t*) &arm_rx_buf.payload)->update_handle) {
+                memcpy(my_conf.handle,
+                       ((serial_conf_msg_t*) &arm_rx_buf.payload)->new_handle,
+                       8);
+                my_conf.handle[9] = 0;
+                Semaphore_post(save_sem);
+            }
         }
-        // Process more interesting messages here.
         break;
     }
     arm_disp(uart_id);
