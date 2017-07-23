@@ -665,14 +665,9 @@ void rx_done(UArg uart_id) {
         }
         break;
     case ICONTILE_STATE_OPEN_WAIT:
-        if (arm_rx_buf.msg_type == SERIAL_MSG_TYPE_HANDSHAKE) {
-            send_serial_handshake(uart_id, 2);
-            break;
-        }
-        // If it's not a handshake, fall through. The other side may be
-        //  all the way open.
+        // Fall through:
     case ICONTILE_STATE_OPEN:
-        if (arm_rx_buf.msg_type == SERIAL_MSG_TYPE_HANDSHAKE) {
+        if (arm_rx_buf.msg_type == SERIAL_MSG_TYPE_HANDSHAKE && ((serial_handshake_t*) &arm_rx_buf.payload)->ack < 2) {
             send_serial_handshake(uart_id, 2);
             break;
         }
@@ -803,6 +798,12 @@ void serial_arm_task(UArg uart_id, UArg arg1) {
                 // Clean up, we're going inactive on this line:
                 UART_readCancel(uart_h);
                 UART_close(uart_h);
+
+                if (ui_screen == UI_SCREEN_GAME && game_arm_status[uart_id].connected)
+                    outer_arm_color_rgb(uart_id, game_curr_icon.arms[uart_id].arm_color);
+                else if (ui_screen == UI_SCREEN_TILE && tile_arm_status[uart_id].connected)
+                    outer_arm_color(uart_id, 5, 5, 5);
+
                 arm_gpio_pin_handle = PIN_open(&arm_gpio_pin_state,
                                                arm_gpio_init_table);
                 Semaphore_post(uart_mutex);
