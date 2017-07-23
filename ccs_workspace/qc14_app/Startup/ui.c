@@ -365,8 +365,9 @@ void switch_to_tile(uint8_t index, uint8_t unlock) {
         unlock_tile(index);
     }
 
-    if ((ui_screen == UI_SCREEN_TILE || ui_screen == UI_SCREEN_TILE_SEL ||
-            ui_screen == UI_SCREEN_GAME || ui_screen == UI_SCREEN_GAME_SEL)) {
+    if (ui_screen == UI_SCREEN_TILE || ui_screen == UI_SCREEN_TILE_SEL ||
+            ((ui_screen == UI_SCREEN_GAME || ui_screen == UI_SCREEN_GAME_SEL)
+                    && !serial_in_progress())) {
         ui_update(UI_SCREEN_TILE);
     }
 }
@@ -723,18 +724,13 @@ void screen_anim_task_fn(UArg a0, UArg a1) {
 
         if (Semaphore_pend(club_sem, BIOS_NO_WAIT)) {
             // time for the club tile
-            my_conf.current_tile = TILE_RAINBOWBOOM;
-            if (ui_screen != UI_SCREEN_SLEEPING && !serial_in_progress()) {
-                ui_update(UI_SCREEN_TILE);
-            }
+            switch_to_tile(TILE_HEARTONBLACK, 1);
         }
 
         if (Semaphore_pend(pool_sem, BIOS_NO_WAIT)) {
             // time for the pool tile
+            switch_to_tile(TILE_RAINBOWBOOM, 1);
             my_conf.current_tile = TILE_HEARTONBLACK;
-            if (ui_screen != UI_SCREEN_SLEEPING && !serial_in_progress()) {
-                ui_update(UI_SCREEN_TILE);
-            }
         }
 
         if (Semaphore_pend(unlock_sem, BIOS_NO_WAIT)) {
