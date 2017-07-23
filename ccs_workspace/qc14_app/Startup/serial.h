@@ -68,7 +68,7 @@ typedef struct {
 
 typedef struct {
     uint8_t fully_connected;
-} serial_tile_msg; // Tile topology/info
+} serial_tile_msg_t; // Tile topology/info
 
 typedef struct {
     uint8_t update_handle;
