@@ -754,7 +754,7 @@ void rx_done(UArg uart_id) {
             }
 
             if (cube) {
-                // If we're a cube, it's time to become and unlock the cube heart.
+                // If we're a cube, it's time to become the cube heart.
                 switch_to_tile(TILE_CUBEHEART, 0);
             }
 

@@ -54,7 +54,7 @@ uint32_t tile_offsets[TILE_COUNT] = {
                          146, // bi
                          103-32, // trans // len is 103 (0 to 102)
                          33, // bear
-                         140, // leather (was 148)
+                         144, // leather (was 148)
                          0, // cubeheart
                          8, // rainbowboom (18 to sync)
                          3 // heartonblack
