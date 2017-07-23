@@ -54,21 +54,21 @@ uint32_t tile_offsets[TILE_COUNT] = {
                          41, // bi
                          32, // trans
                          33, // bear
-                         138, // leather (was 148)
+                         140, // leather (was 148)
                          0, // cubeheart
-                         18, // rainbowboom
+                         6, // rainbowboom (18 to sync)
                          3 // heartonblack
 };
 
 int8_t tile_frame_periods[TILE_COUNT][4] = {
-                                  {0,1,0,-1},
-                                  {1,1,1,1},
-                                  {0,1,0,-1},
-                                  {1,1,1,1},
-                                  {-1,-1,1,1},
-                                  {0,0,0,0},
-                                  {1,1,1,1},
-                                  {-1,1,-1,1}
+                                  {0,1,0,-1}, // rainbow
+                                  {1,1,1,1}, // bi
+                                  {0,1,0,-1}, // trans
+                                  {1,2,3,4}, // bear
+                                  {-1,-1,1,1}, // leather
+                                  {0,0,0,0}, // cubeheart
+                                  {1,1,1,1}, // rainbowboom
+                                  {-1,1,-1,1} // heartonblack
 };
 
 unsigned short crc16(volatile unsigned char *sbuf,unsigned char len) {
