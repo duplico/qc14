@@ -141,6 +141,22 @@ inline void send_serial_handshake(UArg uart_id, uint8_t ack) {
     arm_nts = SERIAL_MSG_TYPE_HANDSHAKE;
 }
 
+inline void send_serial_tile_msg(UArg uart_id) {
+}
+
+inline void send_serial_game_msg(UArg uart_id) {
+    arm_tx_buf.msg_type = SERIAL_MSG_TYPE_GAME;
+    uint8_t* payload_buf = arm_tx_buf.payload;
+    serial_game_msg_t* payload = (serial_game_msg_t*) payload_buf;
+
+    payload->conn_msg = 1;
+    payload->conn_result = game_curr_icon.arms[uart_id].result_icon_id;
+
+    game_arm_status[uart_id].nts_done = 1;
+
+    arm_nts = SERIAL_MSG_TYPE_GAME;
+}
+
 uint8_t rx_valid(UArg uart_id) {
     if (arm_rx_buf.badge_id > BADGES_IN_SYSTEM)
         return 0;
@@ -342,13 +358,17 @@ void disconnected(UArg uart_id) {
         game_arm_status[uart_id].icon_id = 255;
         game_arm_status[uart_id].sufficiency_info = 0;
         if (serial_in_progress()) {
-            // Are any other arms connected?
-            // Are there special cases here?
+            // If we're expecting someone to plug in here, go ahead and make
+            //  it connectable again:
 
-            // What if we plugged in a color tile to a 3-way badge setup here,
-            //  and we were expecting someone to plug in here, and it made
-            //  this arm unconnectable.
-
+            for (uint8_t i=0; i<4; i++) {
+                if (i == uart_id) continue;
+                if (game_arm_status[i].connected &&
+                        game_arm_status[i].sufficiency_info &&
+                        game_curr_icon.arms[i].sufficient_flag != GAME_SUFFICIENT_ALONE &&
+                        game_curr_icon.arms[i].other_arm_id == uart_id)
+                    game_arm_status[uart_id].connectable = 1;
+            }
         } else {
             // We're the last to disconnect.
             // Make everybody else connectable.
@@ -589,6 +609,12 @@ void rx_timeout(UArg uart_id) {
         rx_timeouts_to_idle = RX_TIMEOUTS_TO_IDLE;
         break;
     case ICONTILE_STATE_OPEN:
+        if (ui_screen == UI_SCREEN_GAME && game_arm_status[uart_id].nts)
+            send_serial_game_msg(uart_id);
+        else if (ui_screen == UI_SCREEN_TILE && tile_arm_status[uart_id].nts)
+            send_serial_tile_msg(uart_id);
+        break;
+    case ICONTILE_STATE_SEND_TILE_MSG:
         break;
     }
     arm_disp(uart_id);
@@ -655,6 +681,11 @@ void rx_done(UArg uart_id) {
             // This is a topology update.
         } else if (arm_rx_buf.msg_type == SERIAL_MSG_TYPE_GAME) {
             // This is telling us it's time to TRANSFORM.
+            if (((serial_game_msg_t*) &arm_rx_buf.payload)->conn_msg &&
+                    game_arm_status[uart_id].sufficiency_info == GAME_SUFFICIENT_MSG) {
+                game_arm_status[uart_id].sufficiency_info = GAME_SUFFICIENT_ALONE;
+                do_icon_transition(game_curr_icon.arms[uart_id].result_icon_id);
+            }
         }
         // Process more interesting messages here.
         break;
@@ -685,7 +716,7 @@ void serial_arm_task(UArg uart_id, UArg arg1) {
             //  can cause us to want to change that. Either we need to send
             //  or we've gotten a RTS (or disconnect) from our peer.
 
-            if (do_phy_handshake_rx(uart_id) || ((arm_fop || arm_nts) && do_phy_handshake_tx(uart_id))) {
+            if (do_phy_handshake_rx(uart_id) || ((arm_fop || arm_nts || game_arm_status[uart_id].nts) && do_phy_handshake_tx(uart_id))) {
                 // If we got here, then we know it was a signal to connect.
                 //  Or we just plugged in.
                 //  We can assert our side high by switching on our UART.
@@ -746,7 +777,6 @@ void serial_arm_task(UArg uart_id, UArg arg1) {
                     rx_timeouts_to_idle = RX_TIMEOUTS_TO_IDLE;
                 }
             } else {
-                rx_timeout(uart_id); // We didn't get a message during our timeout window. Maybe we will later.
                 rx_timeouts_to_idle--;
                 if (!rx_timeouts_to_idle) {
                     if (arm_icontile_state == ICONTILE_STATE_OPEN_WAIT2) {
@@ -754,7 +784,19 @@ void serial_arm_task(UArg uart_id, UArg arg1) {
                         connection_opened(uart_id);
                     }
 
+                    if (game_arm_status[uart_id].nts_done) {
+                        game_arm_status[uart_id].nts = 0;
+                        game_arm_status[uart_id].nts_done = 0;
+
+                        game_arm_status[uart_id].sufficiency_info = GAME_SUFFICIENT_ALONE;
+                        do_icon_transition(game_curr_icon.arms[uart_id].result_icon_id);
+
+                    }
+
                     arm_phy_state = SERIAL_PHY_STATE_PLUGGED;
+                    arm_nts = SERIAL_MSG_TYPE_NOMSG;
+                } else {
+                    rx_timeout(uart_id); // We didn't get a message during our timeout window. Maybe we will later.
                 }
             }
             if (arm_phy_state == SERIAL_PHY_STATE_PLUGGED) {
